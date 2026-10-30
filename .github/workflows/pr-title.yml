@@ -1,0 +1,25 @@
+name: PR title
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  conventional:
+    name: Conventional Commits title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the title
+        # Squash merges into dev turn the title into the commit message. Merges between dev and prod
+        # keep their commits as they are, so their titles are not checked.
+        if: github.base_ref == 'dev' && github.head_ref != 'prod'
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(feat|fix|perf|refactor|docs|test|build|ci|chore)(\([a-z0-9-]+\))?!?: [^ ].{0,71}$'
+          if [[ ! "$TITLE" =~ $pattern ]]; then
+            echo "::error::The PR title must follow Conventional Commits, e.g. 'feat(menu): add recent projects ring' (see CONTRIBUTING.md). Got: $TITLE"
+            exit 1
+          fi
