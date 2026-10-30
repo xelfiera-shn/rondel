@@ -1,0 +1,22 @@
+# Build output
+bin/
+obj/
+dist/
+artifacts/
+
+# IDE and user-specific files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.rsuser
+
+# Test and diagnostics output
+TestResults/
+*.trx
+*.binlog
+
+# Windows
+Thumbs.db
+Desktop.ini

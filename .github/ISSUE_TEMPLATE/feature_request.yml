@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest an idea or an improvement
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        English or Turkish is fine — Türkçe yazabilirsiniz.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would this solve?
+      description: The situation where Rondel falls short today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What should Rondel do?
+      description: How you imagine it working. Sketches and screenshots are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered

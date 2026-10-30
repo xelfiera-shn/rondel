@@ -1,0 +1,65 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. English or Turkish is fine — Türkçe yazabilirsiniz.
+  - type: input
+    id: version
+    attributes:
+      label: Rondel version
+      description: Shown at the bottom of the Settings window.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version and build
+      description: Run `winver` to see it.
+      placeholder: Windows 11 24H2, build 26100.2314
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where did it happen?
+      options:
+        - Empty area of the desktop
+        - Folder on the desktop
+        - Empty area of a folder in File Explorer
+        - Folder item in File Explorer
+        - Keyboard shortcut
+        - Settings window or tray icon
+        - Somewhere else
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: The steps you took, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Debug log
+      description: |
+        Settings → turn on **Debug logging**, reproduce the problem, then tray icon → **Open log folder** and paste the relevant lines.
+        Remove any paths you do not want to share.
+      render: text
+  - type: textarea
+    id: probe
+    attributes:
+      label: Probe output
+      description: |
+        If the menu does not open or uses the wrong folder: run `Rondel.exe --probe X Y result.txt` with the screen coordinates of the spot and paste `result.txt`.
+      render: text
+  - type: textarea
+    id: environment
+    attributes:
+      label: Anything else
+      description: Screenshots, terminal (Windows Terminal or console), PowerShell version, agent command or alias, monitor and scaling setup…
