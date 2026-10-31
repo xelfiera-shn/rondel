@@ -22,7 +22,7 @@ src/Rondel.Core/
   Context/        TriggerContext, ContextKind
   Flow/           MenuFlow, MenuDetails, InputSpec
   Menus/          ActionDefinition, MenuBuilder, MenuModel
-  Launch/         LaunchPlan, LaunchPlanner, CommandLine, PowerShellScript, FolderNameRules
+  Launch/         LaunchPlan, LaunchPlanner, CommandLine, PowerShellScript, FolderNameRules, PosixShellScript, MacFolderNameRules
   Sessions/       ISessionStore, SessionStores, SessionHints, RelativeTime
   Settings/       AppSettings (schema and migrations), SettingsJson, SettingsStore
   Themes/         MenuTheme, BuiltInThemes, AppearanceOptions
@@ -51,7 +51,7 @@ Each platform app owns the trigger, context detection and the menu window; every
 | `IFolderNameValidator` | The file system's rules for a new folder name | `FolderNameValidator` (`FolderNameRules`, long paths, write permission) |
 | `IAutostart` | Starting with the user's session | `Autostart` (Run key) |
 
-Some core parts carry Windows rules because they are pure and worth testing in the core: `FolderNameRules` (Windows naming rules) and `PowerShellScript` (the Windows launch script). The `Terminal` and `Shell` settings list Windows choices. Another platform adds its own counterparts next to them.
+Some core parts carry one platform's rules because they are pure and worth testing in the core: `FolderNameRules` and `PowerShellScript` for Windows, `MacFolderNameRules` and `PosixShellScript` for macOS. The `Terminal` setting has values for both platforms (`WindowsTerminal`, `Console`; `TerminalApp`, `ITerm`), and each platform treats the other's as `Auto`; the `Shell` setting lists Windows choices.
 
 ## Threads (Windows)
 
@@ -169,7 +169,7 @@ Geometry (radii, arcs, where labels go) is the same for every theme, so a theme 
 
 ## Launching
 
-The core turns an action into a `LaunchPlan`: the folder, the agent command, the literal argument list and the window title. The Windows project executes the plan as a single PowerShell script in Windows Terminal (or a console window when Windows Terminal is missing). The escaping rules are described in [windows-notes.md](windows-notes.md#launching).
+The core turns an action into a `LaunchPlan`: the folder, the agent command, the literal argument list and the window title. The Windows project executes the plan as a single PowerShell script in Windows Terminal (or a console window when Windows Terminal is missing); the escaping rules are described in [windows-notes.md](windows-notes.md#launching). On macOS, `PosixShellScript` turns the plan into a `.command` file for Terminal.app or iTerm2 (see [macos.md](macos.md#launching-in-a-terminal)).
 
 ## Localization
 
