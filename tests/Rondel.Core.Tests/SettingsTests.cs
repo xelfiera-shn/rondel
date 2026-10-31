@@ -51,6 +51,15 @@ public class SettingsTests
     }
 
     [Fact]
+    public void ProjectsRootExpandsTheHomeFolder()
+    {
+        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        Assert.Equal(Path.Combine(home, "Code"), new AppSettings { ProjectsRoot = "~/Code" }.ResolveProjectsRoot());
+        Assert.Equal(Path.Combine(home, "Projects"), new AppSettings().ResolveProjectsRoot());
+    }
+
+    [Fact]
     public void SessionsAreOfferedOnlyWhenThereIsAChoice()
     {
         var settings = new AppSettings();

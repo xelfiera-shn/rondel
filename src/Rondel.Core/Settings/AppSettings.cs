@@ -19,7 +19,9 @@ public sealed class AppSettings
 {
     public const int MinHoldMs = 150;
     public const int MaxHoldMs = 2000;
-    public const string DefaultProjectsRoot = @"%USERPROFILE%\Projects";
+
+    /// <summary>%USERPROFILE%\Projects on Windows, ~/Projects elsewhere.</summary>
+    public static string DefaultProjectsRoot { get; } = OperatingSystem.IsWindows() ? @"%USERPROFILE%\Projects" : "~/Projects";
 
     /// <summary>
     /// Bumped whenever a default changes, so <see cref="Normalize"/> can migrate saved files.
@@ -33,7 +35,7 @@ public sealed class AppSettings
     /// <summary>"auto", "en" or "tr".</summary>
     public string Language { get; set; } = "auto";
 
-    /// <summary>Target of the desktop actions. Environment variables are expanded.</summary>
+    /// <summary>Target of the desktop actions. Environment variables (%NAME%) and a leading ~ are expanded.</summary>
     public string ProjectsRoot { get; set; } = DefaultProjectsRoot;
 
     public int HoldMs { get; set; } = 300;
@@ -66,9 +68,12 @@ public sealed class AppSettings
     public string ResolveProjectsRoot()
     {
         string raw = string.IsNullOrWhiteSpace(ProjectsRoot) ? DefaultProjectsRoot : ProjectsRoot.Trim();
+        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (raw == "~" || raw.StartsWith("~/", StringComparison.Ordinal) || raw.StartsWith("~" + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            raw = home + raw[1..];
         string expanded = Environment.ExpandEnvironmentVariables(raw);
         if (!Path.IsPathRooted(expanded))
-            expanded = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), expanded);
+            expanded = Path.Combine(home, expanded);
         try
         {
             return Path.TrimEndingDirectorySeparator(Path.GetFullPath(expanded));

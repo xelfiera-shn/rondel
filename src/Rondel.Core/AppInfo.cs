@@ -8,11 +8,21 @@ public static class AppInfo
     public static string Version { get; } =
         typeof(AppInfo).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
-    /// <summary>%APPDATA%\Rondel on Windows (settings).</summary>
-    public static string RoamingDirectory { get; } =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), Name);
+    /// <summary>
+    /// Folder of settings.json: %APPDATA%\Rondel on Windows, ~/Library/Application Support/Rondel on macOS,
+    /// ~/.config/Rondel on Linux.
+    /// </summary>
+    public static string SettingsDirectory { get; } = OperatingSystem.IsMacOS()
+        ? Path.Combine(Home, "Library", "Application Support", Name)
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), Name);
 
-    /// <summary>%LOCALAPPDATA%\Rondel on Windows (logs).</summary>
-    public static string LocalDirectory { get; } =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Name);
+    /// <summary>
+    /// Log folder: %LOCALAPPDATA%\Rondel\logs on Windows, ~/Library/Logs/Rondel on macOS,
+    /// ~/.local/share/Rondel/logs on Linux.
+    /// </summary>
+    public static string LogDirectory { get; } = OperatingSystem.IsMacOS()
+        ? Path.Combine(Home, "Library", "Logs", Name)
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Name, "logs");
+
+    static string Home => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 }
