@@ -89,7 +89,7 @@ The core already turns an action into a `LaunchPlan`; the Mac launcher runs it.
 | Automation (Finder) | Only for the Apple Events fallback in detection | At first start or from Settings, never during a gesture |
 | Automation (iTerm2) | Only if iTerm2 cannot run the `.command` file directly | The first launch in iTerm2 |
 
-- **Permission and signature:** macOS ties a granted permission to the app's bundle identifier (`io.github.xelfiera-shn.rondel`, fixed from the first build on) and its code signature. An ad-hoc signed build gets a new signature with every build, so users would have to grant Accessibility again after every update. Every build is therefore signed with a fixed self-signed certificate, which costs nothing: release builds with one certificate kept in the repository secrets (the macOS release job fails without it), development builds with each developer's own local certificate. **Open:** the spike confirms that a permission granted to one build survives an update signed with the same certificate.
+- **Permission and signature:** macOS ties a granted permission to the app's bundle identifier (`app.rondel`, fixed from the first build on) and its code signature. An ad-hoc signed build gets a new signature with every build, so users would have to grant Accessibility again after every update. Every build is therefore signed with a fixed self-signed certificate, which costs nothing: release builds with one certificate kept in the repository secrets (the macOS release job fails without it), development builds with each developer's own local certificate. **Open:** the spike confirms that a permission granted to one build survives an update signed with the same certificate.
 - **Not notarized:** releases are signed but not notarized, so macOS blocks the first start of a downloaded copy, and again after downloading an update; the user allows it in System Settings → Privacy & Security → Open Anyway. The README explains this the way it explains SmartScreen.
 - **No App Sandbox:** the sandbox does not allow a global event tap or starting other apps' shells, so Rondel is not a Mac App Store app. It ships as a zipped `.app` on the GitHub release.
 - **Release:** `release.yml` gains a macOS job that builds `osx-arm64` and `osx-x64`, signs them with the certificate from the repository secrets, and adds the zipped apps to the same release as the Windows executables, to `SHA256SUMS.txt` and to the build provenance attestations.
@@ -113,7 +113,7 @@ Each step is its own pull request into `dev`:
 
 ## Decisions
 
-- **Bundle identifier:** `io.github.xelfiera-shn.rondel`. It never changes: macOS keeps permissions and preferences under it, and a new one would make everyone grant them again.
+- **Bundle identifier:** `app.rondel`. It never changes: macOS keeps permissions and preferences under it, and a new one would make everyone grant them again.
 - **Oldest macOS:** 15, the oldest version .NET 10 supports; Apple Silicon and Intel. `SMAppService` (macOS 13) is available on all of them.
 - **Modifier:** Option is fixed in the first version, as Ctrl is on Windows. If people ask for a different one, the modifier becomes a setting on both platforms together.
 - **Distribution:** signed with the fixed certificate, not notarized (see [Permissions and signing](#permissions-and-signing)); macOS builds ship in the same releases as Windows.
