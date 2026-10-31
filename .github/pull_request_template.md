@@ -8,6 +8,7 @@
 
 - [ ] Windows 11
 - [ ] Windows 10
+- [ ] macOS (version: )
 
 ## Checklist
 

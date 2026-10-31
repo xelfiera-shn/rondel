@@ -57,7 +57,7 @@ Every push to `dev` also produces a test build: the CI run's **Rondel-dev.N-win-
 
 ## Building and checking
 
-Requirements: the .NET 10 SDK. The Windows app runs on Windows 10 or 11; the whole solution, including the Windows project, also builds on macOS and Linux, and the core tests run there.
+Requirements: the .NET 10 SDK. The Windows app runs on Windows 10 or 11; the macOS app, in progress (see [docs/macos.md](docs/macos.md)), on macOS 15 and later. The whole solution, including the Windows project, also builds on macOS and Linux, and the core tests run there.
 
 ```powershell
 dotnet build                                   # must finish with zero warnings
@@ -71,13 +71,13 @@ CI builds and tests on Windows and on macOS; both must pass.
 ## Rules for changes
 
 - **Every user-visible text in English and Turkish.** No UI text is hard-coded; both string tables are updated together.
-- **Windows 10 and 11.** Both must keep working; say in the pull request which one you tested on.
+- **Supported systems:** Windows 10 and 11, and macOS 15 and later for the macOS app. A change must keep working on every system it touches; say in the pull request which ones you tested on.
 - **Nothing machine-specific** in code, tests or docs: no personal paths, user names or local settings.
 - **The core stays platform-neutral.** No OS-specific APIs in `Rondel.Core`; what differs per OS goes behind an interface in `Core/Platform` and is implemented in the platform project. Core tests build paths with `Path.Combine` from real roots (such as the temp folder), never from literals like `C:\work`.
 - **Ordinal or invariant comparisons** for identifiers, paths and keys (the Turkish dotless/dotted i breaks culture-sensitive comparisons).
-- **Context detection decides only on non-localized identifiers** (window classes, control types), never on displayed text.
+- **Context detection decides only on non-localized identifiers** (window classes and control types on Windows, `AXRole`/`AXSubrole` on macOS), never on displayed text.
 - **Changing a settings default needs a schema migration.** People already have a saved `settings.json`; the migration updates it only where the old default is still in place.
-- **Keep the mouse hook callback cheap.** No I/O, COM calls or heavy work on the hook thread; everything else happens on the detection or UI thread.
+- **Keep the mouse hook callback cheap** (the event tap callback on macOS). No I/O, COM or Accessibility calls or other heavy work there; everything else happens on the detection or UI thread.
 - **Tests stay light.** Core logic that can break silently (path encoding, folder-name rules, argument escaping, settings migration) gets a unit test. UI and Win32 behavior is checked by hand.
 
 ## Reporting a bug
