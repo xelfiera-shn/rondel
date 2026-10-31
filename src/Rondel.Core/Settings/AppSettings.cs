@@ -4,6 +4,7 @@ using Rondel.Core.Agents;
 using Rondel.Core.Context;
 using Rondel.Core.Menus;
 using Rondel.Core.Sessions;
+using Rondel.Core.Themes;
 
 namespace Rondel.Core.Settings;
 
@@ -55,6 +56,9 @@ public sealed class AppSettings
     public string DefaultAgent { get; set; } = BuiltInAgents.ClaudeCodeId;
 
     public List<AgentProfile> Agents { get; set; } = BuiltInAgents.Create();
+
+    /// <summary>The menu's theme, dark or light mode, and accent colors.</summary>
+    public AppearanceOptions Appearance { get; set; } = new();
 
     /// <summary>How the New Project card starts: the choice made last time.</summary>
     public NewProjectOptions NewProject { get; set; } = new();
@@ -113,6 +117,8 @@ public sealed class AppSettings
         Hotkey = Hotkey?.Trim() ?? "";
         NewProject ??= new();
         NewProjectCard ??= new();
+        Appearance ??= new();
+        Appearance.Normalize();
         NewProject.Templates = (NewProject.Templates ?? []).Where(t => !string.IsNullOrWhiteSpace(t))
             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 

@@ -76,9 +76,8 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         _tray.HotkeyPressed += OnHotkey;
         _tray.ThemeChanged += () =>
         {
-            var theme = SystemTheme.Read();
-            _menu.UpdateTheme(theme);
-            _settingsWindow?.ApplyBrand(theme);
+            ApplyLook(Store.Current, force: true);
+            _settingsWindow?.ApplyBrand(SystemTheme.Read());
         };
         _tray.Show(Store.Current.Paused, TrayTooltip(Store.Current));
 
@@ -113,9 +112,23 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         }
     }
 
+    string? _look;
+
+    /// <summary>The menu's theme, mode and accent; redrawn only when one of them changed (or Windows switched modes).</summary>
+    void ApplyLook(AppSettings settings, bool force = false)
+    {
+        var appearance = settings.Appearance;
+        string look = $"{appearance.Theme}|{appearance.Mode}|{appearance.AccentFrom}|{appearance.AccentTo}";
+        if (!force && look == _look)
+            return;
+        _look = look;
+        _menu.ApplyLook(RondelPalette.For(appearance, SystemTheme.Read()));
+    }
+
     void ApplySettings(AppSettings settings)
     {
         Log.DebugEnabled = settings.DebugLogging;
+        ApplyLook(settings);
         Loc.SetLanguage(settings.Language);
         _hook.Configure(settings.HoldMs, settings.Paused);
         _tray.Update(settings.Paused, TrayTooltip(settings));

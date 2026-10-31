@@ -57,7 +57,13 @@ Kurulum programı yoktur, yönetici izni gerekmez. Windows 10 ve 11 desteklenir.
 
 ## Ayarlar ve özelleştirme
 
-Tray ikonu → **Ayarlar…**: dil (Otomatik / English / Türkçe), proje klasörü, basılı tutma süresi, klavye kısayolu, ajanın komutu (`claude` ya da `cc` gibi bir alias), terminal (Windows Terminal veya konsol penceresi), kabuk (PowerShell 7 veya Windows PowerShell), Yeni Proje kartındaki seçenekler ve şablon klasörü.
+Tray ikonu → **Ayarlar…**: dil (Otomatik / English / Türkçe), menünün görünümü, proje klasörü, basılı tutma süresi, klavye kısayolu, ajanın komutu (`claude` ya da `cc` gibi bir alias), terminal (Windows Terminal veya konsol penceresi), kabuk (PowerShell 7 veya Windows PowerShell), Yeni Proje kartındaki seçenekler ve şablon klasörü.
+
+**Görünüm**: beş tema — Rondel, İnce Halka, Vurgu, Yörünge ve Yaprak — her biri koyu ve açık; menünün resimlerinden seçilir. Koyu ya da açık mod Windows'u izleyebilir ya da sabit kalabilir; vurgu rengi temanın kendi rengi, hazır bir çift ya da kendi `#RRGGBB` renkleriniz olabilir. Değişiklikler menüye hemen yansır.
+
+<p align="center">
+  <img src="docs/images/themes-tr.png" width="720" alt="Aynı klasör menüsü beş temada: Rondel, İnce Halka, Vurgu, Yörünge ve Yaprak">
+</p>
 
 Menüler, aksiyonlar ve ajanlar `%APPDATA%\Rondel\settings.json` içindedir; dosya kaydedilince değişiklik hemen uygulanır. Örneğin Claude Code'u plan modunda açan bir dilim eklemek için bir aksiyon ekleyip kimliğini bir menüye yazın:
 

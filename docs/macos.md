@@ -43,6 +43,8 @@ The spike is a throwaway window, not merged, and reports back here:
 
 If any of these fails, the fallback is AppKit through .NET for macOS (`net10.0-macos`): the core stays shared, only the window and its drawing are written natively. Windows stays on WPF either way. `net10.0-macos` needs the macOS workload, which does not build on Windows, so the solution and CI would then build that project on macOS only; Avalonia on `net10.0` builds everywhere.
 
+**Themes:** the menu's themes are data in the core (`Rondel.Core.Themes`): tile shape, highlight, decoration and a palette per mode. The Mac menu draws the same themes from them, with the same geometry.
+
 **Icons:** actions name Segoe Fluent Icons code points, a font that is not on macOS. The Mac app maps the built-in code points to its own vector icons (for example Fluent UI System Icons, MIT); an unknown code point gets the default icon.
 
 ## Folder detection in Finder

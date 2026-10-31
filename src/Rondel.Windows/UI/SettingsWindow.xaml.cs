@@ -40,6 +40,8 @@ public partial class SettingsWindow : Window
         {
             Loc.Changed -= LoadValues;
             CommitHold();
+            _previews?.Dispose();
+            _previews = null;
         };
         Activated += (_, _) => RefreshAutostart();
         LoadValues();
@@ -124,6 +126,7 @@ public partial class SettingsWindow : Window
             CardPlanBox.IsChecked = s.NewProjectCard.Plan;
             CardTemplatesBox.IsChecked = s.NewProjectCard.Templates;
             AutostartBox.IsChecked = _host.Autostart.IsEnabled;
+            LoadAppearance(s);
             VersionText.Text = Loc.Format("Settings.Version", AppInfo.Version);
         }
         finally
@@ -261,6 +264,8 @@ public partial class SettingsWindow : Window
             return;
         if (sender == RootBox)
             CommitRoot();
+        else if (sender == AccentFromBox || sender == AccentToBox)
+            CommitCustomAccent();
         else
             OnCommandCommitted(sender, e);
         e.Handled = true;

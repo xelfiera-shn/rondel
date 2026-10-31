@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using Microsoft.Win32;
+using Rondel.Core.Themes;
 
 namespace Rondel.Windows.UI;
 
@@ -25,28 +26,35 @@ internal static class SystemTheme
 }
 
 /// <summary>
-/// Rondel's own colors, independent of the Windows accent. Ink surfaces carry the content; the brand
-/// pair (teal → violet) marks whatever is active: the lit rim of the hovered slice, the hub ring and
-/// the arrow of a slice that expands.
+/// A menu theme turned into brushes for one mode (see <see cref="MenuTheme"/>). The accent pair marks whatever is
+/// active: the lit edge of the hovered tile, the hub ring and the arrow of a tile that expands.
 /// </summary>
 internal sealed class RondelPalette
 {
+    public required MenuTheme Theme { get; init; }
     public required Color BrandFrom { get; init; }
     public required Color BrandTo { get; init; }
     public required Brush RingFill { get; init; }
     public required Brush RingStroke { get; init; }
     public required Brush TileFill { get; init; }
     public required Brush TileStroke { get; init; }
+    public required Brush HotFill { get; init; }
     public required Brush RimIdle { get; init; }
     public required Color WashInner { get; init; }
     public required Color WashOuter { get; init; }
     public required Brush Text { get; init; }
     public required Brush SubText { get; init; }
     public required Brush HubFill { get; init; }
+    public required Brush HubStroke { get; init; }
     public required Brush Card { get; init; }
     public required Brush InputBackground { get; init; }
     public required Brush Error { get; init; }
     public required double ShadowOpacity { get; init; }
+
+    /// <summary>Text on an accent-filled tile.</summary>
+    public static Brush OnAccent { get; } = Freeze(new SolidColorBrush(Colors.White));
+
+    public static Brush OnAccentSoft { get; } = Freeze(new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)));
 
     public Brush Accent => Freeze(new SolidColorBrush(BrandFrom));
 
@@ -56,7 +64,7 @@ internal sealed class RondelPalette
     /// <summary>Nearly transparent fill: invisible, but makes an area receive the mouse in the layered window.</summary>
     public static Brush Catcher { get; } = Freeze(new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)));
 
-    /// <summary>Soft brand-colored glow around lit elements.</summary>
+    /// <summary>Soft accent-colored glow around lit elements.</summary>
     public Effect Glow => Freeze(new DropShadowEffect { Color = BrandFrom, BlurRadius = 14, ShadowDepth = 0, Opacity = 0.9 });
 
     /// <summary>Brand gradient between two points in canvas coordinates (e.g. along a slice's rim).</summary>
@@ -67,47 +75,63 @@ internal sealed class RondelPalette
     public Brush WashBetween(Point inner, Point outer) =>
         Freeze(new LinearGradientBrush(WashInner, WashOuter, inner, outer) { MappingMode = BrushMappingMode.Absolute });
 
-    public static RondelPalette For(ThemeColors theme) => theme.IsDark
-        ? new RondelPalette
-        {
-            BrandFrom = Color.FromRgb(0x2D, 0xD4, 0xBF),
-            BrandTo = Color.FromRgb(0xA7, 0x8B, 0xFA),
-            RingFill = Solid(0xF0, 0x10, 0x12, 0x19),
-            RingStroke = Solid(0x1A, 0xFF, 0xFF, 0xFF),
-            TileFill = Solid(0xFF, 0x18, 0x1B, 0x26),
-            TileStroke = Solid(0x10, 0xFF, 0xFF, 0xFF),
-            RimIdle = Solid(0x16, 0xFF, 0xFF, 0xFF),
-            WashInner = Color.FromArgb(0x00, 0x2D, 0xD4, 0xBF),
-            WashOuter = Color.FromArgb(0x40, 0x2D, 0xD4, 0xBF),
-            Text = Solid(0xFF, 0xEE, 0xF0, 0xF7),
-            SubText = Solid(0xFF, 0x8B, 0x93, 0xA7),
-            HubFill = Solid(0xFF, 0x1D, 0x21, 0x30),
-            Card = Solid(0xFF, 0x16, 0x19, 0x22),
-            InputBackground = Solid(0xFF, 0x0F, 0x11, 0x18),
-            Error = Solid(0xFF, 0xFF, 0x8A, 0x9B),
-            ShadowOpacity = 0.55,
-        }
-        : new RondelPalette
-        {
-            BrandFrom = Color.FromRgb(0x0D, 0x94, 0x88),
-            BrandTo = Color.FromRgb(0x7C, 0x3A, 0xED),
-            RingFill = Solid(0xF5, 0xEC, 0xEE, 0xF5),
-            RingStroke = Solid(0x14, 0x00, 0x00, 0x00),
-            TileFill = Solid(0xFF, 0xFF, 0xFF, 0xFF),
-            TileStroke = Solid(0x12, 0x0B, 0x10, 0x20),
-            RimIdle = Solid(0x14, 0x0B, 0x10, 0x20),
-            WashInner = Color.FromArgb(0x00, 0x0D, 0x94, 0x88),
-            WashOuter = Color.FromArgb(0x2E, 0x0D, 0x94, 0x88),
-            Text = Solid(0xFF, 0x16, 0x1A, 0x26),
-            SubText = Solid(0xFF, 0x6A, 0x71, 0x84),
-            HubFill = Solid(0xFF, 0xFF, 0xFF, 0xFF),
-            Card = Solid(0xFF, 0xFF, 0xFF, 0xFF),
-            InputBackground = Solid(0xFF, 0xF4, 0xF5, 0xF9),
-            Error = Solid(0xFF, 0xC4, 0x31, 0x4B),
-            ShadowOpacity = 0.25,
-        };
+    /// <summary>The accent gradient from the inner to the outer edge of a tile, at the wash's strength (a filled highlight).</summary>
+    public Brush AccentFillBetween(Point inner, Point outer) =>
+        Freeze(new LinearGradientBrush(WithAlpha(BrandFrom, WashOuter.A), WithAlpha(BrandTo, WashOuter.A), inner, outer) { MappingMode = BrushMappingMode.Absolute });
 
-    static Brush Solid(byte a, byte r, byte g, byte b) => Freeze(new SolidColorBrush(Color.FromArgb(a, r, g, b)));
+    /// <summary>A soft accent glow around a point, fading out at <paramref name="radius"/>.</summary>
+    public Brush GlowAround(Point center, double radius, double strength) =>
+        Freeze(new RadialGradientBrush(WithAlpha(BrandFrom, (byte)(WashOuter.A * strength)), WithAlpha(BrandFrom, 0))
+        {
+            MappingMode = BrushMappingMode.Absolute,
+            Center = center,
+            GradientOrigin = center,
+            RadiusX = radius,
+            RadiusY = radius,
+        });
+
+    /// <summary>Rondel's own theme in the Windows app mode (the settings window's brand).</summary>
+    public static RondelPalette For(ThemeColors theme) => For(BuiltInThemes.Rondel, BuiltInThemes.Rondel.For(theme.IsDark));
+
+    /// <summary>The menu's palette for the settings' appearance and the Windows app mode.</summary>
+    public static RondelPalette For(AppearanceOptions appearance, ThemeColors system) =>
+        For(appearance.ResolveTheme(), appearance.ResolvePalette(system.IsDark));
+
+    public static RondelPalette For(MenuTheme theme, ThemePalette p)
+    {
+        Color brandFrom = ToColor(p.AccentFrom), brandTo = ToColor(p.AccentTo);
+        Brush tileFill = p.TileFillEnd is { } end
+            ? Freeze(new LinearGradientBrush(ToColor(p.TileFill), ToColor(end), new Point(0, 0), new Point(0, 1)))
+            : Solid(p.TileFill);
+        return new RondelPalette
+        {
+            Theme = theme,
+            BrandFrom = brandFrom,
+            BrandTo = brandTo,
+            RingFill = Solid(p.RingFill),
+            RingStroke = Solid(p.RingStroke),
+            TileFill = tileFill,
+            TileStroke = Solid(p.TileStroke),
+            HotFill = p.HotFill == 0 ? tileFill : Solid(p.HotFill),
+            RimIdle = Solid(p.RimIdle),
+            WashInner = WithAlpha(brandFrom, 0),
+            WashOuter = WithAlpha(brandFrom, p.WashAlpha),
+            Text = Solid(p.Text),
+            SubText = Solid(p.SubText),
+            HubFill = Solid(p.HubFill),
+            HubStroke = p.HubStroke is { } hub ? Solid(hub) : Freeze(new LinearGradientBrush(brandFrom, brandTo, new Point(0, 0), new Point(1, 1))),
+            Card = Solid(p.Card),
+            InputBackground = Solid(p.InputBackground),
+            Error = Solid(p.Error),
+            ShadowOpacity = p.ShadowOpacity,
+        };
+    }
+
+    static Color ToColor(uint argb) => Color.FromArgb((byte)(argb >> 24), (byte)(argb >> 16), (byte)(argb >> 8), (byte)argb);
+
+    static Color WithAlpha(Color color, byte alpha) => Color.FromArgb(alpha, color.R, color.G, color.B);
+
+    static Brush Solid(uint argb) => Freeze(new SolidColorBrush(ToColor(argb)));
 
     static T Freeze<T>(T freezable) where T : Freezable
     {

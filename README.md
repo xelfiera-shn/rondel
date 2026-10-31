@@ -57,7 +57,13 @@ There is no installer and Rondel needs no admin rights. Windows 10 and 11 are su
 
 ## Settings and customization
 
-Tray icon → **Settings…**: language (Automatic / English / Türkçe), projects folder, hold duration, keyboard shortcut, the agent's command (`claude`, or an alias such as `cc`), terminal (Windows Terminal or console window), shell (PowerShell 7 or Windows PowerShell), the options on the New Project card and the templates folder.
+Tray icon → **Settings…**: language (Automatic / English / Türkçe), the menu's look, projects folder, hold duration, keyboard shortcut, the agent's command (`claude`, or an alias such as `cc`), terminal (Windows Terminal or console window), shell (PowerShell 7 or Windows PowerShell), the options on the New Project card and the templates folder.
+
+**Appearance**: five themes — Rondel, Line, Spotlight, Orbit and Petal — each in dark and light, chosen from pictures of the menu; dark or light can follow Windows or stay fixed, and the accent color is the theme's own, a ready-made pair or your own `#RRGGBB` colors. Changes show in the menu at once.
+
+<p align="center">
+  <img src="docs/images/themes-en.png" width="720" alt="The same folder menu in the five themes: Rondel, Line, Spotlight, Orbit and Petal">
+</p>
 
 Menus, actions and agents live in `%APPDATA%\Rondel\settings.json` and apply as soon as the file is saved. For example, to add a slice that opens Claude Code in plan mode, add an action and put its id into a menu:
 
