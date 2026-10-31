@@ -1080,8 +1080,8 @@ public partial class RadialMenuWindow : Window
     bool IsHot(int level, int index) => level == _hoverLevel && index == _hoverIndex;
 
     /// <summary>
-    /// Selects a tile (or nothing with -1). The bands it belongs to stay open; deeper arcs close unless this
-    /// tile is the one that opened them, and the tile opens its own items if it has any. Selecting nothing
+    /// Selects a tile (or nothing with -1). The bands it belongs to stay open, and so does the arc the tile
+    /// opened itself; everything further out closes, and a tile with items opens them. Selecting nothing
     /// (the pointer left the menu, or rests in the center) keeps everything open, so the pointer can travel.
     /// </summary>
     void SetHover(int level, int index)
@@ -1096,7 +1096,11 @@ public partial class RadialMenuWindow : Window
             return;
 
         var band = _bands[level];
-        if (band.Opened != index)
+        if (band.Opened == index)
+        {
+            CloseFrom(level + 2); // back on Recent Projects: its projects stay, a project's sessions close
+        }
+        else
         {
             CloseFrom(level + 1);
             if (band.Tiles[index].Children.Count > 0 && level + 1 < _bands.Length)
