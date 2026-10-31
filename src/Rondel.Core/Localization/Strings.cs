@@ -93,10 +93,10 @@ static class Strings
         ["Validation.Exists"] = "\"{0}\" already exists here.",
         ["Validation.NoWriteAccess"] = "You don't have permission to create folders in {0}",
 
-        ["Hint.Last"] = "Last: {0}",
         ["Hint.Sessions"] = "{0} sessions",
         ["Hint.OneSession"] = "1 session",
         ["Hint.NoSessions"] = "No sessions",
+        ["Session.Untitled"] = "Untitled session",
         ["Time.JustNow"] = "just now",
         ["Time.Minutes"] = "{0} min ago",
         ["Time.Hours"] = "{0} h ago",
@@ -201,10 +201,10 @@ static class Strings
         ["Validation.Exists"] = "\"{0}\" burada zaten var.",
         ["Validation.NoWriteAccess"] = "{0} içinde klasör oluşturma izniniz yok.",
 
-        ["Hint.Last"] = "Son: {0}",
         ["Hint.Sessions"] = "{0} oturum",
         ["Hint.OneSession"] = "1 oturum",
         ["Hint.NoSessions"] = "Oturum yok",
+        ["Session.Untitled"] = "Adsız oturum",
         ["Time.JustNow"] = "az önce",
         ["Time.Minutes"] = "{0} dk önce",
         ["Time.Hours"] = "{0} sa önce",

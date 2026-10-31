@@ -66,9 +66,12 @@ Windows 11 Home's start page has no `UIItemsView`, so it does not trigger.
 
 ## Radial menu window
 
-- One per-pixel transparent WPF window (440 × 440 DIP, ring radius 164), created at startup and rendered once off-screen so the first open is instant.
-- Placement is computed in physical pixels on the cursor's monitor and clamped to its work area. `SetWindowPos` is applied again after `Show`, because WPF rescales the window when the DPI changes.
-- Labels are measured and narrowed until every corner stays inside the ring and inside its wedge; side slices may wrap to two lines. The hint line under a label is reserved in the layout, so hints arriving later do not move anything.
+- One per-pixel transparent WPF window (600 × 600 DIP stage, ring radius 168), created at startup and rendered once off-screen so the first open is instant. Rondel uses its own palette (ink surfaces, teal → violet brand gradient for whatever is active), not the Windows accent; light and dark follow the app mode.
+- Placement is computed in physical pixels on the cursor's monitor and clamped so the ring (not the whole stage) stays in the work area. `SetWindowPos` is applied again after `Show`, because WPF rescales the window when the DPI changes.
+- Fully transparent pixels of a layered window let the mouse through. Areas that must keep the pointer without being visible (the bridge between the ring and an expanded slice's items) are painted with alpha 1.
+- **Expandable slices**: a Resume slice whose agent can resume by id gets an arrow outside the ring once its recent sessions are known. Hovering it opens the sessions on an outer arc centered on the slice: the newest right outside it, the next ones alternating clockwise and counterclockwise. Leaving the ring keeps the arc open; hovering another slice closes it. Keyboard: Tab steps into the items, arrows move, Esc/Backspace steps back.
+- Labels are measured and narrowed until every corner stays inside the tile and its wedge, but never below the width of the longest word (expanded items may shrink their font a little instead). Long single-word folder names in the hub break at camel-case and separator boundaries. The hint line under a label is reserved in the layout, so hints arriving later do not move anything.
+- `--render-menu` draws the menu for a folder into a PNG without showing it, for checking the design.
 - The text box placeholder is aligned with `GetRectFromCharacterIndex(0)`; fixed padding was off by one or two pixels.
 - "Animation effects" turned off in Windows (`SystemParameters.ClientAreaAnimation`) disables Rondel's animations too.
 - The native tray menu follows dark mode through undocumented uxtheme ordinals 133, 135 and 136, guarded to build 18362 and later.

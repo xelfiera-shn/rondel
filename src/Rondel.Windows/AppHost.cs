@@ -200,34 +200,48 @@ internal sealed class AppHost : IGestureSink, IDisposable
         }
     }
 
-    /// <summary>Session hints never delay the menu: they are looked up afterwards and filled in.</summary>
+    /// <summary>What one session store knows about the menu's folder.</summary>
+    sealed record SessionDetails(SessionInfo? Info, IReadOnlyList<SessionEntry> Recent);
+
+    /// <summary>
+    /// Session hints and the recent sessions of expandable slices never delay the menu: they are
+    /// looked up afterwards (one lookup per session store) and filled in.
+    /// </summary>
     void RequestSessionHints(MenuModel model)
     {
         if (model.Context.TargetDir is not { } directory)
             return;
-        // One lookup per session store, shared by every action whose agent uses it.
         var stores = model.Items
-            .Where(i => i.Action.Hint != SessionHint.None)
-            .Select(i => i.Agent.Sessions)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(id => (Id: id, Store: SessionStores.Get(id)))
+            .Where(i => i.Action.Hint != SessionHint.None || MenuBuilder.CanExpand(i))
+            .GroupBy(i => i.Agent.Sessions ?? "", StringComparer.OrdinalIgnoreCase)
+            .Select(g => (Id: g.Key, Store: SessionStores.Get(g.Key), Expands: g.Any(MenuBuilder.CanExpand)))
             .Where(s => s.Store is not null)
             .ToList();
         if (stores.Count == 0)
             return;
-        Task.Run(() => stores.ToDictionary(s => s.Id ?? "", s => s.Store!.Lookup(directory), StringComparer.OrdinalIgnoreCase))
+        Task.Run(() => stores.ToDictionary(
+                s => s.Id,
+                s => new SessionDetails(s.Store!.Lookup(directory), s.Expands ? s.Store.Recent(directory, MenuBuilder.MaxSessionItems) : []),
+                StringComparer.OrdinalIgnoreCase))
             .ContinueWith(
-                lookup => _ui.BeginInvoke(() => ApplySessionHints(model, lookup.Result)),
+                lookup => _ui.BeginInvoke(() => ApplySessionDetails(model, lookup.Result)),
                 TaskContinuationOptions.OnlyOnRanToCompletion);
     }
 
-    void ApplySessionHints(MenuModel model, Dictionary<string, SessionInfo?> sessionsByStore)
+    void ApplySessionDetails(MenuModel model, Dictionary<string, SessionDetails> detailsByStore)
     {
-        var hints = model.Items
-            .Select(item => SessionHints.Describe(item.Action.Hint,
-                sessionsByStore.TryGetValue(item.Agent.Sessions ?? "", out var sessions) ? sessions : null))
-            .ToList();
+        SessionDetails? DetailsFor(MenuItemModel item) =>
+            detailsByStore.TryGetValue(item.Agent.Sessions ?? "", out var details) ? details : null;
+
+        var hints = model.Items.Select(item => SessionHints.Describe(item.Action.Hint, DetailsFor(item)?.Info)).ToList();
         _menu.ApplyHints(model, hints);
+
+        var children = model.Items
+            .Select(item => MenuBuilder.CanExpand(item) && DetailsFor(item) is { } details
+                ? MenuBuilder.SessionItems(item, details.Recent)
+                : [])
+            .ToList();
+        _menu.ApplyChildren(model, children);
     }
 
     void OnHotkey()
@@ -269,7 +283,7 @@ internal sealed class AppHost : IGestureSink, IDisposable
         if (action.Input == ActionInput.None)
         {
             _menu.CloseMenu(restoreFocus: false);
-            StartAgent(item.Agent, action, directory, prompt: null);
+            StartAgent(item.Agent, action, directory, prompt: null, item.SessionId);
             return;
         }
 
@@ -304,9 +318,9 @@ internal sealed class AppHost : IGestureSink, IDisposable
         return null;
     }
 
-    void StartAgent(AgentProfile agent, ActionDefinition action, string directory, string? prompt)
+    void StartAgent(AgentProfile agent, ActionDefinition action, string directory, string? prompt, string? sessionId = null)
     {
-        if (LaunchPlanner.Create(agent, action, directory, prompt) is not { } plan)
+        if (LaunchPlanner.Create(agent, action, directory, prompt, sessionId) is not { } plan)
         {
             Log.Warn($"Agent '{agent.Id}' does not support {action.Capability}");
             return;
