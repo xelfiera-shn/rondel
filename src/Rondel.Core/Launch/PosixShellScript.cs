@@ -1,4 +1,5 @@
 using System.Text;
+using Rondel.Core.Activity;
 using Rondel.Core.Localization;
 
 namespace Rondel.Core.Launch;
@@ -54,6 +55,11 @@ public static class PosixShellScript
         s.Append("rm -f -- \"$0\"\n");
         s.Append($"cd -- {Quote(plan.Directory)} 2>/dev/null || {{ {Print(Loc.Format("Launch.NoFolder", plan.Directory), Red)}; {loginShell}; }}\n");
         s.Append($"printf '\\033]0;%s\\007' {Quote(plan.Title)}\n");
+        if (plan.ActivityId is { } id)
+        {
+            // The agent's hooks send it back with every event, so Rondel knows which session reported.
+            s.Append($"export {AgentActivity.EnvironmentVariable}={Quote(id)}\n");
+        }
         s.Append($"exec {Quote(shell)} -l -i -c {Quote(agent.ToString())} rondel");
         foreach (string argument in plan.Arguments)
             s.Append(' ').Append(Quote(argument));

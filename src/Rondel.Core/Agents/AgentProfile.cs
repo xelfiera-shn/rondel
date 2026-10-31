@@ -31,6 +31,12 @@ public sealed class AgentProfile
     /// </summary>
     public string? FileMention { get; set; }
 
+    /// <summary>
+    /// Arguments that make the agent report what it does to Rondel, "{hooks}" being Rondel's hooks settings file; they
+    /// come before the others. Null or empty: Rondel cannot follow the agent, and starts it as before.
+    /// </summary>
+    public List<string>? ActivityArgs { get; set; }
+
     public bool TryGetArguments(AgentCapability capability, [NotNullWhen(true)] out List<string>? templates) =>
         Capabilities.TryGetValue(capability.ToString(), out templates) && templates is not null;
 

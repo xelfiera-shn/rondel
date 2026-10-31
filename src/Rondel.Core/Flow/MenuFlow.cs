@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Rondel.Core.Activity;
 using Rondel.Core.Agents;
 using Rondel.Core.Context;
 using Rondel.Core.Launch;
@@ -20,8 +21,9 @@ namespace Rondel.Core.Flow;
 /// <param name="settings">The current settings; read on every call, so changes apply at once.</param>
 /// <param name="updateSettings">Changes and saves the settings (the New Project card's last choice).</param>
 /// <param name="templates">Where new projects' templates come from; <see cref="ProjectTemplates.Default"/> when null.</param>
+/// <param name="activity">Follows the agents this flow starts, when the platform listens for their hooks; null: none is followed.</param>
 public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolderNameValidator folderNames, Func<AppSettings> settings,
-    Action<Action<AppSettings>>? updateSettings = null, ProjectTemplates? templates = null)
+    Action<Action<AppSettings>>? updateSettings = null, ProjectTemplates? templates = null, AgentActivity? activity = null)
 {
     readonly ProjectTemplates _templates = templates ?? ProjectTemplates.Default;
 
@@ -195,12 +197,21 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
             Log.Warn($"Agent '{agent.Id}' does not support {action.Capability}");
             return;
         }
+        var current = settings();
+        ActiveAgent? followed = null;
+        if (activity?.HooksFile is { } hooks && current.ActiveAgents.Follow && agent.ActivityArgs is { Count: > 0 })
+        {
+            followed = activity.Start(directory, agent.Name, working: !string.IsNullOrEmpty(prompt));
+            plan = LaunchPlanner.Follow(plan, agent, hooks, followed.Id)!;
+        }
         try
         {
-            launcher.Launch(plan with { InitGit = initGit }, settings());
+            launcher.Launch(plan with { InitGit = initGit }, current);
         }
         catch (Exception ex) when (ex is LaunchException or Win32Exception or InvalidOperationException or IOException)
         {
+            if (followed is not null)
+                activity!.Forget(followed.Id);
             Log.Error($"Launching {agent.Name} in '{directory}' failed", ex);
             host.ShowWarning(Loc.Format("Launch.Failed", agent.Name, ex.Message));
         }

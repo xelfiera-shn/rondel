@@ -28,5 +28,7 @@ public static class BuiltInAgents
         },
         Sessions = ClaudeCodeSessionStore.Id,
         FileMention = "@{file}",
+        // Hooks from this file run next to the user's own ones (https://code.claude.com/docs/en/hooks).
+        ActivityArgs = ["--settings", "{hooks}"],
     };
 }
