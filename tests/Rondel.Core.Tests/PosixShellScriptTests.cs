@@ -70,6 +70,15 @@ public class PosixShellScriptTests
         Assert.Contains("then git init;", PosixShellScript.Build(plan with { InitGit = true }, "/bin/zsh"));
     }
 
+    [Fact]
+    public void BuildPutsTheFollowedSessionsIdIntoTheEnvironment()
+    {
+        var plan = new LaunchPlan(Path.GetTempPath(), "Claude Code", "claude", []);
+
+        Assert.DoesNotContain("RONDEL_SESSION", PosixShellScript.Build(plan, "/bin/zsh"));
+        Assert.Contains("\nexport RONDEL_SESSION='0123456789ab'\n", PosixShellScript.Build(plan with { ActivityId = "0123456789ab" }, "/bin/zsh"));
+    }
+
     // ---- the script run for real, the way Terminal.app runs the .command file ----
 
     static readonly string[] Arguments =

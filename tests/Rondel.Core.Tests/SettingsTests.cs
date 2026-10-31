@@ -133,4 +133,28 @@ public class SettingsTests
         Assert.Equal(["new-project", "open-here"], menu.Items.Select(i => i.Action.Id));
         Assert.All(menu.Items, i => Assert.Equal("minimal", i.Agent.Id));
     }
+
+    [Fact]
+    public void BuiltInAgentsCanBeFollowedUnlessTurnedOff()
+    {
+        const string json = """
+            {
+              "Agents": [
+                { "Id": "claude-code", "Command": "cc" },
+                { "Id": "quiet", "Command": "claude", "ActivityArgs": [] },
+                { "Id": "other", "Command": "other" }
+              ]
+            }
+            """;
+        var settings = SettingsJson.Deserialize(json)!;
+
+        settings.Normalize();
+
+        Assert.Equal(["--settings", "{hooks}"], settings.FindAgent("claude-code")!.ActivityArgs);
+        Assert.Empty(settings.FindAgent("quiet")!.ActivityArgs!);
+        Assert.Null(settings.FindAgent("other")!.ActivityArgs);
+        Assert.True(settings.ActiveAgents.Follow);
+        Assert.True(settings.ActiveAgents.NotifyAsks);
+        Assert.True(settings.ActiveAgents.NotifyFinished);
+    }
 }

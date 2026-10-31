@@ -69,6 +69,9 @@ public sealed class AppSettings
     /// <summary>Which options the New Project card offers (all of them unless turned off in Settings).</summary>
     public NewProjectCardOptions NewProjectCard { get; set; } = new();
 
+    /// <summary>Following the agents Rondel starts, and notifications about them.</summary>
+    public ActiveAgentsOptions ActiveAgents { get; set; } = new();
+
     /// <summary>Context name (DesktopEmpty, ExplorerEmpty, FolderItem, FileItem) → action ids, clockwise from the top.</summary>
     public Dictionary<string, List<string>> Menus { get; set; } = DefaultMenus();
 
@@ -119,6 +122,7 @@ public sealed class AppSettings
         Hotkey = Hotkey?.Trim() ?? "";
         NewProject ??= new();
         NewProjectCard ??= new();
+        ActiveAgents ??= new();
         Appearance ??= new();
         Appearance.Normalize();
         NewProject.Templates = (NewProject.Templates ?? []).Where(t => !string.IsNullOrWhiteSpace(t))
@@ -154,6 +158,9 @@ public sealed class AppSettings
                 StringComparer.OrdinalIgnoreCase);
             // Missing in files written before file mentions existed; an empty string turns them off.
             agent.FileMention = (agent.FileMention ?? builtIn?.FileMention)?.Trim();
+            // Missing in files written before Rondel followed agents; an empty list turns following off for the agent.
+            agent.ActivityArgs ??= builtIn?.ActivityArgs is { } args ? new List<string>(args) : null;
+            agent.ActivityArgs?.RemoveAll(a => a is null);
         }
         foreach (var builtIn in BuiltInAgents.Create())
         {

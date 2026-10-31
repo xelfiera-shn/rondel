@@ -32,6 +32,15 @@ public class PowerShellScriptTests
         Assert.Contains("{ & git init }", PowerShellScript.Build(plan with { InitGit = true }));
     }
 
+    [Fact]
+    public void BuildPutsTheFollowedSessionsIdIntoTheEnvironment()
+    {
+        var plan = new LaunchPlan(Path.GetTempPath(), "Claude Code", "claude", []);
+
+        Assert.DoesNotContain("RONDEL_SESSION", PowerShellScript.Build(plan));
+        Assert.Contains("$env:RONDEL_SESSION = '0123456789ab'", PowerShellScript.Build(plan with { ActivityId = "0123456789ab" }));
+    }
+
     [Theory]
     [InlineData("claude", "claude", "")]
     [InlineData("  claude --model opus ", "claude", "--model opus")]

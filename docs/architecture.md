@@ -18,6 +18,7 @@ The platform-neutral parts (what the menu contains, how an agent is started, set
 
 ```
 src/Rondel.Core/
+  Activity/       AgentActivity, ActiveAgent, HookEvent, HookServer (following the agents Rondel starts)
   Agents/         AgentProfile, AgentCapability, BuiltInAgents, ClaudeCode/ (session store)
   Context/        TriggerContext, ContextKind
   Flow/           MenuFlow, MenuDetails, InputSpec
@@ -170,6 +171,15 @@ Geometry (radii, arcs, where labels go) is the same for every theme, so a theme 
 ## Launching
 
 The core turns an action into a `LaunchPlan`: the folder, the agent command, the literal argument list and the window title. The Windows project executes the plan as a single PowerShell script in Windows Terminal (or a console window when Windows Terminal is missing); the escaping rules are described in [windows-notes.md](windows-notes.md#launching). On macOS, `PosixShellScript` turns the plan into a `.command` file for Terminal.app or iTerm2 (see [macos.md](macos.md#launching-in-a-terminal)).
+
+## Following agents
+
+Rondel follows the agents it starts, so it can say when one asks for something or is done, and bring its terminal to the front.
+
+- **Hooks.** An agent profile's `ActivityArgs` make the agent report its events; for Claude Code that is `--settings <hooks file>`. The file (`agent-hooks.json` next to `settings.json`) adds an HTTP hook for each followed event, which runs next to the user's own hooks; the user's Claude Code settings are not changed. An agent without `ActivityArgs` starts as before.
+- **Which session.** The launch script sets `RONDEL_SESSION` to the session's id, and the hooks send it back in a header (`allowedEnvVars`). The platform launcher also names the terminal window after it.
+- **The server.** `HookServer` listens on the loopback address only and accepts a request only with the token from the hooks file, in a header, so a web page can neither guess it nor send one (a custom header needs a CORS preflight, which is never allowed). It answers at once with an empty body, which leaves every decision (a permission prompt, stopping) to the agent. The port stays the same across restarts, so agents started before a restart keep reporting; a session Rondel does not know yet is followed again from its folder. While Rondel is not running, Claude Code shows a hook error under each prompt and goes on.
+- **States.** `AgentActivity` turns events into a state per session: a prompt or a tool at work → **working**; a permission request or a question (`AskUserQuestion`) → **waiting**; the end of a turn (`Stop`) → **ready**; an error (`StopFailure`) → **failed**. A permission is announced by Claude Code's own reminder a few seconds later, so a prompt the user answers at once is not announced; a question is announced at once. `SessionEnd` ends following, except for `/clear` and `/resume`, which go on in the same window. Claude Code sends no `SessionStart` to these hooks, so Rondel follows a session from the moment it starts it.
 
 ## Localization
 
