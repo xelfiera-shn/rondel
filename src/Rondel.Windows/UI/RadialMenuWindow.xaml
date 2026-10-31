@@ -48,7 +48,9 @@
         </Grid.RenderTransform>
 
         <!-- The stage is the whole window; every shape is placed around its center (410, 410). -->
-        <Grid x:Name="MenuRoot" Width="820" Height="820" Focusable="True" FocusVisualStyle="{x:Null}">
+        <!-- The window may be smaller than the stage (see StageSizeFor); the stage stays centered in it. -->
+        <Grid x:Name="MenuRoot" Width="820" Height="820" HorizontalAlignment="Center" VerticalAlignment="Center"
+              Focusable="True" FocusVisualStyle="{x:Null}">
 
             <!-- Full disc under the slices, so the gaps between them never let a click fall through. -->
             <Ellipse x:Name="RingBase" Width="336" Height="336" StrokeThickness="1"
