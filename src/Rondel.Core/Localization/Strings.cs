@@ -94,6 +94,8 @@ static class Strings
         ["Settings.Terminal.Auto"] = "Automatic",
         ["Settings.Terminal.WindowsTerminal"] = "Windows Terminal",
         ["Settings.Terminal.Console"] = "Console window",
+        ["Settings.Terminal.TerminalApp"] = "Terminal",
+        ["Settings.Terminal.ITerm"] = "iTerm2",
         ["Settings.Terminal.WtMissing"] = "Windows Terminal is not installed, a console window will be used.",
         ["Settings.Shell"] = "Shell",
         ["Settings.Shell.Desc"] = "Aliases are read from this shell's profile.",
@@ -141,6 +143,9 @@ static class Strings
         ["Validation.TooLong"] = "The full path would be too long ({0} characters, Windows allows {1}).",
         ["Validation.Exists"] = "\"{0}\" already exists here.",
         ["Validation.NoWriteAccess"] = "You don't have permission to create folders in {0}",
+        ["Validation.InvalidCharsMac"] = "macOS does not allow these characters in names: {0}",
+        ["Validation.LeadingDot"] = "A name starting with a dot would be hidden in Finder.",
+        ["Validation.NameTooLongBytes"] = "The name is too long: macOS allows {0} bytes (Turkish letters take two).",
 
         ["Hint.Sessions"] = "{0} sessions",
         ["Hint.OneSession"] = "1 session",
@@ -158,6 +163,7 @@ static class Strings
         ["Launch.NoGit"] = "Rondel: git was not found, so no repository was created.",
         ["Launch.NotFound"] = "Rondel: the command '{0}' was not found.",
         ["Launch.NotFoundHint"] = "Install {0}, or change its command in Rondel settings (tray icon > Settings).",
+        ["Launch.NotFoundHintMac"] = "Install {0}, or change its command in Rondel settings (menu bar icon > Settings).",
         ["Launch.BatchNote"] = "Note: '{0}' is a .cmd wrapper: line breaks and double quotes in the prompt were simplified, and %VARIABLES% may be expanded by cmd.exe. A native installation of the agent avoids this.",
     };
 
@@ -252,6 +258,8 @@ static class Strings
         ["Settings.Terminal.Auto"] = "Otomatik",
         ["Settings.Terminal.WindowsTerminal"] = "Windows Terminal",
         ["Settings.Terminal.Console"] = "Konsol penceresi",
+        ["Settings.Terminal.TerminalApp"] = "Terminal",
+        ["Settings.Terminal.ITerm"] = "iTerm2",
         ["Settings.Terminal.WtMissing"] = "Windows Terminal yüklü değil, konsol penceresi kullanılacak.",
         ["Settings.Shell"] = "Kabuk",
         ["Settings.Shell.Desc"] = "Alias'lar bu kabuğun profilinden okunur.",
@@ -299,6 +307,9 @@ static class Strings
         ["Validation.TooLong"] = "Tam yol çok uzun olur ({0} karakter, Windows en fazla {1} izin verir).",
         ["Validation.Exists"] = "\"{0}\" burada zaten var.",
         ["Validation.NoWriteAccess"] = "{0} içinde klasör oluşturma izniniz yok.",
+        ["Validation.InvalidCharsMac"] = "macOS adlarda şu karakterlere izin vermez: {0}",
+        ["Validation.LeadingDot"] = "Nokta ile başlayan bir ad Finder'da gizli olur.",
+        ["Validation.NameTooLongBytes"] = "Ad çok uzun: macOS en fazla {0} bayta izin verir (Türkçe harfler iki bayt tutar).",
 
         ["Hint.Sessions"] = "{0} oturum",
         ["Hint.OneSession"] = "1 oturum",
@@ -316,6 +327,7 @@ static class Strings
         ["Launch.NoGit"] = "Rondel: git bulunamadı, depo oluşturulmadı.",
         ["Launch.NotFound"] = "Rondel: '{0}' komutu bulunamadı.",
         ["Launch.NotFoundHint"] = "{0} uygulamasını yükleyin ya da komutunu Rondel ayarlarından değiştirin (tray ikonu > Ayarlar).",
+        ["Launch.NotFoundHintMac"] = "{0} uygulamasını yükleyin ya da komutunu Rondel ayarlarından değiştirin (menü çubuğu simgesi > Ayarlar).",
         ["Launch.BatchNote"] = "Not: '{0}' bir .cmd sarmalayıcısı: prompttaki satır sonları ve çift tırnaklar sadeleştirildi, %DEĞİŞKEN% ifadeleri cmd.exe tarafından genişletilebilir. Ajanın native kurulumunda bu sorun yoktur.",
     };
 }

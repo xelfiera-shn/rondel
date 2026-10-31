@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Rondel.Core.Agents;
 using Rondel.Core.Context;
 using Rondel.Core.Menus;
@@ -21,7 +20,7 @@ public class SettingsTests
               "menus": { "FolderItem": ["open"], },
             }
             """;
-        var settings = JsonSerializer.Deserialize<AppSettings>(json, SettingsJson.Options)!;
+        var settings = SettingsJson.Deserialize(json)!;
 
         settings.Normalize();
 
@@ -41,7 +40,7 @@ public class SettingsTests
     public void SchemaTwoAddsRecentProjectsOnlyToAnUntouchedDesktopMenu(string savedMenu, string[] expected)
     {
         string json = $$"""{ "SchemaVersion": 1, "Menus": { "DesktopEmpty": {{savedMenu}} } }""";
-        var settings = JsonSerializer.Deserialize<AppSettings>(json, SettingsJson.Options)!;
+        var settings = SettingsJson.Deserialize(json)!;
 
         settings.Normalize();
 
@@ -56,7 +55,7 @@ public class SettingsTests
     public void SchemaThreeAddsAskOnlyToUntouchedMenus(string savedMenu, string[] expected)
     {
         string json = $$"""{ "SchemaVersion": 2, "Menus": { "FolderItem": {{savedMenu}} } }""";
-        var settings = JsonSerializer.Deserialize<AppSettings>(json, SettingsJson.Options)!;
+        var settings = SettingsJson.Deserialize(json)!;
 
         settings.Normalize();
 
@@ -76,7 +75,7 @@ public class SettingsTests
               "Menus": { "DesktopEmpty": ["new-project", "new-prompt", "recents"], "ExplorerEmpty": ["new-prompt", "open-here"] }
             }
             """;
-        var settings = JsonSerializer.Deserialize<AppSettings>(json, SettingsJson.Options)!;
+        var settings = SettingsJson.Deserialize(json)!;
 
         settings.Normalize();
 

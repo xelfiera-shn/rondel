@@ -7,7 +7,11 @@ using Rondel.Core.Themes;
 
 namespace Rondel.Core.Settings;
 
-public enum TerminalKind { Auto, WindowsTerminal, Console }
+/// <summary>
+/// Where the agent runs. WindowsTerminal and Console are Windows choices, TerminalApp and ITerm macOS ones; each
+/// platform treats the other's values as Auto, so one settings.json works on both.
+/// </summary>
+public enum TerminalKind { Auto, WindowsTerminal, Console, TerminalApp, ITerm }
 
 public enum ShellKind { Auto, Pwsh, WindowsPowerShell }
 

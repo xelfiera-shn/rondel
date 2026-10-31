@@ -37,8 +37,11 @@ public static class SettingsJson
         },
     });
 
-    /// <summary>The options settings.json is read and written with; their type information is the generated one.</summary>
-    public static JsonSerializerOptions Options => Context.Options;
+    /// <summary>
+    /// The options settings.json is read and written with. Their type information is the generated one, which
+    /// knows only the settings types, so they are not for anything else.
+    /// </summary>
+    internal static JsonSerializerOptions Options => Context.Options;
 
     static JsonTypeInfo<AppSettings> TypeInfo => Context.AppSettings;
 

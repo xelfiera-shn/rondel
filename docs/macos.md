@@ -101,12 +101,12 @@ The core already turns an action into a `LaunchPlan`; the Mac launcher runs it.
   ```zsh
   #!/bin/zsh
   rm -f -- "$0"
-  cd -- '<folder>' || { print -u2 -- '<Folder not found …>'; exec "$SHELL" -l; }
+  cd -- '<folder>' 2>/dev/null || { printf … '<Folder not found …>' >&2; exec '<shell>' -l; }
   printf '\033]0;%s\007' '<Claude Code · folder>'
-  exec "$SHELL" -l -i -c 'command -v NAME >/dev/null 2>&1 || print -u2 -- …; NAME EXTRA "$@"; exec "$SHELL" -l' rondel '<arg 1>' '<arg 2>' …
+  exec '<shell>' -l -i -c 'if command -v NAME >/dev/null 2>&1; then NAME EXTRA "$@"; else printf … >&2; fi; exec '<shell>' -l' rondel '<arg 1>' '<arg 2>' …
   ```
 
-- **Shell:** the user's login shell (from the user database, zsh by default). The agent runs inside it as a login and interactive shell, so `PATH` from `~/.zprofile` and aliases such as `cc` from `~/.zshrc` work; apps started from Finder do not inherit the terminal's `PATH`. When the agent exits, the shell replaces itself with a login shell, so the window stays usable in the project folder, like `-NoExit` on Windows.
+- **Shell:** the user's login shell (from the user database, zsh by default); one that does not understand POSIX syntax (fish) is replaced by `/bin/zsh` (`PosixShellScript.ChooseShell`). The agent runs inside it as a login and interactive shell, so `PATH` from `~/.zprofile` and aliases such as `cc` from `~/.zshrc` work; apps started from Finder do not inherit the terminal's `PATH`. When the agent exits, the shell replaces itself with a login shell, so the window stays usable in the project folder, like `-NoExit` on Windows.
   - **One process all the way (`exec`).** Terminal runs the file as a job of its own shell, so the script owns the terminal. In the spike a child `"$SHELL" -l -i -c …` moved the terminal to a process group of its own; when it exited, the script's final shell was stopped (`suspended (tty output)`) and the window fell back to Terminal's shell in the home folder.
   - **The command name is not quoted** when it is a plain word (`[A-Za-z0-9._+/-]`): zsh does not expand a quoted word as an alias, and in the spike `'cc'` ran the C compiler instead of the user's alias. Any other name is quoted. The user's own text after the name in the agent's command (`--model opus`) is inserted as shell text, as on Windows; the arguments always go through `"$@"`.
   - The user's rc files run twice (for the interactive shell and for the shell that stays), so a slow `.zshrc` is paid twice.
@@ -160,7 +160,7 @@ Each step is its own pull request into `dev`:
 
 1. This plan.
 2. Spike: done (see [Spike](#spike)).
-3. Core: the POSIX script, `MacFolderNameRules`, the new `Terminal` values and strings, and the settings JSON through a source-generated `JsonSerializerContext`, with tests. Nothing changes on Windows.
+3. Core: the POSIX script, `MacFolderNameRules`, the new `Terminal` values and strings, and the settings JSON through a source-generated `JsonSerializerContext`, with tests. No behavior change on Windows. The settings JSON came first (#34); the rest is tested end to end with zsh and bash on the macOS CI runner.
 4. `Rondel.MacOS`, in three pull requests, each built and tested in the macOS CI job:
    1. Menu bar icon, trigger and Finder detection, with a `--probe X Y out.txt` diagnostic like the Windows one.
    2. The menu window, with a `--render-menu` diagnostic for checking the design without screenshots.
