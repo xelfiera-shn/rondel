@@ -27,7 +27,7 @@ public sealed class AppSettings
     /// Bumped whenever a default changes, so <see cref="Normalize"/> can migrate saved files.
     /// A migration only touches values that are still at the old default.
     /// </summary>
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
 
     /// <summary>0 for a file written by hand without the field.</summary>
     public int SchemaVersion { get; set; }
@@ -56,7 +56,13 @@ public sealed class AppSettings
 
     public List<AgentProfile> Agents { get; set; } = BuiltInAgents.Create();
 
-    /// <summary>Context name (DesktopEmpty, ExplorerEmpty, FolderItem) → action ids, clockwise from the top.</summary>
+    /// <summary>How the New Project card starts: the choice made last time.</summary>
+    public NewProjectOptions NewProject { get; set; } = new();
+
+    /// <summary>Which options the New Project card offers (all of them unless turned off in Settings).</summary>
+    public NewProjectCardOptions NewProjectCard { get; set; } = new();
+
+    /// <summary>Context name (DesktopEmpty, ExplorerEmpty, FolderItem, FileItem) → action ids, clockwise from the top.</summary>
     public Dictionary<string, List<string>> Menus { get; set; } = DefaultMenus();
 
     public List<ActionDefinition> Actions { get; set; } = DefaultActions();
@@ -105,6 +111,10 @@ public sealed class AppSettings
             ProjectsRoot = DefaultProjectsRoot;
         HoldMs = Math.Clamp(HoldMs, MinHoldMs, MaxHoldMs);
         Hotkey = Hotkey?.Trim() ?? "";
+        NewProject ??= new();
+        NewProjectCard ??= new();
+        NewProject.Templates = (NewProject.Templates ?? []).Where(t => !string.IsNullOrWhiteSpace(t))
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
         NormalizeAgents();
         NormalizeActions();
@@ -179,6 +189,21 @@ public sealed class AppSettings
             InsertIfDefault(nameof(ContextKind.ExplorerEmpty), ["new-project", "new-prompt", "open-here", "continue-here", "resume-here"],
                 "ask-here", after: "open-here");
         }
+        // 4: New Project opens the New Project card, which also asks for a prompt, so New + Prompt left the
+        // default menus. Built-in agents get their plan mode, which the card can turn on.
+        if (SchemaVersion < 4)
+        {
+            if (FindAction("new-project") is { Input: ActionInput.FolderName, Capability: AgentCapability.Open } newProject)
+                newProject.Input = ActionInput.NewProject;
+            RemoveIfDefault(nameof(ContextKind.DesktopEmpty), ["new-project", "new-prompt", "recents"], "new-prompt");
+            RemoveIfDefault(nameof(ContextKind.ExplorerEmpty), ["new-project", "new-prompt", "open-here", "ask-here", "continue-here", "resume-here"],
+                "new-prompt");
+            foreach (var agent in Agents)
+            {
+                if (BuiltInAgents.Find(agent.Id) is { } builtIn && builtIn.TryGetArguments(AgentCapability.Plan, out var plan))
+                    agent.Capabilities.TryAdd(nameof(AgentCapability.Plan), [.. plan]);
+            }
+        }
         SchemaVersion = CurrentSchemaVersion;
         WasMigrated = true;
     }
@@ -190,17 +215,24 @@ public sealed class AppSettings
             menu.Insert(menu.FindIndex(i => string.Equals(i, after, StringComparison.OrdinalIgnoreCase)) + 1, id);
     }
 
+    void RemoveIfDefault(string context, string[] oldDefault, string id)
+    {
+        var menu = Menus[context];
+        if (menu.SequenceEqual(oldDefault, StringComparer.OrdinalIgnoreCase))
+            menu.RemoveAll(i => string.Equals(i, id, StringComparison.OrdinalIgnoreCase));
+    }
+
     public static Dictionary<string, List<string>> DefaultMenus() => new(StringComparer.OrdinalIgnoreCase)
     {
-        [nameof(ContextKind.DesktopEmpty)] = ["new-project", "new-prompt", "recents"],
-        [nameof(ContextKind.ExplorerEmpty)] = ["new-project", "new-prompt", "open-here", "ask-here", "continue-here", "resume-here"],
+        [nameof(ContextKind.DesktopEmpty)] = ["new-project", "recents"],
+        [nameof(ContextKind.ExplorerEmpty)] = ["new-project", "open-here", "ask-here", "continue-here", "resume-here"],
         [nameof(ContextKind.FolderItem)] = ["open", "ask", "continue", "resume"],
         [nameof(ContextKind.FileItem)] = ["ask-file", "open-here", "continue-here", "resume-here"],
     };
 
     public static List<ActionDefinition> DefaultActions() =>
     [
-        new() { Id = "new-project", Label = "@Action.NewProject", Icon = "E8F4", Input = ActionInput.FolderName, Capability = AgentCapability.Open },
+        new() { Id = "new-project", Label = "@Action.NewProject", Icon = "E8F4", Input = ActionInput.NewProject, Capability = AgentCapability.Open },
         new() { Id = "new-prompt", Label = "@Action.NewWithPrompt", Icon = "E8BD", Input = ActionInput.FolderNameAndPrompt, Capability = AgentCapability.Prompt },
         new() { Id = "open-here", Label = "@Action.OpenHere", Icon = "E756", Capability = AgentCapability.Open },
         new() { Id = "ask-here", Label = "@Action.AskHere", Icon = "E8F2", Input = ActionInput.Prompt, Capability = AgentCapability.Prompt },

@@ -6,12 +6,17 @@ namespace Rondel.Core.Launch;
 public static class LaunchPlanner
 {
     /// <summary>Turns a menu action into a launch plan for <paramref name="agent"/>.</summary>
+    /// <param name="planMode">Put the agent's <see cref="AgentCapability.Plan"/> arguments first, when it has them.</param>
     /// <returns>The plan, or null when the agent does not support the action's capability.</returns>
-    public static LaunchPlan? Create(AgentProfile agent, ActionDefinition action, string directory, string? prompt = null, string? sessionId = null)
+    public static LaunchPlan? Create(AgentProfile agent, ActionDefinition action, string directory, string? prompt = null, string? sessionId = null,
+        bool planMode = false)
     {
         if (!agent.TryGetArguments(action.Capability, out var templates))
             return null;
-        var arguments = Expand(action.ExtraArgs.Concat(templates), prompt, sessionId);
+        IEnumerable<string> plan = planMode && action.Capability != AgentCapability.Plan && agent.TryGetArguments(AgentCapability.Plan, out var planArgs)
+            ? planArgs
+            : [];
+        var arguments = Expand(plan.Concat(action.ExtraArgs).Concat(templates), prompt, sessionId);
         return new LaunchPlan(directory, agent.Name, agent.Command, arguments);
     }
 

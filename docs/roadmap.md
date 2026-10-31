@@ -33,7 +33,7 @@ Verified for 0.1.0:
 - ~~In-menu session list (`--resume <id>`)~~ — shipped in 0.1.0 as the Resume arc.
 - **0.2.0 — Recents** (done, ships with 0.2.0): a desktop-menu slice that opens into the five most recently worked-on project folders. Clicking a project resumes its latest session; a project with two or more sessions opens further into them. The Resume slice and project items only expand when there are at least two sessions.
 - **0.3.0 — Ask and files** (done): a menu for files (Ask About This File, which starts the prompt with an @-mention of the file, plus Open, Continue and Resume in its folder), and Ask slices that start a session in an existing folder with a prompt. Selecting several files is left for later.
-- New-project templates (git init, agent instruction file).
+- **0.4.0 — New Project card** (done): one card for the folder name and how a project starts — a first prompt, `git init`, plan mode, and templates that combine (a language's files plus a field's agent instructions). It remembers the last choice; options can be turned off in Settings. New + Prompt moved into it, so the desktop and Explorer menus lost a slice.
 - A modifier key for an alternate mode (for example Shift for plan mode).
 - WSL paths.
 - Customizable theme: user-chosen colors on top of Rondel's palette.

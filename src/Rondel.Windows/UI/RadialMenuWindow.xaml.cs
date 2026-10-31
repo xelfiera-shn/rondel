@@ -125,6 +125,7 @@ public partial class RadialMenuWindow : Window
     bool _pressedInside;
     RECT _bounds;
     double _centerX, _centerY, _scale = 1;
+    RECT _work; // the work area of the monitor the menu is on (physical pixels)
     nint _previousForeground;
     InputSpec? _input;
     bool _promptStage;
@@ -165,6 +166,10 @@ public partial class RadialMenuWindow : Window
         Deactivated += (_, _) => CloseMenu(restoreFocus: false);
         DpiChanged += (_, _) => { if (_isOpen) ApplyBounds(); };
         NameBox.TextChanged += (_, _) => { if (_input is not null && !_promptStage) UpdateNameFeedback(); };
+        NameBox.GotKeyboardFocus += (_, _) => { if (_newProject is not null) UpdateNewProjectHint(); };
+        PromptBox.GotKeyboardFocus += (_, _) => { if (_newProject is not null) UpdateNewProjectHint(); };
+        OpenTemplates.MouseLeftButtonUp += (_, _) => OnOpenTemplates();
+        InputCard.SizeChanged += (_, _) => FitInputCard();
     }
 
     /// <summary>A slice or an item on an arc was chosen (click, release over it, number key, Enter).</summary>
@@ -220,6 +225,7 @@ public partial class RadialMenuWindow : Window
 
         // Center on the cursor, but keep the ring and its shadow inside the monitor's work area.
         var (work, dpi) = GetMonitorWorkArea(anchor);
+        _work = work;
         _scale = dpi / 96.0;
         CacheRingBase(_scale);
         int size = (int)Math.Round(Width * _scale);
@@ -349,6 +355,12 @@ public partial class RadialMenuWindow : Window
         foreach (var band in _bands)
             band.Layer.Opacity = 1;
 
+        return RenderSurface(background);
+    }
+
+    /// <summary>Lays out the window's content at its size and draws it over <paramref name="background"/> at 192 DPI.</summary>
+    BitmapSource RenderSurface(Color background)
+    {
         var size = new Size(Width, Height);
         Surface.Measure(size);
         Surface.Arrange(new Rect(size));
@@ -427,6 +439,44 @@ public partial class RadialMenuWindow : Window
         double reach = (depth == 0 ? OuterR : _bands[depth].EdgeR) + ArrowReach + ShadowPad;
         return Math.Min(2 * StageR, Math.Ceiling(2 * reach));
     }
+
+    /// <summary>
+    /// The input card can be taller than the ring (the New Project card with its prompt): it moves from the menu's
+    /// center just far enough to stay inside the work area (top first when it is taller than the screen), and the
+    /// window grows around the same center to hold it, so the fading ring does not move.
+    /// </summary>
+    void FitInputCard()
+    {
+        if (!_isOpen || _input is null || InputCard.ActualHeight <= 0)
+            return;
+        double width = (InputCard.ActualWidth + 2 * ShadowPad) * _scale;
+        double height = (InputCard.ActualHeight + 2 * ShadowPad) * _scale;
+        double dx = ShiftInto(_centerX - width / 2, width, _work.Left, _work.Right);
+        double dy = ShiftInto(_centerY - height / 2, height, _work.Top, _work.Bottom);
+        InputShift.X = dx / _scale;
+        InputShift.Y = dy / _scale;
+
+        double halfWidth = Math.Max(_bounds.Width / 2.0, Math.Abs(dx) + width / 2);
+        double halfHeight = Math.Max(_bounds.Height / 2.0, Math.Abs(dy) + height / 2);
+        if (2 * halfWidth <= _bounds.Width + 1 && 2 * halfHeight <= _bounds.Height + 1)
+            return;
+        _bounds = new RECT
+        {
+            Left = (int)Math.Floor(_centerX - halfWidth),
+            Top = (int)Math.Floor(_centerY - halfHeight),
+            Right = (int)Math.Ceiling(_centerX + halfWidth),
+            Bottom = (int)Math.Ceiling(_centerY + halfHeight),
+        };
+        Width = _bounds.Width / _scale;
+        Height = _bounds.Height / _scale;
+        ApplyBounds();
+    }
+
+    /// <summary>How far a span (start, length) has to move to lie within [min, max]; a longer one is aligned to min.</summary>
+    static double ShiftInto(double start, double length, double min, double max) =>
+        start < min || length > max - min ? min - start
+        : start + length > max ? max - (start + length)
+        : 0;
 
     void ApplyBounds() =>
         SetWindowPos(_hwnd, HWND_TOPMOST, _bounds.Left, _bounds.Top, _bounds.Width, _bounds.Height, SWP_NOACTIVATE);
@@ -857,6 +907,8 @@ public partial class RadialMenuWindow : Window
     void ResetInputMode()
     {
         _input = null;
+        InputShift.X = InputShift.Y = 0;
+        ResetNewProject();
         _promptStage = false;
         InputCard.BeginAnimation(OpacityProperty, null);
         InputCard.Visibility = Visibility.Collapsed;
@@ -917,7 +969,8 @@ public partial class RadialMenuWindow : Window
         string name = NameBox.Text;
         InputLocation.Text = name.Length == 0 ? input.ParentDir : System.IO.Path.Combine(input.ParentDir, name);
         string? error = name.Length == 0 ? null : input.ValidateName(name);
-        SetMessage(error ?? Loc.Get(input.AskPrompt ? "Input.HintNameNext" : "Input.HintName"), error is not null);
+        string hint = _newProject is not null ? NewProjectNameHint() : Loc.Get(input.AskPrompt ? "Input.HintNameNext" : "Input.HintName");
+        SetMessage(error ?? hint, error is not null);
     }
 
     void SetMessage(string text, bool isError)
@@ -928,6 +981,11 @@ public partial class RadialMenuWindow : Window
 
     void OnInputKeyDown(KeyEventArgs e)
     {
+        if (_newProject is not null)
+        {
+            OnNewProjectKeyDown(e);
+            return;
+        }
         var input = _input!;
         if (e.Key == Key.Escape)
         {
@@ -1333,6 +1391,7 @@ public partial class RadialMenuWindow : Window
             box.CaretBrush = _palette.Text;
             box.SelectionBrush = _palette.Accent;
         }
+        ApplyNewProjectPalette();
     }
 
     static Point OnCircle(double radius, double degrees)

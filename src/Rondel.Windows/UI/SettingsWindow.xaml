@@ -196,6 +196,36 @@
                     </StackPanel>
                 </Border>
 
+                <!-- New project -->
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{l:Loc Settings.NewProject}" />
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="{l:Loc Settings.NewProject.Options}" />
+                        <TextBlock Style="{StaticResource Description}" Text="{l:Loc Settings.NewProject.Options.Desc}" />
+                        <WrapPanel Margin="0,10,0,0">
+                            <CheckBox x:Name="CardPromptBox" Margin="0,0,24,0" Content="{l:Loc NewProject.Prompt}" Click="OnNewProjectCardClicked" />
+                            <CheckBox x:Name="CardGitBox" Margin="0,0,24,0" Content="{l:Loc NewProject.Git}" Click="OnNewProjectCardClicked" />
+                            <CheckBox x:Name="CardPlanBox" Margin="0,0,24,0" Content="{l:Loc NewProject.Plan}" Click="OnNewProjectCardClicked" />
+                            <CheckBox x:Name="CardTemplatesBox" Content="{l:Loc NewProject.Templates}" Click="OnNewProjectCardClicked" />
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="{l:Loc Settings.Templates}" />
+                            <TextBlock Style="{StaticResource Description}" Text="{l:Loc Settings.Templates.Desc}" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Padding="12,5" VerticalAlignment="Center" Content="{l:Loc NewProject.OpenTemplates}" Click="OnOpenTemplates" />
+                    </Grid>
+                </Border>
+
                 <!-- System -->
                 <TextBlock Style="{StaticResource SectionHeader}" Text="{l:Loc Settings.System}" />
 

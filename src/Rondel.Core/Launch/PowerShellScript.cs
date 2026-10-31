@@ -19,6 +19,12 @@ public static class PowerShellScript
         s.AppendLine($"try {{ Set-Location -LiteralPath {Quote(plan.Directory)} -ErrorAction Stop }}");
         s.AppendLine($"catch {{ Write-Host ({Quote(Loc.Format("Launch.NoFolder", plan.Directory))}) -ForegroundColor Red; return }}");
         s.AppendLine($"try {{ $Host.UI.RawUI.WindowTitle = {Quote(plan.Title)} }} catch {{ }}");
+        if (plan.InitGit)
+        {
+            // A new project gets its repository before the agent starts; without git it starts anyway.
+            s.AppendLine("if (Get-Command -Name git -CommandType Application -ErrorAction SilentlyContinue) { & git init } "
+                + $"else {{ Write-Host ({Quote(Loc.Get("Launch.NoGit"))}) -ForegroundColor Yellow }}");
+        }
         s.AppendLine($"$rondelName = {Quote(name)}");
         s.AppendLine($"$rondelArgs = @({string.Join(", ", plan.Arguments.Select(Quote))})");
         s.AppendLine("$rondelCommand = Get-Command -Name $rondelName -ErrorAction SilentlyContinue | Select-Object -First 1");

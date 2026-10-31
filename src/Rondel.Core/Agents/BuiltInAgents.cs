@@ -24,6 +24,7 @@ public static class BuiltInAgents
             [nameof(AgentCapability.Resume)] = ["--resume"],
             [nameof(AgentCapability.ResumeById)] = ["--resume", "{id}"],
             [nameof(AgentCapability.Prompt)] = ["{prompt}"],
+            [nameof(AgentCapability.Plan)] = ["--permission-mode", "plan"],
         },
         Sessions = ClaudeCodeSessionStore.Id,
         FileMention = "@{file}",
