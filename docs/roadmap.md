@@ -36,7 +36,7 @@ Verified for 0.1.0:
 - **0.4.0 — New Project card** (done): one card for the folder name and how a project starts — a first prompt, `git init`, plan mode, and templates that combine (a language's files plus a field's agent instructions). It remembers the last choice; options can be turned off in Settings. New + Prompt moved into it, so the desktop and Explorer menus lost a slice.
 - A modifier key for an alternate mode (for example Shift for plan mode).
 - WSL paths.
-- Customizable theme: user-chosen colors on top of Rondel's palette.
+- **0.5.0 — Themes** (done): five menu themes (Rondel, Line, Spotlight, Orbit, Petal), each dark and light, chosen in Settings from pictures of the menu; the mode can follow Windows or stay fixed, and the accent can be a ready-made pair or the user's own colors.
 
 ## Phase 3 — Trust and distribution
 

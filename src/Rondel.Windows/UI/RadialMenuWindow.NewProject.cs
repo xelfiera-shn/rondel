@@ -259,9 +259,9 @@ public partial class RadialMenuWindow
     }
 
     /// <summary>Developer aid (--render-new): draws the New Project card into a bitmap without showing the window.</summary>
-    internal BitmapSource RenderNewProjectPreview(NewProjectSpec spec, ThemeColors theme, Color background, string name, string? prompt)
+    internal BitmapSource RenderNewProjectPreview(NewProjectSpec spec, RondelPalette palette, Color background, string name, string? prompt)
     {
-        _palette = RondelPalette.For(theme);
+        _palette = palette;
         _glow = _palette.Glow;
         ApplyPalette();
         Width = Height = 540;

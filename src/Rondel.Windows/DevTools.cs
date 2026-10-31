@@ -28,10 +28,12 @@ namespace Rondel.Windows;
 /// --launch-script FOLDER COMMAND PROMPT.txt out.ps1   the PowerShell script a launch would run
 /// --launch-now FOLDER COMMAND PROMPT.txt     launch exactly like the menu, with COMMAND instead of the configured one
 /// --export-icon out.ico                      write the app icon (used for the exe)
-/// --render-menu out.png [dark|light] [en|tr] [desktop|item] [idle] [deep] [edge] [transparent] [FOLDER|FILE]   draw the Explorer menu
+/// --render-menu out.png [dark|light] [en|tr] [desktop|item] [idle] [deep] [edge] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]
+///              [hover=N] [FOLDER|FILE]                 draw the Explorer menu
 ///                                            for FOLDER (default: current folder), its folder-icon menu with "item", or the menu of FILE
-/// --render-settings out.png [en|tr] [bottom] draw the settings window (in the current Windows theme), scrolled down with "bottom"
-/// --render-new out.png [dark|light] [en|tr] [prompt] [empty] [transparent]   draw the New Project card with sample templates
+/// --render-settings out.png [en|tr] [bottom|scroll=DIP]   draw the settings window (in the current Windows theme), scrolled down
+/// --render-new out.png [dark|light] [en|tr] [prompt] [empty] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]
+///                                            draw the New Project card with sample templates
 ///                                            (prompt: with the Prompt option on; empty: with no templates)
 /// </code>
 /// </summary>
@@ -218,12 +220,15 @@ internal static class DevTools
             if (options.Contains("deep", StringComparer.OrdinalIgnoreCase) && deep >= 0)
                 path = [hover, deep, 0];
         }
+        // "hover=N": just slice N under the pointer, nothing opened (for showing a theme's highlight).
+        if (options.FirstOrDefault(o => o.StartsWith("hover=", StringComparison.OrdinalIgnoreCase)) is { } only && int.TryParse(only[6..], out int slice))
+            path = [slice];
 
         var window = new RadialMenuWindow();
         var background = options.Contains("transparent", StringComparer.OrdinalIgnoreCase) ? Colors.Transparent
             : dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6);
         bool edge = options.Contains("edge", StringComparer.OrdinalIgnoreCase);
-        var bitmap = window.RenderPreview(model, new ThemeColors(dark), details.Hints, children, path, background, edge);
+        var bitmap = window.RenderPreview(model, PaletteFrom(options, dark), details.Hints, children, path, background, edge);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var file = File.Create(output);
@@ -240,6 +245,21 @@ internal static class DevTools
                 return match;
         }
         return null;
+    }
+
+    /// <summary>"theme=ID" picks a built-in theme (Rondel's by default), "accent=#RRGGBB[,#RRGGBB]" replaces its accent.</summary>
+    static RondelPalette PaletteFrom(string[] options, bool dark)
+    {
+        string? Value(string name) => options.FirstOrDefault(o => o.StartsWith(name + "=", StringComparison.OrdinalIgnoreCase))?[(name.Length + 1)..];
+        string[] accent = (Value("accent") ?? "").Split(',');
+        var appearance = new Rondel.Core.Themes.AppearanceOptions
+        {
+            Theme = Value("theme") ?? Rondel.Core.Themes.BuiltInThemes.RondelId,
+            Mode = dark ? Rondel.Core.Themes.ColorMode.Dark : Rondel.Core.Themes.ColorMode.Light,
+            AccentFrom = accent[0],
+            AccentTo = accent.Length > 1 ? accent[1] : "",
+        };
+        return RondelPalette.For(appearance, new ThemeColors(dark));
     }
 
     /// <summary>Draws the New Project card with made-up templates, for checking its design.</summary>
@@ -262,7 +282,7 @@ internal static class DevTools
         var window = new RadialMenuWindow();
         var background = options.Contains("transparent", StringComparer.OrdinalIgnoreCase) ? Colors.Transparent
             : dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6);
-        var bitmap = window.RenderNewProjectPreview(spec, new ThemeColors(dark), background, "weather-api",
+        var bitmap = window.RenderNewProjectPreview(spec, PaletteFrom(options, dark), background, "weather-api",
             prompt ? (tr ? "Hava durumu için küçük bir REST API kur, testleriyle birlikte." : "Set up a small REST API for the weather, with tests.") : null);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
@@ -306,9 +326,14 @@ internal static class DevTools
         };
         window.Show();
         window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-        if (options.Contains("bottom", StringComparer.OrdinalIgnoreCase) && FindChild<System.Windows.Controls.ScrollViewer>(window) is { } scroller)
+        string? scroll = options.FirstOrDefault(o => o.StartsWith("scroll=", StringComparison.OrdinalIgnoreCase))?[7..];
+        if ((scroll is not null || options.Contains("bottom", StringComparer.OrdinalIgnoreCase))
+            && FindChild<System.Windows.Controls.ScrollViewer>(window) is { } scroller)
         {
-            scroller.ScrollToEnd();
+            if (double.TryParse(scroll, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double offset))
+                scroller.ScrollToVerticalOffset(offset);
+            else
+                scroller.ScrollToEnd();
             window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         }
 

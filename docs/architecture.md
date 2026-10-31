@@ -25,6 +25,7 @@ src/Rondel.Core/
   Launch/         LaunchPlan, LaunchPlanner, CommandLine, PowerShellScript, FolderNameRules
   Sessions/       ISessionStore, SessionStores, SessionHints, RelativeTime
   Settings/       AppSettings (schema and migrations), SettingsJson, SettingsStore
+  Themes/         MenuTheme, BuiltInThemes, AppearanceOptions
   Localization/   Loc, string tables (English, Turkish)
   Logging/        Log
   Platform/       IMenuHost, ITerminalLauncher, IFolderNameValidator, IAutostart
@@ -135,6 +136,7 @@ Shape of version 4 (abridged):
   ],
   "NewProject": { "Prompt": true, "Git": true, "Plan": false, "Templates": ["Python"] },   // the last choice
   "NewProjectCard": { "Prompt": true, "Git": true, "Plan": true, "Templates": true },     // options the card offers
+  "Appearance": { "Theme": "orbit", "Mode": "Auto", "AccentFrom": "#22D3EE", "AccentTo": "#3B82F6" },  // no accent: the theme's own
   "Actions": [
     { "Id": "continue", "Label": "@Action.Continue", "Icon": "E768", "Capability": "Continue", "Hint": "LastSession" },
     { "Id": "plan", "Label": "Plan", "Icon": "E8FD", "Capability": "Open", "ExtraArgs": ["--permission-mode", "plan"] },
@@ -151,6 +153,17 @@ Shape of version 4 (abridged):
 ```
 
 Labels starting with `@` are built-in translated strings; anything else is shown as written.
+
+## Themes
+
+The menu's look is data in the core, so every platform draws the same themes. A `MenuTheme` describes:
+
+- the tile shape: sectors, rounded petals, or none (icons float over the ring's base);
+- the highlight: a wash with a lit edge, an accent fill, a lit outline, or a soft glow behind the icon;
+- a decoration (the orbit: an accent ring broken at every slice by a tick), gaps, corner radius, the hub ring;
+- a `ThemePalette` for dark and one for light mode, colors as 0xAARRGGBB.
+
+Geometry (radii, arcs, where labels go) is the same for every theme, so a theme never moves anything. `BuiltInThemes` has Rondel's own look and four others; `AppearanceOptions` in the settings picks one, a mode (`Auto` follows the system) and optionally the accent pair. The ring's base must never be fully transparent: the menu's window only catches the mouse where it is drawn.
 
 ## Launching
 
@@ -174,9 +187,9 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 | `--launch-now FOLDER COMMAND prompt.txt` | Launches like the menu does, with COMMAND instead of the configured one. |
 | `--export-icon out.ico` | Writes the application icon. |
 | `--show-menu [input [text]]` | Starts normally and opens the menu at the cursor without the gesture; `input` continues into the New + Prompt card. |
-| `--render-menu out.png [dark\|light] [en\|tr] [desktop\|item] [idle] [deep] [edge] [transparent] [FOLDER\|FILE]` | Draws the Explorer menu for a folder (the desktop menu with `desktop`, the folder's own menu with `item`, a file's menu when given a file) with its real session hints and recent sessions into a PNG, the first expandable slice opened unless `idle`; `edge` places the menu against the left edge of the screen, `transparent` leaves out the background. |
-| `--render-settings out.png [en\|tr] [bottom]` | Draws the settings window (current Windows theme) into a PNG, scrolled to the end with `bottom`. It works on a copy of settings.json: a running Rondel, and the real file, are not touched. |
-| `--render-new out.png [dark\|light] [en\|tr] [prompt] [empty] [transparent]` | Draws the New Project card with made-up templates (`prompt`: with Prompt on; `empty`: without templates). |
+| `--render-menu out.png [dark\|light] [en\|tr] [desktop\|item] [idle] [deep] [edge] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]] [hover=N] [FOLDER\|FILE]` | Draws the Explorer menu for a folder (the desktop menu with `desktop`, the folder's own menu with `item`, a file's menu when given a file) with its real session hints and recent sessions into a PNG, the first expandable slice opened unless `idle`; `edge` places the menu against the left edge of the screen, `transparent` leaves out the background; `theme`/`accent` pick a theme and accent, `hover=N` only highlights slice N. |
+| `--render-settings out.png [en\|tr] [bottom\|scroll=DIP]` | Draws the settings window (current Windows theme) into a PNG, scrolled to the end or by DIP. It works on a copy of settings.json: a running Rondel, and the real file, are not touched. |
+| `--render-new out.png [dark\|light] [en\|tr] [prompt] [empty] [transparent] [theme=ID] [accent=…]` | Draws the New Project card with made-up templates (`prompt`: with Prompt on; `empty`: without templates). |
 
 ## Fixed identifiers
 
