@@ -26,7 +26,7 @@ namespace Rondel.Windows;
 /// --launch-script FOLDER COMMAND PROMPT.txt out.ps1   the PowerShell script a launch would run
 /// --launch-now FOLDER COMMAND PROMPT.txt     launch exactly like the menu, with COMMAND instead of the configured one
 /// --export-icon out.ico                      write the app icon (used for the exe)
-/// --render-menu out.png [dark|light] [en|tr] [idle] [edge] [FOLDER]   draw the Explorer menu for FOLDER (default: current folder)
+/// --render-menu out.png [dark|light] [en|tr] [idle] [edge] [transparent] [FOLDER]   draw the Explorer menu for FOLDER (default: current folder)
 /// --render-settings out.png [en|tr]          draw the settings window (in the current Windows theme)
 /// </code>
 /// </summary>
@@ -205,7 +205,8 @@ internal static class DevTools
         int hover = options.Contains("idle", StringComparer.OrdinalIgnoreCase) ? -1 : children.FindIndex(c => c.Count > 0);
 
         var window = new RadialMenuWindow();
-        var background = dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6);
+        var background = options.Contains("transparent", StringComparer.OrdinalIgnoreCase) ? Colors.Transparent
+            : dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6);
         bool edge = options.Contains("edge", StringComparer.OrdinalIgnoreCase);
         var bitmap = window.RenderPreview(model, new ThemeColors(dark), hints, children, hover, hover >= 0 ? 0 : -1, background, edge);
         var encoder = new PngBitmapEncoder();
