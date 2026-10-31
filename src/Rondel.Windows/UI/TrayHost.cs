@@ -30,6 +30,9 @@ internal sealed unsafe class TrayHost : IDisposable
     string _tooltip = AppInfo.Name;
     bool _hotkeyRegistered;
 
+    /// <summary>Notification icons by kind and size, kept until the app exits: Windows may still show one.</summary>
+    readonly Dictionary<(NoticeIcon, int), nint> _noticeIcons = [];
+
     public TrayHost(Func<IReadOnlyList<TrayMenuItem>> menuItems)
     {
         _menuItems = menuItems;
@@ -77,13 +80,29 @@ internal sealed unsafe class TrayHost : IDisposable
         Shell_NotifyIconW(NIM_MODIFY, &data);
     }
 
-    public void ShowBalloon(string title, string text, bool warning)
+    /// <param name="icon">A notification about an agent shows its own icon instead of the system's.</param>
+    public void ShowBalloon(string title, string text, bool warning, NoticeIcon? icon = null)
     {
         var data = NewData(NIF_INFO);
         CopyToBuffer(text, data.szInfo, 256);
         CopyToBuffer(title, data.szInfoTitle, 64);
         data.dwInfoFlags = warning ? NIIF_WARNING : NIIF_INFO;
+        if (icon is { } kind && NoticeIconHandle(kind) is var handle and not 0)
+        {
+            data.dwInfoFlags = NIIF_USER | NIIF_LARGE_ICON;
+            data.hBalloonIcon = handle;
+        }
         Shell_NotifyIconW(NIM_MODIFY, &data);
+    }
+
+    /// <summary>Twice the large icon size of the icon's screen: Windows shows it a little larger than that, and scales it down well.</summary>
+    nint NoticeIconHandle(NoticeIcon kind)
+    {
+        uint dpi = GetDpiForWindow(Handle);
+        int px = 2 * GetSystemMetricsForDpi(SM_CXICON, dpi == 0 ? 96 : dpi);
+        if (!_noticeIcons.TryGetValue((kind, px), out nint handle))
+            _noticeIcons[(kind, px)] = handle = AppIconRenderer.CreateIconHandle(NoticeIconRenderer.Render(kind, Math.Max(32, px)));
+        return handle;
     }
 
     public bool SetHotkey(uint modifiers, uint virtualKey)
@@ -228,6 +247,8 @@ internal sealed unsafe class TrayHost : IDisposable
         Shell_NotifyIconW(NIM_DELETE, &data);
         if (_icon != 0)
             DestroyIcon(_icon);
+        foreach (nint icon in _noticeIcons.Values)
+            DestroyIcon(icon);
         _source.Dispose();
     }
 }

@@ -3,6 +3,7 @@ using Rondel.Core;
 using Rondel.Core.Activity;
 using Rondel.Core.Logging;
 using Rondel.Windows.Launch;
+using Rondel.Windows.UI;
 
 namespace Rondel.Windows;
 
@@ -81,13 +82,15 @@ internal sealed partial class AppHost
             return;
         }
         var (title, text) = AgentNotices.Describe(change.Agent, notice);
-        ShowBalloon(title, text, warning: notice == AgentNotice.Failed, agentId: change.Agent.Id);
+        ShowBalloon(title, text, warning: notice == AgentNotice.Failed, agentId: change.Agent.Id,
+            icon: NoticeIconRenderer.For(change.Agent, notice));
     }
 
     /// <param name="agentId">The agent a click on the notification brings to the front, if any.</param>
-    void ShowBalloon(string title, string text, bool warning, string? agentId = null)
+    /// <param name="icon">The icon of a notification about an agent.</param>
+    void ShowBalloon(string title, string text, bool warning, string? agentId = null, NoticeIcon? icon = null)
     {
         _balloonAgent = agentId;
-        _tray.ShowBalloon(title, text, warning);
+        _tray.ShowBalloon(title, text, warning, icon);
     }
 }
