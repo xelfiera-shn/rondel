@@ -8,6 +8,7 @@ Thanks for helping. This page explains how the repository is organized and what 
 |---|---|
 | `dev` | Default branch. All work is integrated here through pull requests. |
 | `prod` | Release branch. Every push to `prod` builds Rondel and publishes a GitHub release. |
+| `tasks` | Only the task list (`TODO.md`). Edited directly, without pull requests, and never merged. |
 
 Work branches are created from `dev` and named after the kind of change:
 
@@ -20,7 +21,7 @@ An urgent fix for a released version goes on `hotfix/<short-name>`, created from
 
 ## Taking a task
 
-[TODO.md](TODO.md) lists who is working on what, per platform. Before you start, take the task there: a small `chore(todo): take W-5` pull request sets its mark to 🔄 with your GitHub user name. The pull request that finishes the work marks it ✅. The marks are explained at the top of that page.
+The [task list](https://github.com/xelfiera-shn/rondel/blob/tasks/TODO.md) shows who is working on what, per platform. It lives on its own branch, `tasks`, so it can be edited without a pull request. Before you start, take the task there: set its mark to 🔄 with your GitHub user name and commit straight to `tasks`. Once your pull request is merged, mark the task ✅. The marks are explained at the top of the list.
 
 ## Commit messages and pull requests
 
