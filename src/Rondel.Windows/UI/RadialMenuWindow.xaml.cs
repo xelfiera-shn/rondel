@@ -27,13 +27,14 @@ namespace Rondel.Windows.UI;
 /// center; screen positions are physical pixels of the monitor under the cursor.
 /// <para>
 /// The ring is made of separate tiles. The hovered tile lights up its rim in the brand gradient.
-/// A slice that expands (Resume, into recent sessions) carries an arrow outside the ring; when it
-/// is hovered, its items open on an outer arc centered on it.
+/// A tile that opens further (Resume into sessions, Recent Projects into folders, a folder into its
+/// sessions) carries an arrow outside its band; when it is hovered, its items open on the next band
+/// out, an arc centered on it. The ring is band 0, every arc one band further out.
 /// </para>
 /// </summary>
 public partial class RadialMenuWindow : Window
 {
-    const double StageR = 300;         // the window is 2 × this; the ring center is its center
+    const double StageR = 400;         // the window is 2 × this; the ring center is its center
     const double OuterR = 168;         // ring radius (RingBase in the XAML is 2 × this)
     const double HubR = 52;            // hub disc radius (Hub in the XAML is 2 × this)
     const double TileInnerR = HubR + 7;
@@ -42,24 +43,15 @@ public partial class RadialMenuWindow : Window
     const double TileGap = 3;          // DIPs between neighbouring tiles (parallel edges)
     const double DeadZoneR = 58;       // closer than this to the center selects nothing
     const double LabelR = 113;         // where icon + label blocks are centered
-    const double ArrowInnerR = OuterR + 5;
-    const double ArrowOuterR = OuterR + 8;
-    const double ArrowTipR = OuterR + 15;
-    const double ChildInnerR = OuterR + 26;
-    const double ChildOuterR = OuterR + 108;
-    const double ChildLabelR = (ChildInnerR + ChildOuterR) / 2;
-    const double ChildSpan = 34;       // degrees per expanded item
+    const double ArcGap = 26;          // from a band's edge to the tiles of the arc it opens (room for the arrow)
+    const double ArrowReach = 17;      // how far beyond its band's edge an arrow (and its hit area) reaches
     const double MinLabelWidth = 56;
     const double ShadowPad = 32;       // shadow extent kept on-screen when clamping to the work area
     const int MaxPromptLength = 8000;  // keeps the encoded command line well under CreateProcess's limit
 
     static readonly FontFamily IconFont = new("Segoe Fluent Icons, Segoe MDL2 Assets");
 
-    /// <summary>Label sizes to try, largest first: slices keep one size, expanded items may shrink a little.</summary>
-    static readonly double[] SliceFontSizes = [12];
-    static readonly double[] ChildFontSizes = [11.5, 11, 10.5];
-
-    /// <summary>One drawn tile: a top-level slice or one of an expanded slice's items.</summary>
+    /// <summary>One drawn tile: a slice of the ring or an item on an arc.</summary>
     sealed class Tile
     {
         public required MenuItemModel Item { get; init; }
@@ -77,17 +69,53 @@ public partial class RadialMenuWindow : Window
         public IReadOnlyList<MenuItemModel> Children { get; set; } = [];
     }
 
-    readonly List<Tile> _slices = [];
-    readonly List<Tile> _children = [];
+    /// <summary>
+    /// One band of tiles. Band 0 is the ring; band n + 1 is the arc opened from a tile of band n,
+    /// centered on that tile (or turned towards the free side near a screen edge).
+    /// </summary>
+    sealed class Band
+    {
+        public required Canvas Layer { get; init; }
+        public ScaleTransform? Scale { get; init; }
+        public required double InnerR { get; init; }
+        public required double OuterR { get; init; }
+
+        /// <summary>Visual outer edge (the base under the tiles); arrows start just outside it.</summary>
+        public required double EdgeR { get; init; }
+
+        /// <summary>Degrees per tile on an arc (the ring divides the circle among its slices instead).</summary>
+        public required double TileSpan { get; init; }
+
+        public required double LabelMaxHeight { get; init; }
+
+        /// <summary>Label sizes to try, largest first.</summary>
+        public required double[] FontSizes { get; init; }
+
+        public List<Tile> Tiles { get; } = [];
+
+        /// <summary>The tile whose items fill the next band, or -1.</summary>
+        public int Opened { get; set; } = -1;
+
+        /// <summary>Arcs: start angle and degrees per tile; the bridge back to the parent band.</summary>
+        public double From { get; set; }
+
+        public double Span { get; set; }
+
+        public double BridgeFrom { get; set; }
+
+        public double BridgeTo { get; set; }
+
+        /// <summary>Clockwise position of the tile with each rank (0 = newest).</summary>
+        public int[] PositionOfRank { get; set; } = [];
+    }
+
+    readonly Band[] _bands;
     nint _hwnd;
     MenuModel? _model;
     RondelPalette _palette = RondelPalette.For(SystemTheme.Read());
     Effect _glow;
     double _span = 360, _offset;
-    int _hover = -1, _childHover = -1, _expanded = -1;
-    double _childFrom, _childSpan, _bridgeFrom, _bridgeTo;
-    /// <summary>Clockwise position of the expanded item with each rank (0 = newest).</summary>
-    int[] _positionOfRank = [];
+    int _hoverLevel = -1, _hoverIndex = -1;
     /// <summary>Room around the ring center up to the monitor's work area (DIPs): left, top, right, bottom.</summary>
     (double Left, double Top, double Right, double Bottom) _room = (double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity);
     bool _isOpen;
@@ -103,6 +131,22 @@ public partial class RadialMenuWindow : Window
     public RadialMenuWindow()
     {
         InitializeComponent();
+        _bands =
+        [
+            new Band { Layer = SliceLayer, InnerR = TileInnerR, OuterR = TileOuterR, EdgeR = OuterR, TileSpan = 0, LabelMaxHeight = 34, FontSizes = [12] },
+            // Session titles and folder names: up to three lines, slightly smaller if needed.
+            new Band
+            {
+                Layer = ChildLayer, Scale = ChildScale, InnerR = OuterR + ArcGap, OuterR = OuterR + ArcGap + 82, EdgeR = OuterR + ArcGap + 86,
+                TileSpan = 34, LabelMaxHeight = 46, FontSizes = [11.5, 11, 10.5],
+            },
+            // A recent project's sessions: a narrower band further out.
+            new Band
+            {
+                Layer = GrandLayer, Scale = GrandScale, InnerR = OuterR + ArcGap + 86 + ArcGap, OuterR = OuterR + ArcGap + 86 + ArcGap + 68,
+                EdgeR = OuterR + ArcGap + 86 + ArcGap + 72, TileSpan = 24, LabelMaxHeight = 32, FontSizes = [11, 10.5, 10],
+            },
+        ];
         _glow = _palette.Glow;
         ApplyPalette();
         MouseMove += OnMouseMove;
@@ -115,7 +159,7 @@ public partial class RadialMenuWindow : Window
         NameBox.TextChanged += (_, _) => { if (_input is not null && !_promptStage) UpdateNameFeedback(); };
     }
 
-    /// <summary>A slice or an expanded item was chosen (click, release over it, number key, Enter).</summary>
+    /// <summary>A slice or an item on an arc was chosen (click, release over it, number key, Enter).</summary>
     internal event Action<MenuModel, MenuItemModel>? ItemInvoked;
 
     internal event Action? MenuClosed;
@@ -124,20 +168,26 @@ public partial class RadialMenuWindow : Window
 
     internal bool IsMenuOpen => _isOpen;
 
+    List<Tile> Slices => _bands[0].Tiles;
+
     /// <summary>Creates the window handle and renders once off-screen so the first real open is instant.</summary>
     internal void Prepare()
     {
         _hwnd = new WindowInteropHelper(this).EnsureHandle();
         SetWindowLongPtr(_hwnd, GWL_EXSTYLE, GetWindowLongPtr(_hwnd, GWL_EXSTYLE) | WS_EX_TOOLWINDOW);
 
+        // Warm up every band: the first slice opens into the warm-up items, the first of those into them again.
         var agent = BuiltInAgents.ClaudeCode();
         var warmup = AppSettings.DefaultActions().Take(4)
             .Select(a => new MenuItemModel(a, agent, a.Id, a.Glyph, "warm-up", true)).ToList();
+        var nested = warmup.Select((item, i) => i == 0 ? item with { Children = warmup } : item).ToList();
         var model = new MenuModel(TriggerContext.None("warm-up"), "warm-up", "warm-up", warmup);
-        BuildSlices(model);
         _model = model;
-        ApplyChildren(model, [.. warmup.Select((item, i) => i == 0 ? (IReadOnlyList<MenuItemModel>)warmup : [])], force: true);
-        Expand(0);
+        BuildSlices(model);
+        ApplyChildren(model, [.. warmup.Select((item, i) => i == 0 ? (IReadOnlyList<MenuItemModel>)nested : [])], force: true);
+        SetHover(0, 0);
+        SetHover(1, _bands[1].PositionOfRank[0]);
+        SetHover(-1, -1);
         Surface.Opacity = 0;
         SetWindowPos(_hwnd, 0, -32000, -32000, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
         Show();
@@ -156,7 +206,7 @@ public partial class RadialMenuWindow : Window
         SetCenterTitle(model.Title);
         CenterSubtitle.Text = model.Subtitle ?? "";
         CenterSubtitle.Visibility = string.IsNullOrEmpty(model.Subtitle) ? Visibility.Collapsed : Visibility.Visible;
-        CenterGlyph.Text = model.Context.Kind == ContextKind.DesktopEmpty ? "\uE7F4" : "\uE8B7"; // desktop / folder
+        CenterGlyph.Text = model.Context.Kind == ContextKind.DesktopEmpty ? "" : ""; // desktop / folder
 
         // Center on the cursor, but keep the ring and its shadow inside the monitor's work area.
         var (work, dpi) = GetMonitorWorkArea(anchor);
@@ -190,9 +240,9 @@ public partial class RadialMenuWindow : Window
     {
         if (!_isOpen || _input is not null)
             return;
-        var (top, child) = HitTest((point.X - _centerX) / _scale, (point.Y - _centerY) / _scale);
-        if (top >= 0)
-            Invoke(top, child);
+        var (level, index) = HitTest((point.X - _centerX) / _scale, (point.Y - _centerY) / _scale);
+        if (level >= 0)
+            Invoke(level, index);
     }
 
     internal void CloseMenu(bool restoreFocus)
@@ -218,7 +268,7 @@ public partial class RadialMenuWindow : Window
                 return;
             Hide();
             ResetInputMode();
-            Collapse();
+            CloseFrom(1);
         };
         Surface.BeginAnimation(OpacityProperty, fade);
         var shrink = new DoubleAnimation(0.94, duration);
@@ -233,23 +283,24 @@ public partial class RadialMenuWindow : Window
         ApplyPalette();
         if (!_isOpen)
             return;
-        // Rebuild with the new colors, keeping what arrived after the menu opened.
-        var hints = _slices.Select(s => (s.Hint.Visibility == Visibility.Visible ? s.Hint.Text : null, s.Dimmed)).ToList();
-        var children = _slices.Select(s => s.Children).ToList();
-        int expanded = _expanded;
+        // Rebuild with the new colors, keeping what arrived after the menu opened and what is open.
+        var hints = Slices.Select(s => (s.Hint.Visibility == Visibility.Visible ? s.Hint.Text : null, s.Dimmed)).ToList();
+        var children = Slices.Select(s => s.Children).ToList();
+        var opened = _bands.Select(b => b.Opened).ToList();
         BuildSlices(_model!);
         ApplyHints(_model!, hints);
         ApplyChildren(_model!, children);
-        if (expanded >= 0)
-            Expand(expanded);
+        for (int level = 0; level < _bands.Length - 1 && opened[level] >= 0 && opened[level] < _bands[level].Tiles.Count; level++)
+            Open(level, opened[level]);
     }
 
     /// <summary>
     /// Developer aid (--render-menu): draws the menu in a given state into a bitmap, without showing
     /// the window, on a solid background so the shadows read as they would on screen.
     /// </summary>
+    /// <param name="path">What to hover: a slice index, then for each arc the rank of an item (0 = newest).</param>
     internal BitmapSource RenderPreview(MenuModel model, ThemeColors theme, IReadOnlyList<(string? Hint, bool Dimmed)> hints,
-        IReadOnlyList<IReadOnlyList<MenuItemModel>> children, int hover, int childHover, Color background, bool atLeftEdge = false)
+        IReadOnlyList<IReadOnlyList<MenuItemModel>> children, IReadOnlyList<int> path, Color background, bool atLeftEdge = false)
     {
         // As if the menu opened at the left edge of the work area (the ring clamped against it).
         _room = atLeftEdge
@@ -262,27 +313,28 @@ public partial class RadialMenuWindow : Window
         BuildSlices(model);
         SetCenterTitle(model.Title);
         CenterSubtitle.Text = model.Subtitle ?? "";
-        CenterGlyph.Text = model.Context.Kind == ContextKind.DesktopEmpty ? "\uE7F4" : "\uE8B7";
+        CenterGlyph.Text = model.Context.Kind == ContextKind.DesktopEmpty ? "" : "";
         ApplyHints(model, hints);
         ApplyChildren(model, children, force: true);
-        if (hover >= 0)
-        {
-            SetHover(hover, -1);
-            if (childHover >= 0 && _children.Count > 0)
-                SetHover(hover, _positionOfRank[Math.Min(childHover, _positionOfRank.Length - 1)]);
-        }
+        if (path.Count > 0)
+            SetHover(0, path[0]);
+        for (int level = 1; level < path.Count && _bands[level].Tiles.Count > 0; level++)
+            SetHover(level, _bands[level].PositionOfRank[Math.Min(path[level], _bands[level].Tiles.Count - 1)]);
 
         // Animations do not run in a window that is not shown: jump to their end state.
-        foreach (var element in new UIElement[] { Surface, ChildLayer }.Concat(_slices.Select(s => s.Arrow).OfType<UIElement>()))
-        {
+        var animated = new UIElement[] { Surface }
+            .Concat(_bands.Select(b => b.Layer))
+            .Concat(_bands.SelectMany(b => b.Tiles).Select(t => t.Arrow).OfType<UIElement>());
+        foreach (var element in animated)
             element.BeginAnimation(OpacityProperty, null);
-            element.Opacity = 1;
-        }
-        foreach (var scale in new[] { SurfaceScale, ChildScale })
+        foreach (var scale in new[] { SurfaceScale }.Concat(_bands.Select(b => b.Scale).OfType<ScaleTransform>()))
         {
             scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
             scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
         }
+        Surface.Opacity = 1;
+        foreach (var band in _bands)
+            band.Layer.Opacity = 1;
 
         var size = new Size(Width, Height);
         Surface.Measure(size);
@@ -335,7 +387,7 @@ public partial class RadialMenuWindow : Window
                 bool digits = char.IsLetter(previous) && char.IsDigit(c);
                 bool separator = previous is '-' or '_' or '.';
                 if (camel || digits || separator)
-                    builder.Append('\u200B');
+                    builder.Append('​');
             }
             builder.Append(c);
         }
@@ -381,8 +433,8 @@ public partial class RadialMenuWindow : Window
         if (!_isOpen || _input is not null)
             return;
         var p = e.GetPosition(MenuRoot);
-        var (top, child) = HitTest(p.X - StageR, p.Y - StageR);
-        SetHover(top, child);
+        var (level, index) = HitTest(p.X - StageR, p.Y - StageR);
+        SetHover(level, index);
     }
 
     void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -392,9 +444,9 @@ public partial class RadialMenuWindow : Window
         if (!_isOpen || !pressed || _input is not null)
             return;
         var p = e.GetPosition(MenuRoot);
-        var (top, child) = HitTest(p.X - StageR, p.Y - StageR);
-        if (top >= 0)
-            Invoke(top, child);
+        var (level, index) = HitTest(p.X - StageR, p.Y - StageR);
+        if (level >= 0)
+            Invoke(level, index);
     }
 
     void OnPreviewKeyDown(object sender, KeyEventArgs e)
@@ -404,9 +456,8 @@ public partial class RadialMenuWindow : Window
             OnInputKeyDown(e);
             return;
         }
-        if (!_isOpen || _slices.Count == 0)
+        if (!_isOpen || Slices.Count == 0)
             return;
-        int n = _slices.Count;
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
         bool shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
         int number = key switch
@@ -415,57 +466,37 @@ public partial class RadialMenuWindow : Window
             >= Key.NumPad1 and <= Key.NumPad9 => key - Key.NumPad1,
             _ => -1,
         };
+        // Keys act on the band the selection is in: the ring, or an open arc.
+        int level = Math.Max(_hoverLevel, 0);
+        var band = _bands[level];
+        int count = band.Tiles.Count;
         e.Handled = true;
         if (number >= 0)
         {
-            if (_childHover >= 0 && number < _children.Count)
-                Invoke(_expanded, number);
-            else if (_childHover < 0 && number < n)
-                Invoke(number, -1);
+            // Ring: slices clockwise from the top. Arcs: by recency, 1 = newest.
+            if (number < count)
+                Invoke(level, level == 0 ? number : band.PositionOfRank[number]);
             return;
         }
-
-        // Inside an expanded slice's items, the arrows and Tab move between the items.
-        if (_childHover >= 0)
-        {
-            int k = _children.Count;
-            switch (key)
-            {
-                case Key.Escape or Key.Back:
-                    SetHover(_expanded, -1);
-                    return;
-                case Key.Enter or Key.Space:
-                    Invoke(_expanded, _childHover);
-                    return;
-                case Key.Right or Key.Down or Key.Tab when !shift:
-                    SetHover(_expanded, (_childHover + 1) % k);
-                    return;
-                case Key.Left or Key.Up or Key.Tab:
-                    SetHover(_expanded, (_childHover - 1 + k) % k);
-                    return;
-            }
-            e.Handled = false;
-            return;
-        }
-
         switch (key)
         {
+            case Key.Escape or Key.Back when _hoverLevel > 0:
+                SetHover(_hoverLevel - 1, _bands[_hoverLevel - 1].Opened);
+                break;
             case Key.Escape:
                 CloseMenu(restoreFocus: true);
                 break;
             case Key.Enter or Key.Space:
-                if (_hover >= 0)
-                    Invoke(_hover, -1);
+                if (_hoverLevel >= 0)
+                    Invoke(_hoverLevel, _hoverIndex);
                 break;
-            case Key.Tab when _hover >= 0 && _hover == _expanded && _children.Count > 0:
-                // Tab on an expanded slice steps into its items, starting with the newest one.
-                SetHover(_hover, _positionOfRank[0]);
+            case Key.Tab when !shift && StepIn():
                 break;
             case Key.Right or Key.Down or Key.Tab when !shift:
-                SetHover(_hover < 0 ? 0 : (_hover + 1) % n, -1);
+                SetHover(level, _hoverLevel < 0 ? 0 : (_hoverIndex + 1) % count);
                 break;
             case Key.Left or Key.Up or Key.Tab:
-                SetHover(_hover < 0 ? n - 1 : (_hover - 1 + n) % n, -1);
+                SetHover(level, _hoverLevel < 0 ? count - 1 : (_hoverIndex - 1 + count) % count);
                 break;
             default:
                 e.Handled = false;
@@ -473,51 +504,79 @@ public partial class RadialMenuWindow : Window
         }
     }
 
-    void Invoke(int top, int child)
+    /// <summary>Moves the selection into the items of the selected tile, starting with the newest.</summary>
+    /// <returns>False when the selected tile has no items.</returns>
+    bool StepIn()
     {
-        if (_model is null || top < 0 || top >= _slices.Count)
-            return;
-        SetHover(top, child);
-        var item = child >= 0 && child < _children.Count && top == _expanded ? _children[child].Item : _slices[top].Item;
-        ItemInvoked?.Invoke(_model, item);
+        if (_hoverLevel < 0 || _hoverLevel + 1 >= _bands.Length)
+            return false;
+        var band = _bands[_hoverLevel];
+        if (band.Tiles[_hoverIndex].Children.Count == 0)
+            return false;
+        if (band.Opened != _hoverIndex)
+            Open(_hoverLevel, _hoverIndex);
+        SetHover(_hoverLevel + 1, _bands[_hoverLevel + 1].PositionOfRank[0]);
+        return true;
     }
 
-    /// <summary>The slice and expanded item for an offset from the ring center (DIPs); -1 for none.</summary>
-    (int Top, int Child) HitTest(double dx, double dy)
+    void Invoke(int level, int index)
     {
-        int n = _slices.Count;
-        if (n == 0)
+        if (_model is null || level < 0 || index < 0 || index >= _bands[level].Tiles.Count)
+            return;
+        var tile = _bands[level].Tiles[index];
+        SetHover(level, index);
+        // The Recent Projects slice launches nothing itself: choosing it steps into its projects.
+        if (tile.Item.Action.Source == ActionSource.RecentProjects && tile.Item.Directory is null)
+        {
+            StepIn();
+            return;
+        }
+        ItemInvoked?.Invoke(_model, tile.Item);
+    }
+
+    /// <summary>The band and tile under an offset from the ring center (DIPs); (-1, -1) for none.</summary>
+    (int Level, int Index) HitTest(double dx, double dy)
+    {
+        if (Slices.Count == 0)
             return (-1, -1);
         double distance = Math.Sqrt(dx * dx + dy * dy);
         double angle = Math.Atan2(dx, -dy) * 180 / Math.PI; // 0° = up, clockwise
 
-        if (_expanded >= 0 && _children.Count > 0 && distance > OuterR - 2 && distance <= ChildOuterR + 2)
+        // Open arcs, outermost first. Each has its tiles (with the arrows of tiles that open further) and,
+        // between it and the band it was opened from, a bridge that keeps the opening tile selected.
+        for (int level = _bands.Length - 1; level >= 1; level--)
         {
-            if (distance >= ChildInnerR - 6)
+            var band = _bands[level];
+            if (band.Tiles.Count == 0)
+                continue;
+            if (distance >= band.InnerR - 6 && distance <= band.EdgeR + ArrowReach)
             {
-                double total = _children.Count * _childSpan;
-                double fromStart = AngleBetween(_childFrom + total / 2, angle) + total / 2;
+                double total = band.Tiles.Count * band.Span;
+                double fromStart = AngleBetween(band.From + total / 2, angle) + total / 2;
                 if (fromStart >= -1 && fromStart <= total + 1)
-                    return (_expanded, Math.Clamp((int)(fromStart / _childSpan), 0, _children.Count - 1));
+                {
+                    int index = Math.Clamp((int)(fromStart / band.Span), 0, band.Tiles.Count - 1);
+                    if (distance <= band.EdgeR + 1 || band.Tiles[index].Arrow is not null)
+                        return (level, index);
+                }
             }
-            else
+            else if (distance > _bands[level - 1].EdgeR - 2 && distance < band.InnerR - 6)
             {
-                // Between the ring and the items is a bridge that keeps the parent selected.
-                double width = _bridgeTo - _bridgeFrom;
-                double fromStart = AngleBetween(_bridgeFrom + width / 2, angle) + width / 2;
+                double width = band.BridgeTo - band.BridgeFrom;
+                double fromStart = AngleBetween(band.BridgeFrom + width / 2, angle) + width / 2;
                 if (fromStart >= -1 && fromStart <= width + 1)
-                    return (_expanded, -1);
+                    return (level - 1, _bands[level - 1].Opened);
             }
         }
 
-        if (distance < DeadZoneR || distance > ArrowTipR + 2)
+        if (distance < DeadZoneR || distance > OuterR + ArrowReach)
             return (-1, -1);
         double relative = ((angle - _offset + _span / 2) % 360 + 360) % 360;
-        int top = Math.Min((int)(relative / _span), n - 1);
+        int top = Math.Min((int)(relative / _span), Slices.Count - 1);
         // Outside the ring only an expandable slice's arrow counts.
-        if (distance > OuterR + 1 && _slices[top].Arrow is null)
+        if (distance > OuterR + 1 && Slices[top].Arrow is null)
             return (-1, -1);
-        return (top, -1);
+        return (0, top);
     }
 
     /// <summary>Signed angle from <paramref name="from"/> to <paramref name="to"/>, in (-180, 180].</summary>
@@ -529,125 +588,147 @@ public partial class RadialMenuWindow : Window
     /// </summary>
     internal void ApplyHints(MenuModel model, IReadOnlyList<(string? Hint, bool Dimmed)> hints)
     {
-        if (!ReferenceEquals(model, _model) || hints.Count != _slices.Count)
+        if (!ReferenceEquals(model, _model) || hints.Count != Slices.Count)
             return;
         for (int i = 0; i < hints.Count; i++)
         {
-            var slice = _slices[i];
+            var slice = Slices[i];
             if (hints[i].Hint is not { } text)
                 continue;
             slice.Hint.Text = text;
             slice.Hint.Visibility = Visibility.Visible;
             slice.Dimmed = hints[i].Dimmed;
-            Paint(slice, i == _hover, i == _expanded);
+            Paint(slice, IsHot(0, i), _bands[0].Opened == i);
         }
     }
 
     /// <summary>
-    /// Late items for expandable slices (e.g. recent sessions under Resume). A slice with items gets
-    /// its arrow; if it is already hovered, it opens right away.
+    /// Late items for slices that open further (recent sessions, recent projects). A slice with items
+    /// gets its arrow; if it is already hovered, it opens right away.
     /// </summary>
     internal void ApplyChildren(MenuModel model, IReadOnlyList<IReadOnlyList<MenuItemModel>> children, bool force = false)
     {
-        if ((!_isOpen && !force) || !ReferenceEquals(model, _model) || children.Count != _slices.Count)
+        if ((!_isOpen && !force) || !ReferenceEquals(model, _model) || children.Count != Slices.Count)
             return;
         for (int i = 0; i < children.Count; i++)
         {
-            var slice = _slices[i];
+            var slice = Slices[i];
             slice.Children = children[i];
             if (slice.Children.Count == 0 || slice.Arrow is not null)
                 continue;
-            double halfWidth = Math.Min(_span / 2 - 7, 15);
-            slice.Arrow = new Path
-            {
-                Data = ArrowGeometry(slice.Mid, halfWidth),
-                StrokeThickness = 1.5,
-                StrokeLineJoin = PenLineJoin.Round,
-            };
-            SliceLayer.Children.Add(slice.Arrow);
-            slice.Arrow.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, AnimationTime(160)));
-            Paint(slice, i == _hover, i == _expanded);
+            AddArrow(0, slice);
+            Paint(slice, IsHot(0, i), _bands[0].Opened == i);
         }
-        if (_hover >= 0 && _hover != _expanded && _slices[_hover].Children.Count > 0)
-            Expand(_hover);
+        if (_hoverLevel == 0 && _bands[0].Opened != _hoverIndex && Slices[_hoverIndex].Children.Count > 0)
+            Open(0, _hoverIndex);
     }
 
-    // ---- expansion ----
+    // ---- opening arcs ----
 
-    void Expand(int index)
+    /// <summary>Opens the items of tile <paramref name="index"/> of band <paramref name="level"/> on the next band out.</summary>
+    void Open(int level, int index)
     {
-        if (index == _expanded)
-            return;
-        Collapse();
-        var slice = _slices[index];
-        int k = slice.Children.Count;
+        var parent = _bands[level];
+        var tile = parent.Tiles[index];
+        var band = _bands[level + 1];
+        CloseFrom(level + 1);
+        int k = tile.Children.Count;
         if (k == 0)
             return;
-        _expanded = index;
-        _childSpan = Math.Min(ChildSpan, 300.0 / k);
-        double total = k * _childSpan;
-        _childFrom = slice.Mid + ArcShift(slice.Mid, total) - total / 2;
-        // The bridge reaches from the slice's arrow to the items, even when the arc had to turn away from the edge.
-        double arrowHalf = Math.Min(_span / 2 - 7, 15);
-        double startOffset = AngleBetween(slice.Mid, _childFrom), endOffset = startOffset + total;
-        _bridgeFrom = slice.Mid + Math.Min(startOffset, -arrowHalf) - 1;
-        _bridgeTo = slice.Mid + Math.Max(endOffset, arrowHalf) + 1;
+        parent.Opened = index;
+        band.Span = Math.Min(band.TileSpan, 300.0 / k);
+        double total = k * band.Span;
+        band.From = tile.Mid + ArcShift(tile.Mid, total, band.EdgeR) - total / 2;
+        // The bridge reaches from the tile's arrow to the items, even when the arc had to turn away from an edge.
+        double arrowHalf = ArrowHalfWidth(level);
+        double startOffset = AngleBetween(tile.Mid, band.From), endOffset = startOffset + total;
+        band.BridgeFrom = tile.Mid + Math.Min(startOffset, -arrowHalf) - 1;
+        band.BridgeTo = tile.Mid + Math.Max(endOffset, arrowHalf) + 1;
 
-        // Invisible but mouse-catching band from the ring to the items, so moving outward never falls through,
-        // and a base band under the items, so the gaps between them look like the ring's.
-        ChildLayer.Children.Add(new Path
+        // Invisible but mouse-catching band from the parent to the items, so moving outward never falls through,
+        // and a base under the items, so the gaps between them look like the ring's.
+        band.Layer.Children.Add(new Path
         {
-            Data = TileGeometry(OuterR - 2, ChildInnerR, _bridgeFrom, _bridgeTo, 0),
+            Data = TileGeometry(parent.EdgeR - 2, band.InnerR, band.BridgeFrom, band.BridgeTo, 0),
             Fill = RondelPalette.Catcher,
         });
-        ChildLayer.Children.Add(new Path
+        band.Layer.Children.Add(new Path
         {
-            Data = TileGeometry(ChildInnerR - 4, ChildOuterR + 4, _childFrom - 1.5, _childFrom + k * _childSpan + 1.5, 0),
+            Data = TileGeometry(band.InnerR - 4, band.EdgeR, band.From - 1.5, band.From + total + 1.5, 0),
             Fill = _palette.RingFill,
             Stroke = _palette.RingStroke,
             StrokeThickness = 1,
         });
 
-        // Items arrive newest first. The newest takes the place closest to the slice (right outside it when the
+        // Items arrive newest first. The newest takes the place closest to the tile (right outside it when the
         // arc is centered) and the next ones the next closest, alternating clockwise and counterclockwise.
-        // Near a screen edge, where the arc had to turn, the newest is at the end next to the slice.
-        // _children is kept in position order (clockwise).
-        double maxWidth = Math.Max(MinLabelWidth, 2 * ChildLabelR * Math.Sin(_childSpan * Math.PI / 360) - 10);
-        _positionOfRank = Enumerable.Range(0, k)
-            .OrderBy(position => Math.Round(Math.Abs(AngleBetween(slice.Mid, _childFrom + (position + 0.5) * _childSpan)), 2))
+        // Near a screen edge, where the arc had to turn, the newest is at the end next to the tile.
+        // Tiles are kept in position order (clockwise).
+        double labelR = (band.InnerR + band.OuterR) / 2;
+        double maxWidth = Math.Max(MinLabelWidth, 2 * labelR * Math.Sin(band.Span * Math.PI / 360) - 10);
+        band.PositionOfRank = Enumerable.Range(0, k)
+            .OrderBy(position => Math.Round(Math.Abs(AngleBetween(tile.Mid, band.From + (position + 0.5) * band.Span)), 2))
             .ThenByDescending(position => position)
             .ToArray();
         var byPosition = new MenuItemModel[k];
         for (int rank = 0; rank < k; rank++)
-            byPosition[_positionOfRank[rank]] = slice.Children[rank];
+            byPosition[band.PositionOfRank[rank]] = tile.Children[rank];
         for (int position = 0; position < k; position++)
         {
-            double mid = _childFrom + (position + 0.5) * _childSpan;
-            var tile = CreateTile(byPosition[position], mid, _childSpan, ChildInnerR, ChildOuterR, ChildLayer, withGlyph: false);
-            tile.Label.MaxHeight = 46; // up to three lines of a session title
-            PlaceLabel(tile.Content, tile.Label, mid, maxWidth, ChildLabelR, ChildInnerR, ChildOuterR, _childSpan, ChildFontSizes);
-            _children.Add(tile);
-            Paint(tile, hot: false, expanded: false);
+            double mid = band.From + (position + 0.5) * band.Span;
+            var item = CreateTile(byPosition[position], mid, band.Span, band.InnerR, band.OuterR, band.Layer, withGlyph: false);
+            item.Children = byPosition[position].Children;
+            item.Label.MaxHeight = band.LabelMaxHeight;
+            PlaceLabel(item.Content, item.Label, mid, maxWidth, labelR, band.InnerR, band.OuterR, band.Span, band.FontSizes);
+            band.Tiles.Add(item);
+            if (item.Children.Count > 0 && level + 2 < _bands.Length)
+                AddArrow(level + 1, item);
+            Paint(item, hot: false, expanded: false);
         }
-        Paint(slice, index == _hover, expanded: true);
+        Paint(tile, IsHot(level, index), expanded: true);
 
-        var duration = AnimationTime(150);
-        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-        ChildLayer.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, duration) { EasingFunction = ease });
-        var grow = new DoubleAnimation(SystemParameters.ClientAreaAnimation ? 0.92 : 1, 1, duration) { EasingFunction = ease };
-        ChildScale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
-        ChildScale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
+        if (band.Scale is { } scale)
+        {
+            var duration = AnimationTime(150);
+            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+            band.Layer.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, duration) { EasingFunction = ease });
+            var grow = new DoubleAnimation(SystemParameters.ClientAreaAnimation ? 0.94 : 1, 1, duration) { EasingFunction = ease };
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
+        }
+    }
+
+    /// <summary>Closes the arcs from band <paramref name="level"/> outward.</summary>
+    void CloseFrom(int level)
+    {
+        for (int l = _bands.Length - 1; l >= Math.Max(level, 1); l--)
+        {
+            var band = _bands[l];
+            if (band.Tiles.Count == 0 && band.Layer.Children.Count == 0)
+                continue;
+            band.Tiles.Clear();
+            band.Layer.Children.Clear();
+            band.Opened = -1;
+            band.PositionOfRank = [];
+            if (_hoverLevel == l)
+                (_hoverLevel, _hoverIndex) = (-1, -1);
+            var parent = _bands[l - 1];
+            int opener = parent.Opened;
+            parent.Opened = -1;
+            if (opener >= 0 && opener < parent.Tiles.Count)
+                Paint(parent.Tiles[opener], IsHot(l - 1, opener), expanded: false);
+        }
     }
 
     /// <summary>
-    /// How far (degrees) an arc of <paramref name="total"/> degrees has to turn away from being centered on
-    /// <paramref name="mid"/> to stay inside the monitor's work area: 0 when it fits, else the smallest turn
-    /// that fits (clockwise first). Near a screen edge the items then open towards the free side.
+    /// How far (degrees) an arc of <paramref name="total"/> degrees reaching out to <paramref name="edgeR"/> has to
+    /// turn away from being centered on <paramref name="mid"/> to stay inside the monitor's work area: 0 when it
+    /// fits, else the smallest turn that fits (clockwise first). Near a screen edge the items open towards the free side.
     /// </summary>
-    double ArcShift(double mid, double total)
+    double ArcShift(double mid, double total, double edgeR)
     {
         const double Margin = 8;
-        double reach = ChildOuterR + 4 + Margin;
+        double reach = edgeR + Margin;
         bool FitsOnScreen(double shift)
         {
             for (double a = mid + shift - total / 2; a <= mid + shift + total / 2 + 0.01; a += 4)
@@ -669,17 +750,20 @@ public partial class RadialMenuWindow : Window
         return 0; // nowhere fully on screen (tiny work area): keep it centered
     }
 
-    void Collapse()
+    double ArrowHalfWidth(int level) =>
+        level == 0 ? Math.Min(_span / 2 - 7, 15) : Math.Min(_bands[level].Span / 2 - 5, 10);
+
+    void AddArrow(int level, Tile tile)
     {
-        if (_expanded < 0)
-            return;
-        int index = _expanded;
-        _expanded = -1;
-        _childHover = -1;
-        _children.Clear();
-        ChildLayer.Children.Clear();
-        if (index < _slices.Count)
-            Paint(_slices[index], index == _hover, expanded: false);
+        tile.Arrow = new Path
+        {
+            Data = ArrowGeometry(tile.Mid, ArrowHalfWidth(level), _bands[level].EdgeR),
+            StrokeThickness = 1.5,
+            StrokeLineJoin = PenLineJoin.Round,
+        };
+        _bands[level].Layer.Children.Add(tile.Arrow);
+        // Fades in to whatever opacity Paint gives it (the animation stops, it does not hold the value).
+        tile.Arrow.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, AnimationTime(160)) { FillBehavior = FillBehavior.Stop });
     }
 
     // ---- inline input ----
@@ -695,7 +779,7 @@ public partial class RadialMenuWindow : Window
         _input = spec;
         _promptStage = false;
         SetHover(-1, -1);
-        Collapse();
+        CloseFrom(1);
         InputGlyph.Text = spec.Glyph.ToString();
         NameBox.Tag = Loc.Get("Input.NamePlaceholder");
         PromptBox.Tag = Loc.Format("Input.PromptPlaceholder", spec.AgentName);
@@ -836,10 +920,11 @@ public partial class RadialMenuWindow : Window
 
     void BuildSlices(MenuModel model)
     {
-        Collapse();
+        CloseFrom(1);
         SliceLayer.Children.Clear();
-        _slices.Clear();
-        _hover = -1;
+        Slices.Clear();
+        _bands[0].Opened = -1;
+        (_hoverLevel, _hoverIndex) = (-1, -1);
         int n = model.Items.Count;
         if (n == 0)
             return;
@@ -861,8 +946,8 @@ public partial class RadialMenuWindow : Window
                 : expectsHint ? Visibility.Hidden
                 : Visibility.Collapsed;
             tile.Dimmed = item.Dimmed;
-            PlaceLabel(tile.Content, tile.Label, mid, maxLabelWidth, LabelR, TileInnerR, TileOuterR, _span, SliceFontSizes);
-            _slices.Add(tile);
+            PlaceLabel(tile.Content, tile.Label, mid, maxLabelWidth, LabelR, TileInnerR, TileOuterR, _span, _bands[0].FontSizes);
+            Slices.Add(tile);
             Paint(tile, hot: false, expanded: false);
         }
     }
@@ -965,7 +1050,7 @@ public partial class RadialMenuWindow : Window
     static double LongestWordWidth(TextBlock text)
     {
         var typeface = new Typeface(text.FontFamily, text.FontStyle, text.FontWeight, text.FontStretch);
-        return text.Text.Split([' ', '\u200B'], StringSplitOptions.RemoveEmptyEntries)
+        return text.Text.Split([' ', '​'], StringSplitOptions.RemoveEmptyEntries)
             .Select(word => new FormattedText(word, System.Globalization.CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
                 typeface, text.FontSize, Brushes.Black, 1.0).WidthIncludingTrailingWhitespace)
             .DefaultIfEmpty(0)
@@ -992,37 +1077,32 @@ public partial class RadialMenuWindow : Window
         return true;
     }
 
-    void SetHover(int top, int child)
+    bool IsHot(int level, int index) => level == _hoverLevel && index == _hoverIndex;
+
+    /// <summary>
+    /// Selects a tile (or nothing with -1). The bands it belongs to stay open; deeper arcs close unless this
+    /// tile is the one that opened them, and the tile opens its own items if it has any. Selecting nothing
+    /// (the pointer left the menu, or rests in the center) keeps everything open, so the pointer can travel.
+    /// </summary>
+    void SetHover(int level, int index)
     {
-        if (top == _hover && child == _childHover)
+        if (level == _hoverLevel && index == _hoverIndex)
             return;
-        if (top != _hover)
+        var (previousLevel, previousIndex) = (_hoverLevel, _hoverIndex);
+        (_hoverLevel, _hoverIndex) = level >= 0 && index >= 0 ? (level, index) : (-1, -1);
+        if (previousLevel >= 0 && previousIndex < _bands[previousLevel].Tiles.Count)
+            Paint(_bands[previousLevel].Tiles[previousIndex], hot: false, _bands[previousLevel].Opened == previousIndex);
+        if (_hoverLevel < 0)
+            return;
+
+        var band = _bands[level];
+        if (band.Opened != index)
         {
-            int previous = _hover;
-            _hover = top;
-            if (previous >= 0 && previous < _slices.Count)
-                Paint(_slices[previous], hot: false, previous == _expanded);
-            if (_hover >= 0 && _hover < _slices.Count)
-                Paint(_slices[_hover], hot: true, _hover == _expanded);
+            CloseFrom(level + 1);
+            if (band.Tiles[index].Children.Count > 0 && level + 1 < _bands.Length)
+                Open(level, index);
         }
-        // Hovering another slice closes an open one and opens the new one if it expands.
-        // Leaving the ring (center, outside) keeps it open, so the pointer can travel.
-        if (top >= 0 && top != _expanded)
-        {
-            if (_slices[top].Children.Count > 0)
-                Expand(top);
-            else
-                Collapse();
-        }
-        // After a possible expansion, so the item refers to the slice's current items.
-        if (child != _childHover)
-        {
-            if (_childHover >= 0 && _childHover < _children.Count)
-                Paint(_children[_childHover], hot: false, expanded: false);
-            _childHover = child < _children.Count ? child : -1;
-            if (_childHover >= 0)
-                Paint(_children[_childHover], hot: true, expanded: false);
-        }
+        Paint(band.Tiles[index], hot: true, band.Opened == index);
     }
 
     void Paint(Tile tile, bool hot, bool expanded)
@@ -1052,6 +1132,7 @@ public partial class RadialMenuWindow : Window
         RingBase.Stroke = _palette.RingStroke;
         RingShadow.Opacity = _palette.ShadowOpacity;
         ChildShadow.Opacity = _palette.ShadowOpacity * 0.8;
+        GrandShadow.Opacity = _palette.ShadowOpacity * 0.8;
         Hub.Fill = _palette.HubFill;
         HubRing.Stroke = _palette.Brand;
         CenterGlyph.Foreground = _palette.Brand;
@@ -1110,17 +1191,20 @@ public partial class RadialMenuWindow : Window
         return geometry;
     }
 
-    /// <summary>A short band outside the ring whose outer edge comes to a point: "this slice opens outward".</summary>
-    static Geometry ArrowGeometry(double mid, double halfWidth)
+    /// <summary>
+    /// A short band just outside <paramref name="baseR"/> whose outer edge comes to a point: "this tile opens outward".
+    /// </summary>
+    static Geometry ArrowGeometry(double mid, double halfWidth, double baseR)
     {
+        double inner = baseR + 5, outer = baseR + 8, tip = baseR + 15;
         var geometry = new StreamGeometry();
         using (var ctx = geometry.Open())
         {
-            ctx.BeginFigure(OnCircle(ArrowInnerR, mid - halfWidth), isFilled: true, isClosed: true);
-            ctx.ArcTo(OnCircle(ArrowInnerR, mid + halfWidth), new Size(ArrowInnerR, ArrowInnerR), 0, false, SweepDirection.Clockwise, true, true);
-            ctx.LineTo(OnCircle(ArrowOuterR, mid + halfWidth), true, true);
-            ctx.LineTo(OnCircle(ArrowTipR, mid), true, true);
-            ctx.LineTo(OnCircle(ArrowOuterR, mid - halfWidth), true, true);
+            ctx.BeginFigure(OnCircle(inner, mid - halfWidth), isFilled: true, isClosed: true);
+            ctx.ArcTo(OnCircle(inner, mid + halfWidth), new Size(inner, inner), 0, false, SweepDirection.Clockwise, true, true);
+            ctx.LineTo(OnCircle(outer, mid + halfWidth), true, true);
+            ctx.LineTo(OnCircle(tip, mid), true, true);
+            ctx.LineTo(OnCircle(outer, mid - halfWidth), true, true);
         }
         geometry.Freeze();
         return geometry;

@@ -205,13 +205,22 @@ internal static class DevTools
                     project => store.Recent(project, MenuBuilder.MaxSessionItems))
                 : []);
         }
-        int hover = options.Contains("idle", StringComparer.OrdinalIgnoreCase) ? -1 : children.FindIndex(c => c.Count > 0);
+        // Hover the first slice that opens and its newest item; with "deep", also open the first item that opens further.
+        var path = new List<int>();
+        int hover = children.FindIndex(c => c.Count > 0);
+        if (!options.Contains("idle", StringComparer.OrdinalIgnoreCase) && hover >= 0)
+        {
+            path.AddRange([hover, 0]);
+            int deep = children[hover].ToList().FindIndex(c => c.Children.Count > 0);
+            if (options.Contains("deep", StringComparer.OrdinalIgnoreCase) && deep >= 0)
+                path = [hover, deep, 0];
+        }
 
         var window = new RadialMenuWindow();
         var background = options.Contains("transparent", StringComparer.OrdinalIgnoreCase) ? Colors.Transparent
             : dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6);
         bool edge = options.Contains("edge", StringComparer.OrdinalIgnoreCase);
-        var bitmap = window.RenderPreview(model, new ThemeColors(dark), hints, children, hover, hover >= 0 ? 0 : -1, background, edge);
+        var bitmap = window.RenderPreview(model, new ThemeColors(dark), hints, children, path, background, edge);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var file = File.Create(output);
