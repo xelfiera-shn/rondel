@@ -1,6 +1,6 @@
 # Roadmap
 
-Rondel is built Windows first. Each phase ends with something usable; later phases are refined when the earlier ones are done.
+Rondel is built Windows first. Each phase ends with something usable; later phases are refined when the earlier ones are done. Who is working on what, per platform, is in [TODO.md](../TODO.md).
 
 ## Phase 0 — Repository
 
