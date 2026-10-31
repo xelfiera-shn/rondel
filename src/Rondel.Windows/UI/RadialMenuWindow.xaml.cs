@@ -16,6 +16,7 @@ using Rondel.Core.Logging;
 using Rondel.Core.Menus;
 using Rondel.Core.Sessions;
 using Rondel.Core.Settings;
+using Rondel.Core.Themes;
 using Rondel.Windows.Interop;
 using static Rondel.Windows.Interop.Native;
 using Path = System.Windows.Shapes.Path;
@@ -40,8 +41,7 @@ public partial class RadialMenuWindow : Window
     const double HubR = 52;            // hub disc radius (Hub in the XAML is 2 × this)
     const double TileInnerR = HubR + 7;
     const double TileOuterR = OuterR - 4;
-    const double RimWidth = 4;         // lit strip along a tile's outer edge
-    const double TileGap = 3;          // DIPs between neighbouring tiles (parallel edges)
+    const double RimWidth = 4;         // room kept for a lit strip along a tile's outer edge (the same for every theme)
     const double DeadZoneR = 58;       // closer than this to the center selects nothing
     const double LabelR = 113;         // where icon + label blocks are centered
     const double ArcGap = 26;          // from a band's edge to the tiles of the arc it opens (room for the arrow)
@@ -63,7 +63,12 @@ public partial class RadialMenuWindow : Window
         public required TextBlock? Glyph { get; init; }
         public required TextBlock Label { get; init; }
         public required TextBlock Hint { get; init; }
+        /// <summary>The fill of the highlighted tile (a wash, the accent, or a glow, depending on the theme).</summary>
         public required Brush Wash { get; init; }
+
+        /// <summary>The fill of a tile whose items are open while the pointer is elsewhere (glow themes).</summary>
+        public required Brush WashSoft { get; init; }
+
         public required Brush Lit { get; init; }
         public required double Mid { get; init; }
         public bool Dimmed { get; set; }
@@ -293,9 +298,10 @@ public partial class RadialMenuWindow : Window
         SurfaceScale.BeginAnimation(ScaleTransform.ScaleYProperty, shrink);
     }
 
-    internal void UpdateTheme(ThemeColors theme)
+    /// <summary>Switches to another theme or mode; an open menu is redrawn with what it shows.</summary>
+    internal void ApplyLook(RondelPalette palette)
     {
-        _palette = RondelPalette.For(theme);
+        _palette = palette;
         _glow = _palette.Glow;
         ApplyPalette();
         if (!_isOpen)
@@ -316,14 +322,14 @@ public partial class RadialMenuWindow : Window
     /// the window, on a solid background so the shadows read as they would on screen.
     /// </summary>
     /// <param name="path">What to hover: a slice index, then for each arc the rank of an item (0 = newest).</param>
-    internal BitmapSource RenderPreview(MenuModel model, ThemeColors theme, IReadOnlyList<(string? Hint, bool Dimmed)> hints,
+    internal BitmapSource RenderPreview(MenuModel model, RondelPalette palette, IReadOnlyList<(string? Hint, bool Dimmed)> hints,
         IReadOnlyList<IReadOnlyList<MenuItemModel>> children, IReadOnlyList<int> path, Color background, bool atLeftEdge = false)
     {
         // As if the menu opened at the left edge of the work area (the ring clamped against it).
         _room = atLeftEdge
             ? (OuterR + ShadowPad, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity)
             : (double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity);
-        _palette = RondelPalette.For(theme);
+        _palette = palette;
         _glow = _palette.Glow;
         ApplyPalette();
         _model = model;
@@ -511,7 +517,21 @@ public partial class RadialMenuWindow : Window
         if (RingBase.CacheMode is BitmapCache { RenderAtScale: var current } && current == scale)
             return;
         RingBase.CacheMode = new BitmapCache(scale) { SnapsToDevicePixels = true };
+        CacheGlows(scale);
     }
+
+    /// <summary>
+    /// Glowing parts that never change while the menu is open (the hub ring of a glowing theme, the orbit) are cached
+    /// the same way: a blurred glow is costly to redraw every time a slice nearby lights up.
+    /// </summary>
+    void CacheGlows(double scale)
+    {
+        HubRing.CacheMode = _palette.Theme.HubGlow ? new BitmapCache(scale) { SnapsToDevicePixels = true } : null;
+        if (_orbit is not null)
+            _orbit.CacheMode = new BitmapCache(scale) { SnapsToDevicePixels = true };
+    }
+
+    double CachedScale => RingBase.CacheMode is BitmapCache cache ? cache.RenderAtScale : 1;
 
     /// <summary>
     /// Animations run unless "Animation effects" is off in Windows or the PC runs on battery: every frame of
@@ -1064,13 +1084,60 @@ public partial class RadialMenuWindow : Window
             Slices.Add(tile);
             Paint(tile, hot: false, expanded: false);
         }
+        _orbit = _palette.Theme.Decoration == RingDecoration.Orbit ? OrbitDecoration(n) : null;
+        if (_orbit is not null)
+            SliceLayer.Children.Add(_orbit);
+        CacheGlows(CachedScale);
+    }
+
+    Path? _orbit;
+
+    /// <summary>
+    /// A thin accent ring along the edge, broken at every slice by a short tick pointing inward
+    /// (outside the edge is where a slice's arrow goes).
+    /// </summary>
+    Path OrbitDecoration(int n)
+    {
+        const double R = OuterR - 3, GapDegrees = 7;
+        var geometry = new StreamGeometry();
+        using (var ctx = geometry.Open())
+        {
+            for (int i = 0; i < n; i++)
+            {
+                double mid = _offset + i * _span;
+                double from = mid + GapDegrees, to = mid + _span - GapDegrees;
+                if (to > from)
+                {
+                    ctx.BeginFigure(OnCircle(R, from), isFilled: false, isClosed: false);
+                    ctx.ArcTo(OnCircle(R, to), new Size(R, R), 0, to - from > 180, SweepDirection.Clockwise, true, false);
+                }
+                ctx.BeginFigure(OnCircle(R + 3, mid), isFilled: false, isClosed: false);
+                ctx.LineTo(OnCircle(R - 9, mid), true, false);
+            }
+        }
+        geometry.Freeze();
+        return new Path
+        {
+            Data = geometry,
+            Stroke = _palette.BrandBetween(new Point(StageR, StageR - OuterR), new Point(StageR, StageR + OuterR)),
+            StrokeThickness = 1.6,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            Effect = _glow,
+            IsHitTestVisible = false,
+        };
     }
 
     Tile CreateTile(MenuItemModel item, double mid, double span, double innerR, double outerR, Canvas layer, bool withGlyph)
     {
+        var theme = _palette.Theme;
         double from = mid - span / 2, to = mid + span / 2;
-        var fill = new Path { Data = TileGeometry(innerR, outerR, from, to, span < 360 ? TileGap : 0), StrokeThickness = 1 };
-        var rim = new Path { Data = TileGeometry(outerR - RimWidth, outerR, from, to, span < 360 ? TileGap : 0) };
+        double gap = span < 360 ? theme.TileGap : 0;
+        var shape = theme.Tiles == TileShape.Rounded && span < 360
+            ? RoundedTileGeometry(innerR, outerR, from, to, gap, theme.CornerRadius)
+            : TileGeometry(innerR, outerR, from, to, gap);
+        var fill = new Path { Data = shape, StrokeThickness = 1 };
+        var rim = new Path { Data = TileGeometry(outerR - theme.RimWidth, outerR, from, to, gap) };
         layer.Children.Add(fill);
         layer.Children.Add(rim);
 
@@ -1111,6 +1178,17 @@ public partial class RadialMenuWindow : Window
 
         // The rim's gradient runs along the arc; the wash deepens towards the outer edge.
         double half = Math.Min(span, 359) / 2;
+        var (inner, outer) = (OnCircle(innerR, mid), OnCircle(outerR, mid));
+        var center = OnCircle((innerR + outerR) / 2, mid);
+        // A glow stays inside its own wedge, so neighbouring glows never touch.
+        double glowR = Math.Min(Math.Min(56, (outerR - innerR) * 0.62), (innerR + outerR) / 2 * Math.Sin(Math.Min(span, 180) * Math.PI / 360) * 0.95);
+        var (wash, washSoft) = theme.Highlight switch
+        {
+            HighlightStyle.Fill => (_palette.AccentFillBetween(inner, outer), _palette.TileFill),
+            HighlightStyle.Outline => (_palette.HotFill, _palette.TileFill),
+            HighlightStyle.Glow => (_palette.GlowAround(center, glowR, 1), _palette.GlowAround(center, glowR, 0.45)),
+            _ => (_palette.WashBetween(inner, outer), _palette.TileFill),
+        };
         return new Tile
         {
             Item = item,
@@ -1121,7 +1199,8 @@ public partial class RadialMenuWindow : Window
             Label = label,
             Hint = hint,
             Mid = mid,
-            Wash = _palette.WashBetween(OnCircle(innerR, mid), OnCircle(outerR, mid)),
+            Wash = wash,
+            WashSoft = washSoft,
             Lit = _palette.BrandBetween(OnCircle(outerR, mid - half), OnCircle(outerR, mid + half)),
         };
     }
@@ -1347,14 +1426,34 @@ public partial class RadialMenuWindow : Window
     void Paint(Tile tile, bool hot, bool expanded)
     {
         bool lit = hot || expanded;
-        tile.Fill.Fill = hot ? tile.Wash : _palette.TileFill;
-        tile.Fill.Stroke = _palette.TileStroke;
-        tile.Rim.Fill = lit ? tile.Lit : _palette.RimIdle;
-        tile.Rim.Effect = lit ? _glow : null;
+        var style = _palette.Theme.Highlight;
+        switch (style)
+        {
+            case HighlightStyle.Rim:
+                tile.Fill.Fill = hot ? tile.Wash : _palette.TileFill;
+                tile.Fill.Stroke = _palette.TileStroke;
+                tile.Rim.Fill = lit ? tile.Lit : _palette.RimIdle;
+                tile.Rim.Effect = lit ? _glow : null;
+                break;
+            case HighlightStyle.Fill or HighlightStyle.Outline:
+                // The whole tile answers: filled with the accent (or brightened), its outline lit.
+                tile.Fill.Fill = hot ? tile.Wash : _palette.TileFill;
+                tile.Fill.Stroke = lit ? tile.Lit : _palette.TileStroke;
+                tile.Fill.StrokeThickness = lit ? 1.5 : 1;
+                tile.Fill.Effect = (style == HighlightStyle.Fill ? hot : lit) ? _glow : null;
+                tile.Rim.Fill = null;
+                break;
+            case HighlightStyle.Glow:
+                tile.Fill.Fill = hot ? tile.Wash : expanded ? tile.WashSoft : _palette.TileFill;
+                tile.Fill.Stroke = _palette.TileStroke;
+                tile.Rim.Fill = null;
+                break;
+        }
+        bool onAccent = hot && style == HighlightStyle.Fill;
         if (tile.Glyph is not null)
-            tile.Glyph.Foreground = hot ? _palette.Accent : _palette.Text;
-        tile.Label.Foreground = _palette.Text;
-        tile.Hint.Foreground = hot ? _palette.Accent : _palette.SubText;
+            tile.Glyph.Foreground = onAccent ? RondelPalette.OnAccent : hot ? _palette.Accent : _palette.Text;
+        tile.Label.Foreground = onAccent ? RondelPalette.OnAccent : _palette.Text;
+        tile.Hint.Foreground = onAccent ? RondelPalette.OnAccentSoft : hot ? _palette.Accent : _palette.SubText;
         tile.Content.Opacity = tile.Dimmed && !hot ? 0.45 : 1;
         if (tile.Arrow is not null)
         {
@@ -1373,7 +1472,9 @@ public partial class RadialMenuWindow : Window
         ChildShadow.Opacity = _palette.ShadowOpacity * 0.8;
         GrandShadow.Opacity = _palette.ShadowOpacity * 0.8;
         Hub.Fill = _palette.HubFill;
-        HubRing.Stroke = _palette.Brand;
+        HubRing.Stroke = _palette.HubStroke;
+        HubRing.StrokeThickness = _palette.Theme.HubStrokeWidth;
+        HubRing.Effect = _palette.Theme.HubGlow ? _glow : null;
         CenterGlyph.Foreground = _palette.Brand;
         CenterTitle.Foreground = _palette.Text;
         CenterSubtitle.Foreground = _palette.SubText;
@@ -1426,6 +1527,40 @@ public partial class RadialMenuWindow : Window
             ctx.ArcTo(OnCircle(outerR, outerTo), new Size(outerR, outerR), 0, outerTo - outerFrom > 180, SweepDirection.Clockwise, true, true);
             ctx.LineTo(OnCircle(innerR, innerTo), true, true);
             ctx.ArcTo(OnCircle(innerR, innerFrom), new Size(innerR, innerR), 0, innerTo - innerFrom > 180, SweepDirection.Counterclockwise, true, true);
+        }
+        geometry.Freeze();
+        return geometry;
+    }
+
+    /// <summary>
+    /// <see cref="TileGeometry"/> with rounded corners (a petal). Each corner is a quadratic curve from
+    /// <paramref name="corner"/> before it to <paramref name="corner"/> after it, smaller when an edge is short.
+    /// </summary>
+    static Geometry RoundedTileGeometry(double innerR, double outerR, double fromDegrees, double toDegrees, double gap, double corner)
+    {
+        const double Deg = 180 / Math.PI;
+        double outerFrom = fromDegrees + Math.Asin(gap / 2 / outerR) * Deg, outerTo = toDegrees - Math.Asin(gap / 2 / outerR) * Deg;
+        double innerFrom = fromDegrees + Math.Asin(gap / 2 / innerR) * Deg, innerTo = toDegrees - Math.Asin(gap / 2 / innerR) * Deg;
+        Point a = OnCircle(outerR, outerFrom), b = OnCircle(outerR, outerTo), c = OnCircle(innerR, innerTo), d = OnCircle(innerR, innerFrom);
+        double side = (b - c).Length;
+        double r = Math.Min(corner, Math.Min(side, Math.Min((outerTo - outerFrom) / Deg * outerR, (innerTo - innerFrom) / Deg * innerR)) / 3);
+        double outerStep = r / outerR * Deg, innerStep = r / innerR * Deg;
+        static Point Toward(Point from, Point to, double distance) => from + (to - from) * (distance / (to - from).Length);
+
+        var geometry = new StreamGeometry();
+        using (var ctx = geometry.Open())
+        {
+            ctx.BeginFigure(OnCircle(outerR, outerFrom + outerStep), isFilled: true, isClosed: true);
+            ctx.ArcTo(OnCircle(outerR, outerTo - outerStep), new Size(outerR, outerR), 0, outerTo - outerFrom - 2 * outerStep > 180,
+                SweepDirection.Clockwise, true, true);
+            ctx.QuadraticBezierTo(b, Toward(b, c, r), true, true);
+            ctx.LineTo(Toward(c, b, r), true, true);
+            ctx.QuadraticBezierTo(c, OnCircle(innerR, innerTo - innerStep), true, true);
+            ctx.ArcTo(OnCircle(innerR, innerFrom + innerStep), new Size(innerR, innerR), 0, innerTo - innerFrom - 2 * innerStep > 180,
+                SweepDirection.Counterclockwise, true, true);
+            ctx.QuadraticBezierTo(d, Toward(d, a, r), true, true);
+            ctx.LineTo(Toward(a, d, r), true, true);
+            ctx.QuadraticBezierTo(a, OnCircle(outerR, outerFrom + outerStep), true, true);
         }
         geometry.Freeze();
         return geometry;
