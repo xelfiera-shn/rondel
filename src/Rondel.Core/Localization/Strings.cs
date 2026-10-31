@@ -27,6 +27,7 @@ static class Strings
         ["Action.Open"] = "Open",
         ["Action.Continue"] = "Continue",
         ["Action.Resume"] = "Resume",
+        ["Action.Recents"] = "Recent Projects",
 
         ["Settings.Title"] = "Rondel Settings",
         ["Settings.Tagline"] = "A radial launcher for AI coding agents",
@@ -136,6 +137,7 @@ static class Strings
         ["Action.Open"] = "Aç",
         ["Action.Continue"] = "Devam Et",
         ["Action.Resume"] = "Oturum Seç",
+        ["Action.Recents"] = "Son Projeler",
 
         ["Settings.Title"] = "Rondel Ayarları",
         ["Settings.Tagline"] = "Yapay zekâ kodlama ajanları için dairesel başlatıcı",

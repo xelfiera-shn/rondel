@@ -25,6 +25,7 @@ public sealed partial class ClaudeCodeSessionStore : ISessionStore
     const int MaxTitleLength = 80;
 
     readonly string? _projectsDirectory;
+    readonly IReadOnlyList<string> _ignoredRoots;
 
     /// <summary>cwd recorded in each session file; it never changes for a given file.</summary>
     readonly ConcurrentDictionary<string, string> _cwdByFile = new(StringComparer.OrdinalIgnoreCase);
@@ -33,7 +34,15 @@ public sealed partial class ClaudeCodeSessionStore : ISessionStore
     readonly ConcurrentDictionary<string, (long Length, string? Title)> _titleByFile = new(StringComparer.OrdinalIgnoreCase);
 
     /// <param name="projectsDirectory">Overrides the location of the "projects" folder (tests).</param>
-    public ClaudeCodeSessionStore(string? projectsDirectory = null) => _projectsDirectory = projectsDirectory;
+    /// <param name="ignoredRoots">
+    /// Folders whose sessions never count as recent projects; by default the temp folder, where tools
+    /// run short-lived sessions.
+    /// </param>
+    public ClaudeCodeSessionStore(string? projectsDirectory = null, IReadOnlyList<string>? ignoredRoots = null)
+    {
+        _projectsDirectory = projectsDirectory;
+        _ignoredRoots = [.. (ignoredRoots ?? [Path.GetTempPath()]).Select(Normalize)];
+    }
 
     public string ProjectsDirectory => _projectsDirectory ?? DefaultProjectsDirectory();
 
@@ -68,6 +77,64 @@ public sealed partial class ClaudeCodeSessionStore : ISessionStore
             .Select(f => new SessionEntry(Path.GetFileNameWithoutExtension(f.Name), ReadTitle(f), f.LastWriteTimeUtc))
             .ToList();
     }
+
+    public IReadOnlyList<FolderActivity> RecentFolders(int max)
+    {
+        try
+        {
+            string projects = ProjectsDirectory;
+            if (!Directory.Exists(projects))
+                return [];
+            // Session folders, newest first by their newest file. Only as many are opened as it takes to fill
+            // the list: once it is full, a folder whose newest session is older than the last entry cannot get in.
+            var folders = new DirectoryInfo(projects).EnumerateDirectories()
+                .Select(folder => folder.GetFiles("*.jsonl", SearchOption.TopDirectoryOnly))
+                .Where(files => files.Length > 0)
+                .Select(files => (Files: files, Newest: files.Max(f => f.LastWriteTimeUtc)))
+                .OrderByDescending(folder => folder.Newest)
+                .ToList();
+
+            var result = new List<FolderActivity>();
+            foreach (var folder in folders)
+            {
+                if (result.Count >= max && folder.Newest < result[max - 1].LastActivityUtc)
+                    break;
+                // One session folder usually holds one working directory, but the lossy encoding can mix several.
+                foreach (var group in folder.Files.GroupBy(f => ReadCwd(f) is { } cwd ? Normalize(cwd) : "", StringComparer.OrdinalIgnoreCase))
+                {
+                    if (group.Key.Length == 0 || IsIgnored(group.Key) || !Directory.Exists(group.Key))
+                        continue;
+                    var newest = group.MaxBy(f => f.LastWriteTimeUtc)!;
+                    Merge(result, new FolderActivity(group.Key, newest.LastWriteTimeUtc, group.Count(), Path.GetFileNameWithoutExtension(newest.Name)));
+                }
+                result.Sort((a, b) => b.LastActivityUtc.CompareTo(a.LastActivityUtc));
+            }
+            return result.Take(max).ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or System.Security.SecurityException)
+        {
+            Log.Debug($"Listing recent folders failed: {ex.Message}");
+            return [];
+        }
+    }
+
+    /// <summary>The same folder can appear under two session folders (e.g. "C:\X" and "c:\x"): count it once.</summary>
+    static void Merge(List<FolderActivity> result, FolderActivity folder)
+    {
+        int existing = result.FindIndex(f => string.Equals(f.Directory, folder.Directory, StringComparison.OrdinalIgnoreCase));
+        if (existing < 0)
+        {
+            result.Add(folder);
+            return;
+        }
+        var other = result[existing];
+        var newer = other.LastActivityUtc >= folder.LastActivityUtc ? other : folder;
+        result[existing] = newer with { SessionCount = other.SessionCount + folder.SessionCount };
+    }
+
+    bool IsIgnored(string directory) =>
+        _ignoredRoots.Any(root => directory.Equals(root, StringComparison.OrdinalIgnoreCase)
+            || directory.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
 
     /// <returns>The folder's session files, or null when the store is missing or unreadable (unknown, not "none").</returns>
     List<FileInfo>? SessionFiles(string directory)

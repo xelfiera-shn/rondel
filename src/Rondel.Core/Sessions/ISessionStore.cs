@@ -8,6 +8,11 @@ public sealed record SessionInfo(int Count, DateTime? LastActivityUtc);
 /// <param name="Title">The agent's title for the session, or its first prompt; null when neither is known.</param>
 public sealed record SessionEntry(string Id, string? Title, DateTime LastActivityUtc);
 
+/// <param name="Directory">A project folder the agent worked in.</param>
+/// <param name="LastActivityUtc">Last write to any of its sessions.</param>
+/// <param name="LatestSessionId">Its most recent session, what "resume where I left off" opens.</param>
+public sealed record FolderActivity(string Directory, DateTime LastActivityUtc, int SessionCount, string LatestSessionId);
+
 /// <summary>Session information shown under an action.</summary>
 public enum SessionHint { None, LastSession, SessionCount }
 
@@ -19,4 +24,7 @@ public interface ISessionStore
 
     /// <returns>The folder's most recent sessions, newest first (empty when unknown).</returns>
     IReadOnlyList<SessionEntry> Recent(string directory, int max);
+
+    /// <returns>The folders worked in most recently, newest first (empty when unknown).</returns>
+    IReadOnlyList<FolderActivity> RecentFolders(int max);
 }

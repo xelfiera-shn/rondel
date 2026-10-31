@@ -2,6 +2,7 @@ using System.Text.Json;
 using Rondel.Core.Agents;
 using Rondel.Core.Context;
 using Rondel.Core.Menus;
+using Rondel.Core.Sessions;
 using Rondel.Core.Settings;
 
 namespace Rondel.Core.Tests;
@@ -32,6 +33,43 @@ public class SettingsTests
         Assert.True(settings.Menus.ContainsKey(nameof(ContextKind.DesktopEmpty)));
         Assert.Equal(AppSettings.CurrentSchemaVersion, settings.SchemaVersion);
         Assert.True(settings.WasMigrated);
+    }
+
+    [Theory]
+    [InlineData("""["new-project", "new-prompt"]""", new[] { "new-project", "new-prompt", "recents" })]
+    [InlineData("""["new-prompt"]""", new[] { "new-prompt" })]
+    public void SchemaTwoAddsRecentProjectsOnlyToAnUntouchedDesktopMenu(string savedMenu, string[] expected)
+    {
+        string json = $$"""{ "SchemaVersion": 1, "Menus": { "DesktopEmpty": {{savedMenu}} } }""";
+        var settings = JsonSerializer.Deserialize<AppSettings>(json, SettingsJson.Options)!;
+
+        settings.Normalize();
+
+        Assert.Equal(expected, settings.Menus[nameof(ContextKind.DesktopEmpty)]);
+        Assert.NotNull(settings.FindAction("recents"));
+        Assert.Equal(2, settings.SchemaVersion);
+    }
+
+    [Fact]
+    public void SessionsAreOfferedOnlyWhenThereIsAChoice()
+    {
+        var settings = new AppSettings();
+        settings.Normalize();
+        var recents = MenuBuilder.Build(new TriggerContext(ContextKind.DesktopEmpty, @"C:\Projects", null, "test"), settings)
+            .Items.Single(i => i.Action.Id == "recents");
+        var now = DateTime.UtcNow;
+        IReadOnlyList<SessionEntry> two = [new("s2", "Second", now), new("s1", "First", now.AddHours(-1))];
+
+        var projects = MenuBuilder.ProjectItems(recents,
+            [new FolderActivity(@"C:\work\alpha", now, 2, "s2"), new FolderActivity(@"C:\work\beta", now.AddHours(-2), 1, "b1")],
+            directory => directory.EndsWith("alpha", StringComparison.Ordinal) ? two : []);
+
+        Assert.Equal(["alpha", "beta"], projects.Select(p => p.Label));
+        Assert.Equal(["s2", "b1"], projects.Select(p => p.SessionId));
+        Assert.Equal(["s2", "s1"], projects[0].Children.Select(c => c.SessionId));
+        Assert.All(projects[0].Children, c => Assert.Equal(@"C:\work\alpha", c.Directory));
+        Assert.Empty(projects[1].Children);
+        Assert.Empty(MenuBuilder.SessionItems(projects[1], [new("b1", "Only", now)]));
     }
 
     [Fact]

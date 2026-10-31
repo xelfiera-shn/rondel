@@ -205,32 +205,45 @@ internal sealed class AppHost : IGestureSink, IDisposable
         }
     }
 
-    /// <summary>What one session store knows about the menu's folder.</summary>
-    sealed record SessionDetails(SessionInfo? Info, IReadOnlyList<SessionEntry> Recent);
+    /// <summary>What one session store knows: about the menu's folder, and about the recent projects.</summary>
+    sealed record SessionDetails(SessionInfo? Info, IReadOnlyList<SessionEntry> Recent,
+        IReadOnlyList<FolderActivity> Folders, IReadOnlyDictionary<string, IReadOnlyList<SessionEntry>> FolderSessions);
 
     /// <summary>
-    /// Session hints and the recent sessions of expandable slices never delay the menu: they are
-    /// looked up afterwards (one lookup per session store) and filled in.
+    /// Session hints, the recent sessions of a Resume slice and the recent projects never delay the menu:
+    /// they are looked up afterwards (one pass per session store) and filled in.
     /// </summary>
     void RequestSessionHints(MenuModel model)
     {
-        if (model.Context.TargetDir is not { } directory)
-            return;
+        string? directory = model.Context.TargetDir;
         var stores = model.Items
-            .Where(i => i.Action.Hint != SessionHint.None || MenuBuilder.CanExpand(i))
+            .Where(i => i.Action.Hint != SessionHint.None || MenuBuilder.CanExpand(i) || MenuBuilder.ListsRecentProjects(i))
             .GroupBy(i => i.Agent.Sessions ?? "", StringComparer.OrdinalIgnoreCase)
-            .Select(g => (Id: g.Key, Store: SessionStores.Get(g.Key), Expands: g.Any(MenuBuilder.CanExpand)))
+            .Select(g => (Id: g.Key, Store: SessionStores.Get(g.Key),
+                Expands: g.Any(MenuBuilder.CanExpand), ListsProjects: g.Any(MenuBuilder.ListsRecentProjects)))
             .Where(s => s.Store is not null)
             .ToList();
         if (stores.Count == 0)
             return;
-        Task.Run(() => stores.ToDictionary(
-                s => s.Id,
-                s => new SessionDetails(s.Store!.Lookup(directory), s.Expands ? s.Store.Recent(directory, MenuBuilder.MaxSessionItems) : []),
-                StringComparer.OrdinalIgnoreCase))
+        Task.Run(() => stores.ToDictionary(s => s.Id, s => LookUp(s.Store!, directory, s.Expands, s.ListsProjects), StringComparer.OrdinalIgnoreCase))
             .ContinueWith(
                 lookup => _ui.BeginInvoke(() => ApplySessionDetails(model, lookup.Result)),
                 TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
+    /// <summary>Runs off the UI thread.</summary>
+    static SessionDetails LookUp(ISessionStore store, string? directory, bool recentSessions, bool recentProjects)
+    {
+        var folders = recentProjects ? store.RecentFolders(MenuBuilder.MaxRecentProjects) : [];
+        // Only projects that will open further need their session list.
+        var folderSessions = folders
+            .Where(f => f.SessionCount >= MenuBuilder.MinSessionsToExpand)
+            .ToDictionary(f => f.Directory, f => store.Recent(f.Directory, MenuBuilder.MaxSessionItems), StringComparer.OrdinalIgnoreCase);
+        return new SessionDetails(
+            directory is null ? null : store.Lookup(directory),
+            directory is not null && recentSessions ? store.Recent(directory, MenuBuilder.MaxSessionItems) : [],
+            folders,
+            folderSessions);
     }
 
     void ApplySessionDetails(MenuModel model, Dictionary<string, SessionDetails> detailsByStore)
@@ -242,8 +255,10 @@ internal sealed class AppHost : IGestureSink, IDisposable
         _menu.ApplyHints(model, hints);
 
         var children = model.Items
-            .Select(item => MenuBuilder.CanExpand(item) && DetailsFor(item) is { } details
-                ? MenuBuilder.SessionItems(item, details.Recent)
+            .Select(item => DetailsFor(item) is not { } details ? []
+                : MenuBuilder.CanExpand(item) ? MenuBuilder.SessionItems(item, details.Recent)
+                : MenuBuilder.ListsRecentProjects(item) ? MenuBuilder.ProjectItems(item, details.Folders,
+                    folder => details.FolderSessions.TryGetValue(folder, out var sessions) ? sessions : [])
                 : [])
             .ToList();
         _menu.ApplyChildren(model, children);
@@ -277,7 +292,10 @@ internal sealed class AppHost : IGestureSink, IDisposable
     void OnItemInvoked(MenuModel model, MenuItemModel item)
     {
         var action = item.Action;
-        string? directory = model.Context.TargetDir;
+        // Recent projects and their sessions carry their own folder.
+        string? directory = item.Directory ?? model.Context.TargetDir;
+        if (action.Source == ActionSource.RecentProjects && item.Directory is null)
+            return; // the Recent Projects slice itself only opens its items
         Log.Info($"Action '{action.Id}' ({item.Agent.Id}) for {model.Context.Kind} '{directory}'");
         if (directory is null)
         {
