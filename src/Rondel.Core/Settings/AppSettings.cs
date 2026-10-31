@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using Rondel.Core.Agents;
 using Rondel.Core.Context;
@@ -104,8 +103,7 @@ public sealed class AppSettings
     public AgentProfile? AgentFor(ActionDefinition action) =>
         FindAgent(string.IsNullOrWhiteSpace(action.Agent) ? DefaultAgent : action.Agent);
 
-    public AppSettings Clone() =>
-        JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(this, SettingsJson.Options), SettingsJson.Options)!;
+    public AppSettings Clone() => SettingsJson.Deserialize(SettingsJson.Serialize(this))!;
 
     /// <summary>Repairs values a hand-edited file may get wrong and adds agents and actions introduced by newer versions.</summary>
     public void Normalize()
