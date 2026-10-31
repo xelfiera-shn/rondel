@@ -37,6 +37,7 @@ Verified for 0.1.0:
 - A modifier key for an alternate mode (for example Shift for plan mode).
 - WSL paths.
 - **0.5.0 — Themes** (done): five menu themes (Rondel, Line, Spotlight, Orbit, Petal), each dark and light, chosen in Settings from pictures of the menu; the mode can follow Windows or stay fixed, and the accent can be a ready-made pair or the user's own colors.
+- **0.6.0 — Active agents** (done): Rondel follows the agents it starts through Claude Code's hooks. A notification, with Rondel's mark and a badge for what happened, says when one asks for a permission or a question, is done or stopped with an error, and a click brings its terminal to the front. The desktop menu's Active Agents slice opens into the followed agents with a dot for each one's state; a shortcut opens it anywhere.
 
 ## Phase 3 — Trust and distribution
 

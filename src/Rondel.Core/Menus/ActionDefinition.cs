@@ -37,6 +37,12 @@ public enum ActionSource
     /// (with its latest session as "{id}").
     /// </summary>
     RecentProjects,
+
+    /// <summary>
+    /// The slice opens into the agents Rondel follows (<see cref="Activity.AgentActivity"/>); choosing one brings its
+    /// terminal to the front instead of starting anything.
+    /// </summary>
+    ActiveAgents,
 }
 
 /// <summary>

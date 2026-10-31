@@ -23,7 +23,7 @@ Kurulum programı yoktur, yönetici izni gerekmez. Windows 10 ve 11 desteklenir.
 
 | Nerede basılı tutarsınız | Aksiyonlar | Klasör |
 |---|---|---|
-| Masaüstünde boş alan | Yeni Proje, Son Projeler | Proje klasörünüz (varsayılan `%USERPROFILE%\Projects`) ya da seçtiğiniz proje |
+| Masaüstünde boş alan | Yeni Proje, Son Projeler, Aktif Ajanlar | Proje klasörünüz (varsayılan `%USERPROFILE%\Projects`) ya da seçtiğiniz proje |
 | Dosya Gezgini'nde bir klasörün boş alanı | Yeni Proje, Burada Aç, Burada Sor, Burada Devam Et, Burada Oturum Seç | Açık olan klasör |
 | Bir klasörün üzerinde (masaüstü veya Dosya Gezgini) | Aç, Sor, Devam Et, Oturum Seç | O klasör |
 | Bir dosyanın üzerinde (masaüstü veya Dosya Gezgini) | Bu Dosyayı Sor, Burada Aç, Burada Devam Et, Burada Oturum Seç | Dosyanın bulunduğu klasör |
@@ -55,9 +55,23 @@ Kurulum programı yoktur, yönetici izni gerekmez. Windows 10 ve 11 desteklenir.
 - Normal Ctrl+tık ve Ctrl+sürükle her yerde eskisi gibi çalışır. Gezinti bölmesi, adres çubuğu, Bu Bilgisayar gibi sanal konumlar ve yönetici olarak çalışan Dosya Gezgini pencereleri menüyü açmaz.
 - İsteğe bağlı bir klavye kısayolu (Ayarlar) menüyü fare imlecinin olduğu yerde açar.
 
+## Aktif ajanlar
+
+Rondel başlattığı ajanları takip eder; terminallerine göz kulak olmanız gerekmez.
+
+- **Bildirimler.** Bir ajan izin istediğinde ya da size bir soru sorduğunda, işini bitirdiğinde veya bir hatayla durduğunda gelen bildirim projenin adını ve ne gerektiğini söyler. Bildirime tıklayınca ajanın terminali öne gelir. O terminaldeyken bildirim gösterilmez.
+- **Aktif Ajanlar** (masaüstü menüsü) Rondel'den başlattığınız ajanlara açılır; sizi bekleyenler önce gelir. Her birinin yanındaki nokta ne yaptığını gösterir: sarı, izin ya da cevap bekliyor; yeşil, bitti; kırmızı, bir hatayla durdu; temanın vurgu rengi, çalışıyor. Birini seçince terminali öne gelir. Dilimin kendisi kaç ajanın beklediğini söyler.
+- İsteğe bağlı bir kısayol (Ayarlar → **Aktif ajanlar**) bu yayı, nerede olursanız olun fare imlecinin olduğu yerde açar.
+
+<p align="center">
+  <img src="docs/images/agents-tr.png" width="440" alt="Masaüstü menüsünde Aktif Ajanlar beş ajana açılmış: ikisi kullanıcıyı bekliyor, biri hatayla durmuş, biri bitmiş, biri çalışıyor">
+</p>
+
+Rondel Claude Code'u ek bir ayar dosyasıyla (`--settings`) başlatır; bu dosyadaki hook'lar her olayı yalnızca bilgisayarınızın içinde (127.0.0.1) Rondel'e bildirir. Kendi Claude Code ayarlarınız değişmez. Her ajan kendi Windows Terminal penceresinde açılır, böylece o pencere öne getirilebilir. Bir ajan çalışırken Rondel'i kapatırsanız Claude Code, Rondel yeniden açılana kadar her prompt'un altında bir hook hatası gösterir; Rondel açılınca ajanı kaldığı yerden takip eder. Ajanları eskisi gibi başlatmak için Ayarlar'da **Rondel'in başlattığı ajanları takip et** seçeneğini kapatın.
+
 ## Ayarlar ve özelleştirme
 
-Tray ikonu → **Ayarlar…**: dil (Otomatik / English / Türkçe), menünün görünümü, proje klasörü, basılı tutma süresi, klavye kısayolu, ajanın komutu (`claude` ya da `cc` gibi bir alias), terminal (Windows Terminal veya konsol penceresi), kabuk (PowerShell 7 veya Windows PowerShell), Yeni Proje kartındaki seçenekler ve şablon klasörü.
+Tray ikonu → **Ayarlar…**: dil (Otomatik / English / Türkçe), menünün görünümü, proje klasörü, basılı tutma süresi, klavye kısayolu, ajanın komutu (`claude` ya da `cc` gibi bir alias), terminal (Windows Terminal veya konsol penceresi), kabuk (PowerShell 7 veya Windows PowerShell), ajanların takibi ile bildirimleri ve kısayolu, Yeni Proje kartındaki seçenekler ve şablon klasörü.
 
 **Görünüm**: beş tema — Rondel, İnce Halka, Vurgu, Yörünge ve Yaprak — her biri koyu ve açık; menünün resimlerinden seçilir. Koyu ya da açık mod Windows'u izleyebilir ya da sabit kalabilir; vurgu rengi temanın kendi rengi, hazır bir çift ya da kendi `#RRGGBB` renkleriniz olabilir. Değişiklikler menüye hemen yansır.
 
@@ -89,7 +103,7 @@ Menüler, aksiyonlar ve ajanlar `%APPDATA%\Rondel\settings.json` içindedir; dos
 
 ## Gizlilik
 
-Rondel telemetri içermez. Ajanın yerel oturum verisini yalnızca ipuçlarını ve son oturumları göstermek için okur; kendi ayarları, logları ve (açarsanız) Windows ile başlatma kaydı dışında hiçbir şey yazmaz.
+Rondel telemetri içermez. Ajanın yerel oturum verisini yalnızca ipuçlarını ve son oturumları göstermek için okur; başlattığı ajanların olaylarını yalnızca 127.0.0.1 üzerinden alır. Kendi ayarları (başlattığı ajanlar için hook dosyasıyla birlikte), logları, ajanlarının pencere listesi ve (açarsanız) Windows ile başlatma kaydı dışında hiçbir şey yazmaz.
 
 ## Kaynaktan derleme
 

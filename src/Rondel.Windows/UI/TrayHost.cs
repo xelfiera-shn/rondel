@@ -21,6 +21,7 @@ internal sealed unsafe class TrayHost : IDisposable
     const uint CallbackMessage = WM_APP + 0x100;
     const uint IconId = 1;
     const int HotkeyId = 1;
+    const int AgentsHotkeyId = 2;
 
     readonly HwndSource _source;
     readonly Func<IReadOnlyList<TrayMenuItem>> _menuItems;
@@ -29,6 +30,7 @@ internal sealed unsafe class TrayHost : IDisposable
     bool _paused;
     string _tooltip = AppInfo.Name;
     bool _hotkeyRegistered;
+    bool _agentsHotkeyRegistered;
 
     /// <summary>Notification icons by kind and size, kept until the app exits: Windows may still show one.</summary>
     readonly Dictionary<(NoticeIcon, int), nint> _noticeIcons = [];
@@ -58,6 +60,9 @@ internal sealed unsafe class TrayHost : IDisposable
     public event Action? ThemeChanged;
 
     public event Action? HotkeyPressed;
+
+    /// <summary>The Active Agents shortcut was pressed.</summary>
+    public event Action? AgentsHotkeyPressed;
 
     /// <summary>The last notification shown was clicked.</summary>
     public event Action? BalloonClicked;
@@ -108,10 +113,7 @@ internal sealed unsafe class TrayHost : IDisposable
     public bool SetHotkey(uint modifiers, uint virtualKey)
     {
         ClearHotkey();
-        _hotkeyRegistered = RegisterHotKey(Handle, HotkeyId, modifiers | MOD_NOREPEAT, virtualKey);
-        if (!_hotkeyRegistered)
-            Log.Warn($"RegisterHotKey failed: {Marshal.GetLastPInvokeError()}");
-        return _hotkeyRegistered;
+        return _hotkeyRegistered = Register(HotkeyId, modifiers, virtualKey);
     }
 
     public void ClearHotkey()
@@ -119,6 +121,28 @@ internal sealed unsafe class TrayHost : IDisposable
         if (_hotkeyRegistered)
             UnregisterHotKey(Handle, HotkeyId);
         _hotkeyRegistered = false;
+    }
+
+    /// <summary>The shortcut that opens the Active Agents arc.</summary>
+    public bool SetAgentsHotkey(uint modifiers, uint virtualKey)
+    {
+        ClearAgentsHotkey();
+        return _agentsHotkeyRegistered = Register(AgentsHotkeyId, modifiers, virtualKey);
+    }
+
+    public void ClearAgentsHotkey()
+    {
+        if (_agentsHotkeyRegistered)
+            UnregisterHotKey(Handle, AgentsHotkeyId);
+        _agentsHotkeyRegistered = false;
+    }
+
+    bool Register(int id, uint modifiers, uint virtualKey)
+    {
+        bool registered = RegisterHotKey(Handle, id, modifiers | MOD_NOREPEAT, virtualKey);
+        if (!registered)
+            Log.Warn($"RegisterHotKey failed: {Marshal.GetLastPInvokeError()}");
+        return registered;
     }
 
     void AddIcon()
@@ -193,6 +217,10 @@ internal sealed unsafe class TrayHost : IDisposable
                 HotkeyPressed?.Invoke();
                 handled = true;
                 break;
+            case WM_HOTKEY when wParam == AgentsHotkeyId:
+                AgentsHotkeyPressed?.Invoke();
+                handled = true;
+                break;
             case WM_SETTINGCHANGE when lParam != 0 && Marshal.PtrToStringUni(lParam) == "ImmersiveColorSet":
             case WM_DWMCOLORIZATIONCOLORCHANGED:
             case WM_THEMECHANGED:
@@ -243,6 +271,7 @@ internal sealed unsafe class TrayHost : IDisposable
     public void Dispose()
     {
         ClearHotkey();
+        ClearAgentsHotkey();
         var data = NewData(0);
         Shell_NotifyIconW(NIM_DELETE, &data);
         if (_icon != 0)

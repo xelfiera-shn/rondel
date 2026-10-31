@@ -23,7 +23,7 @@ There is no installer and Rondel needs no admin rights. Windows 10 and 11 are su
 
 | Where you hold | Actions | Folder |
 |---|---|---|
-| Empty desktop | New Project, Recent Projects | Your projects folder (default `%USERPROFILE%\Projects`), or the project you pick |
+| Empty desktop | New Project, Recent Projects, Active Agents | Your projects folder (default `%USERPROFILE%\Projects`), or the project you pick |
 | Empty area of a folder in File Explorer | New Project, Open Here, Ask Here, Continue Here, Resume Here | The folder that is open |
 | A folder (on the desktop or in File Explorer) | Open, Ask, Continue, Resume | That folder |
 | A file (on the desktop or in File Explorer) | Ask About This File, Open Here, Continue Here, Resume Here | The folder the file is in |
@@ -55,9 +55,23 @@ There is no installer and Rondel needs no admin rights. Windows 10 and 11 are su
 - Ordinary Ctrl+click and Ctrl+drag keep working everywhere. The navigation pane, the address bar, virtual locations such as This PC, and File Explorer windows running as administrator don't open the menu.
 - An optional keyboard shortcut (Settings) opens the menu at the mouse cursor.
 
+## Active agents
+
+Rondel follows the agents it starts, so you don't have to keep an eye on their terminals.
+
+- **Notifications.** When an agent asks for a permission or asks you a question, finishes its turn, or stops with an error, a notification names the project and says what it needs. Click it to bring the agent's terminal to the front. No notification appears while you are in that terminal.
+- **Active Agents** (desktop menu) opens into the agents you started from Rondel, those waiting for you first. A dot shows what each is doing: amber, waiting for a permission or an answer; green, done; red, stopped with an error; the theme's accent, working. Pick one to bring its terminal to the front. The slice itself says how many are waiting.
+- An optional shortcut (Settings → **Active agents**) opens this arc at the mouse cursor, wherever you are.
+
+<p align="center">
+  <img src="docs/images/agents-en.png" width="440" alt="The desktop menu with Active Agents opened into five agents: two waiting for the user, one stopped with an error, one done and one working">
+</p>
+
+Rondel starts Claude Code with an extra settings file (`--settings`) whose hooks report each event to Rondel, on your computer only (127.0.0.1); your own Claude Code settings are not changed. Each agent opens in a Windows Terminal window of its own, so that window can be brought to the front. If you quit Rondel while an agent is still running, Claude Code shows a hook error under each prompt until Rondel runs again, and Rondel then picks the agent up. To start agents as before, turn off **Follow the agents Rondel starts** in Settings.
+
 ## Settings and customization
 
-Tray icon → **Settings…**: language (Automatic / English / Türkçe), the menu's look, projects folder, hold duration, keyboard shortcut, the agent's command (`claude`, or an alias such as `cc`), terminal (Windows Terminal or console window), shell (PowerShell 7 or Windows PowerShell), the options on the New Project card and the templates folder.
+Tray icon → **Settings…**: language (Automatic / English / Türkçe), the menu's look, projects folder, hold duration, keyboard shortcut, the agent's command (`claude`, or an alias such as `cc`), terminal (Windows Terminal or console window), shell (PowerShell 7 or Windows PowerShell), following agents with their notifications and shortcut, the options on the New Project card and the templates folder.
 
 **Appearance**: five themes — Rondel, Line, Spotlight, Orbit and Petal — each in dark and light, chosen from pictures of the menu; dark or light can follow Windows or stay fixed, and the accent color is the theme's own, a ready-made pair or your own `#RRGGBB` colors. Changes show in the menu at once.
 
@@ -89,7 +103,7 @@ Please include the log lines or the probe output when you [report a bug](https:/
 
 ## Privacy
 
-Rondel has no telemetry. It reads the agent's local session data only to show the hints and the recent sessions, and it writes nothing except its own settings, its logs and, if you enable it, the start-with-Windows entry.
+Rondel has no telemetry. It reads the agent's local session data only to show the hints and the recent sessions, and it receives the events of the agents it starts on 127.0.0.1 only. It writes nothing except its own settings (with the hooks file for the agents it starts), its logs, the list of its agents' windows and, if you enable it, the start-with-Windows entry.
 
 ## Build from source
 

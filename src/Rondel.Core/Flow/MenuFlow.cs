@@ -44,6 +44,23 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
         return new TriggerContext(kind, projects, Path.GetFileName(projects), reason);
     }
 
+    /// <summary>
+    /// The menu the Active Agents shortcut opens: the desktop menu, with the slice to open right away. A desktop menu
+    /// without an Active Agents slice gets one, for this time.
+    /// </summary>
+    public (MenuModel Model, int Slice) AgentsMenu()
+    {
+        var current = settings();
+        var model = MenuBuilder.Build(ProjectsContext(ContextKind.DesktopEmpty, "agents shortcut"), current);
+        int slice = model.Items.ToList().FindIndex(MenuBuilder.ListsActiveAgents);
+        if (slice >= 0)
+            return (model, slice);
+        var action = current.Actions.First(a => a.Source == ActionSource.ActiveAgents); // a built-in action, never missing
+        var agent = current.AgentFor(action) ?? current.Agents[0];
+        var item = new MenuItemModel(action, agent, Loc.Resolve(action.Label), action.Glyph, null, false);
+        return (model with { Items = [.. model.Items.Take(MenuBuilder.MaxItems - 1), item] }, Math.Min(model.Items.Count, MenuBuilder.MaxItems - 1));
+    }
+
     /// <summary>An item was chosen: start its agent, or ask for a folder name (and a prompt) first.</summary>
     public void Invoke(MenuModel model, MenuItemModel item)
     {
@@ -52,6 +69,17 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
         string? directory = item.Directory ?? model.Context.TargetDir;
         if (action.Source == ActionSource.RecentProjects && item.Directory is null)
             return; // the Recent Projects slice itself only opens its items
+        if (action.Source == ActionSource.ActiveAgents)
+        {
+            // The slice itself only opens its agents; an agent is brought to the front, nothing is started.
+            if (item.ActivityId is { } id)
+            {
+                Log.Info($"Bringing agent {id} in '{item.Directory}' to the front");
+                host.CloseMenu(restoreFocus: false);
+                host.FocusAgent(id);
+            }
+            return;
+        }
         Log.Info($"Action '{action.Id}' ({item.Agent.Id}) for {model.Context.Kind} '{directory}'");
         if (directory is null)
         {

@@ -21,4 +21,10 @@ public static class RelativeTime
             return Loc.Format("Time.Days", days);
         return utc.ToLocalTime().ToString("d MMM", Loc.Culture);
     }
+
+    /// <summary>How long something has been going on: "4 min", "2 h"; null under a minute.</summary>
+    public static string? Duration(TimeSpan length) =>
+        length < TimeSpan.FromMinutes(1) ? null
+        : length < TimeSpan.FromHours(1) ? Loc.Format("Duration.Minutes", (int)length.TotalMinutes)
+        : Loc.Format("Duration.Hours", (int)length.TotalHours);
 }

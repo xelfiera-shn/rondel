@@ -31,7 +31,7 @@ public sealed class AppSettings
     /// Bumped whenever a default changes, so <see cref="Normalize"/> can migrate saved files.
     /// A migration only touches values that are still at the old default.
     /// </summary>
-    public const int CurrentSchemaVersion = 4;
+    public const int CurrentSchemaVersion = 5;
 
     /// <summary>0 for a file written by hand without the field.</summary>
     public int SchemaVersion { get; set; }
@@ -123,6 +123,7 @@ public sealed class AppSettings
         NewProject ??= new();
         NewProjectCard ??= new();
         ActiveAgents ??= new();
+        ActiveAgents.Hotkey = ActiveAgents.Hotkey?.Trim() ?? "";
         Appearance ??= new();
         Appearance.Normalize();
         NewProject.Templates = (NewProject.Templates ?? []).Where(t => !string.IsNullOrWhiteSpace(t))
@@ -219,6 +220,9 @@ public sealed class AppSettings
                     agent.Capabilities.TryAdd(nameof(AgentCapability.Plan), [.. plan]);
             }
         }
+        // 5: Active Agents joined the desktop menu, after Recent Projects.
+        if (SchemaVersion < 5)
+            InsertIfDefault(nameof(ContextKind.DesktopEmpty), ["new-project", "recents"], "agents", after: "recents");
         SchemaVersion = CurrentSchemaVersion;
         WasMigrated = true;
     }
@@ -239,7 +243,7 @@ public sealed class AppSettings
 
     public static Dictionary<string, List<string>> DefaultMenus() => new(StringComparer.OrdinalIgnoreCase)
     {
-        [nameof(ContextKind.DesktopEmpty)] = ["new-project", "recents"],
+        [nameof(ContextKind.DesktopEmpty)] = ["new-project", "recents", "agents"],
         [nameof(ContextKind.ExplorerEmpty)] = ["new-project", "open-here", "ask-here", "continue-here", "resume-here"],
         [nameof(ContextKind.FolderItem)] = ["open", "ask", "continue", "resume"],
         [nameof(ContextKind.FileItem)] = ["ask-file", "open-here", "continue-here", "resume-here"],
@@ -259,5 +263,6 @@ public sealed class AppSettings
         new() { Id = "resume", Label = "@Action.Resume", Icon = "E81C", Capability = AgentCapability.Resume, Hint = SessionHint.SessionCount },
         new() { Id = "recents", Label = "@Action.Recents", Icon = "E823", Capability = AgentCapability.ResumeById, Source = ActionSource.RecentProjects },
         new() { Id = "ask-file", Label = "@Action.AskFile", Icon = "E8F2", Input = ActionInput.Prompt, Capability = AgentCapability.Prompt, MentionFile = true },
+        new() { Id = "agents", Label = "@Action.ActiveAgents", Icon = "E99A", Capability = AgentCapability.Open, Source = ActionSource.ActiveAgents },
     ];
 }

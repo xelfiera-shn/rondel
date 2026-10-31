@@ -1,7 +1,9 @@
 using System.Windows.Threading;
 using Rondel.Core;
 using Rondel.Core.Activity;
+using Rondel.Core.Localization;
 using Rondel.Core.Logging;
+using Rondel.Windows.Interop;
 using Rondel.Windows.Launch;
 using Rondel.Windows.UI;
 
@@ -50,6 +52,39 @@ internal sealed partial class AppHost
     {
         _closedWindows?.Stop();
         _hooks.Dispose();
+    }
+
+    /// <summary>Why the Active Agents shortcut is not active, or null.</summary>
+    public string? AgentsHotkeyError { get; private set; }
+
+    void ApplyAgentsHotkey(string text)
+    {
+        AgentsHotkeyError = null;
+        if (!HotkeyBinding.TryParse(text, out var binding))
+        {
+            _tray.ClearAgentsHotkey();
+            if (!string.IsNullOrWhiteSpace(text))
+                Log.Warn($"Active Agents shortcut '{text}' could not be parsed");
+            return;
+        }
+        if (!_tray.SetAgentsHotkey(binding.NativeModifiers, binding.VirtualKey))
+            AgentsHotkeyError = Loc.Get("Settings.Hotkey.Failed");
+        else
+            Log.Info($"Active Agents shortcut {binding} registered");
+    }
+
+    /// <summary>Opens the desktop menu at the mouse cursor with its Active Agents arc open; pressed again, closes it.</summary>
+    void OnAgentsHotkey()
+    {
+        if (_menu.IsMenuOpen)
+        {
+            _menu.CloseMenu(restoreFocus: true);
+            return;
+        }
+        if (Store.Current.Paused)
+            return;
+        var (model, slice) = _flow.AgentsMenu();
+        ShowModel(model, Native.GetCursorPosition(), hover: slice);
     }
 
     /// <summary>Brings the agent's terminal to the front; forgets the agent when its window is gone.</summary>
