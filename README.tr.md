@@ -23,8 +23,8 @@ Kurulum programı yoktur, yönetici izni gerekmez. Windows 10 ve 11 desteklenir.
 
 | Nerede basılı tutarsınız | Aksiyonlar | Klasör |
 |---|---|---|
-| Masaüstünde boş alan | Yeni Proje, Yeni + Prompt, Son Projeler | Proje klasörünüz (varsayılan `%USERPROFILE%\Projects`) ya da seçtiğiniz proje |
-| Dosya Gezgini'nde bir klasörün boş alanı | Yeni Proje, Yeni + Prompt, Burada Aç, Burada Sor, Burada Devam Et, Burada Oturum Seç | Açık olan klasör |
+| Masaüstünde boş alan | Yeni Proje, Son Projeler | Proje klasörünüz (varsayılan `%USERPROFILE%\Projects`) ya da seçtiğiniz proje |
+| Dosya Gezgini'nde bir klasörün boş alanı | Yeni Proje, Burada Aç, Burada Sor, Burada Devam Et, Burada Oturum Seç | Açık olan klasör |
 | Bir klasörün üzerinde (masaüstü veya Dosya Gezgini) | Aç, Sor, Devam Et, Oturum Seç | O klasör |
 | Bir dosyanın üzerinde (masaüstü veya Dosya Gezgini) | Bu Dosyayı Sor, Burada Aç, Burada Devam Et, Burada Oturum Seç | Dosyanın bulunduğu klasör |
 
@@ -38,28 +38,40 @@ Kurulum programı yoktur, yönetici izni gerekmez. Windows 10 ve 11 desteklenir.
 </p>
 
 - Devam Et ve Oturum Seç, son oturumun ne zaman olduğunu ve kaç oturum bulunduğunu gösterir; oturum yoksa soluk görünürler.
-- **Yeni + Prompt** önce klasör adını (**Enter**), sonra prompt'u sorar (**Ctrl+Enter** başlatır, **Esc** geri döner). Sor dilimleri doğrudan prompt'a geçer (**Esc** vazgeçer).
+- **Yeni Proje** bir kart açar: klasör adı, projenin nasıl başlayacağı ve içine kopyalanacak şablonlar. Başlangıç seçenekleri birleştirilebilir:
+  - **Prompt** — ajanı ilk prompt'la başlatır;
+  - **Git** — ajan başlamadan `git init` çalıştırır;
+  - **Plan modu** — ajanı plan modunda başlatır;
+  - **Şablonlar** — `%APPDATA%\Rondel\Templates` içindeki her klasör bir şablondur (kartta **Klasörü aç**). Birden fazlasını seçebilirsiniz; örneğin bir dilin dosyaları ve alanınıza uygun ajan talimatları. İki şablonda aynı dosya varsa sağdaki kazanır.
+
+  Kart son seçiminizi hatırlar; her zamanki proje için ad yazıp **Enter**'a basmak yeter. **Tab** seçenekler arasında gezer, **Boşluk** seçeneği açıp kapatır; Prompt açıkken **Enter** prompt'a geçer, **Ctrl+Enter** oluşturur. Hiç kullanmadığınız seçenekleri Ayarlar'dan kapatabilirsiniz.
+
+<p align="center">
+  <img src="docs/images/new-tr.png" width="360" alt="Yeni Proje kartı: klasör adı, açık Prompt ve Git seçenekleri, seçilmiş iki şablon ve ilk prompt">
+</p>
+
+- Sor dilimleri doğrudan prompt'a geçer (**Ctrl+Enter** başlatır, **Esc** vazgeçer).
 - Dilime tıklayın, **1–N** tuşlarına basın ya da ok tuşları ve **Enter** kullanın; **Tab** seçili dilimin ya da projenin öğelerine (en yeniden başlayarak) geçer, **Esc** bir seviye geri çıkar ve en sonunda menüyü kapatır. Basılı tutmaya devam edip bir dilimin üzerine gelerek bırakmak da seçer.
 - Normal Ctrl+tık ve Ctrl+sürükle her yerde eskisi gibi çalışır. Gezinti bölmesi, adres çubuğu, Bu Bilgisayar gibi sanal konumlar ve yönetici olarak çalışan Dosya Gezgini pencereleri menüyü açmaz.
 - İsteğe bağlı bir klavye kısayolu (Ayarlar) menüyü fare imlecinin olduğu yerde açar.
 
 ## Ayarlar ve özelleştirme
 
-Tray ikonu → **Ayarlar…**: dil (Otomatik / English / Türkçe), proje klasörü, basılı tutma süresi, klavye kısayolu, ajanın komutu (`claude` ya da `cc` gibi bir alias), terminal (Windows Terminal veya konsol penceresi) ve kabuk (PowerShell 7 veya Windows PowerShell).
+Tray ikonu → **Ayarlar…**: dil (Otomatik / English / Türkçe), proje klasörü, basılı tutma süresi, klavye kısayolu, ajanın komutu (`claude` ya da `cc` gibi bir alias), terminal (Windows Terminal veya konsol penceresi), kabuk (PowerShell 7 veya Windows PowerShell), Yeni Proje kartındaki seçenekler ve şablon klasörü.
 
 Menüler, aksiyonlar ve ajanlar `%APPDATA%\Rondel\settings.json` içindedir; dosya kaydedilince değişiklik hemen uygulanır. Örneğin Claude Code'u plan modunda açan bir dilim eklemek için bir aksiyon ekleyip kimliğini bir menüye yazın:
 
 ```jsonc
 "Actions": [
   // ... mevcut aksiyonlar ...
-  { "Id": "plan", "Label": "Plan", "Icon": "E8FD", "Capability": "Open", "ExtraArgs": ["--permission-mode", "plan"] }
+  { "Id": "plan", "Label": "Plan", "Icon": "E8FD", "Capability": "Plan" }
 ],
 "Menus": {
   "FolderItem": ["open", "ask", "continue", "resume", "plan"]
 }
 ```
 
-`Label` düz metin olabilir; `@` ile başlayanlar yerleşik çevirilerdir. `Icon` bir [Segoe Fluent Icons](https://learn.microsoft.com/windows/apps/design/style/segoe-fluent-icons-font) kod noktasıdır. Ajanlar, bir komut ve her yetenek (`Open`, `Continue`, `Resume`, `ResumeById`, `Prompt`) için argümanlardan oluşan profillerdir; başka bir kodlama ajanı da aynı şekilde eklenebilir — bkz. [docs/architecture.md](docs/architecture.md#agent-profiles).
+`Label` düz metin olabilir; `@` ile başlayanlar yerleşik çevirilerdir. `Icon` bir [Segoe Fluent Icons](https://learn.microsoft.com/windows/apps/design/style/segoe-fluent-icons-font) kod noktasıdır. Ajanlar, bir komut ve her yetenek (`Open`, `Continue`, `Resume`, `ResumeById`, `Prompt`, `Plan`) için argümanlardan oluşan profillerdir; başka bir kodlama ajanı da aynı şekilde eklenebilir — bkz. [docs/architecture.md](docs/architecture.md#agent-profiles).
 
 ## Sorun giderme
 

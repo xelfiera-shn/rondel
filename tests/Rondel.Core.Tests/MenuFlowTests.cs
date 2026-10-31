@@ -3,6 +3,7 @@ using Rondel.Core.Flow;
 using Rondel.Core.Launch;
 using Rondel.Core.Menus;
 using Rondel.Core.Platform;
+using Rondel.Core.Projects;
 using Rondel.Core.Sessions;
 using Rondel.Core.Settings;
 
@@ -13,13 +14,13 @@ public class MenuFlowTests
 {
     readonly FakeHost _host = new();
     readonly FakeLauncher _launcher = new();
+    readonly AppSettings _settings = new();
     readonly MenuFlow _flow;
 
     public MenuFlowTests()
     {
-        var settings = new AppSettings();
-        settings.Normalize();
-        _flow = new MenuFlow(_host, _launcher, new RulesOnly(), () => settings);
+        _settings.Normalize();
+        _flow = new MenuFlow(_host, _launcher, new RulesOnly(), () => _settings);
     }
 
     [Fact]
@@ -41,24 +42,66 @@ public class MenuFlowTests
     }
 
     [Fact]
-    public void ANewProjectAsksForANameThenCreatesTheFolderAndStartsThere()
+    public void ANewProjectCombinesItsTemplatesAndStartsTheWayItWasAskedTo()
+    {
+        var root = Directory.CreateTempSubdirectory("rondel-tests-");
+        try
+        {
+            string templates = Path.Combine(root.FullName, "templates");
+            void Template(string name, string file, string text) =>
+                File.WriteAllText(Path.Combine(Directory.CreateDirectory(Path.Combine(templates, name, Path.GetDirectoryName(file)!)).FullName,
+                    Path.GetFileName(file)), text);
+            Template("a-claude", "CLAUDE.md", "from a");
+            Template("a-claude", Path.Combine(".git", "HEAD"), "a template kept in git");
+            Template("b-python", "CLAUDE.md", "from b");
+            Template("b-python", "main.py", "print()");
+            string parent = Directory.CreateDirectory(Path.Combine(root.FullName, "projects")).FullName;
+            var flow = new MenuFlow(_host, _launcher, new RulesOnly(), () => _settings, change => change(_settings), new ProjectTemplates(templates));
+            var model = flow.Build(new TriggerContext(ContextKind.ExplorerEmpty, parent, null, "test"))!;
+
+            flow.Invoke(model, model.Items.Single(i => i.Action.Id == "new-project"));
+            var card = Assert.IsType<NewProjectSpec>(_host.NewProject);
+            Assert.Equal(["a-claude", "b-python"], card.Templates);
+
+            var options = new NewProjectOptions { Prompt = true, Git = true, Plan = true, Templates = ["b-python", "a-claude"] };
+            Assert.Null(card.Submit(new NewProjectRequest("demo", options, "build it")));
+
+            string project = Path.Combine(parent, "demo");
+            Assert.Equal("from b", File.ReadAllText(Path.Combine(project, "CLAUDE.md"))); // copied in the offered order: the later wins
+            Assert.True(File.Exists(Path.Combine(project, "main.py")));
+            Assert.False(Directory.Exists(Path.Combine(project, ".git"))); // a template's own repository stays behind
+            var plan = Assert.Single(_launcher.Plans);
+            Assert.Equal(project, plan.Directory);
+            Assert.Equal(["--permission-mode", "plan", "build it"], plan.Arguments);
+            Assert.True(plan.InitGit);
+            Assert.Equal(["b-python", "a-claude"], _settings.NewProject.Templates); // remembered for the next time
+            Assert.NotNull(card.Submit(new NewProjectRequest("demo", options, "again"))); // exists now: shown inline
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
+    public void AnOptionTurnedOffInSettingsIsNeitherOfferedNorApplied()
     {
         var parent = Directory.CreateTempSubdirectory("rondel-tests-");
         try
         {
+            _settings.NewProjectCard.Git = false;
+            _settings.NewProjectCard.Plan = false;
             var model = _flow.Build(new TriggerContext(ContextKind.ExplorerEmpty, parent.FullName, null, "test"))!;
 
             _flow.Invoke(model, model.Items.Single(i => i.Action.Id == "new-project"));
-            var input = Assert.IsType<InputSpec>(_host.Input);
-            Assert.Equal(parent.FullName, input.ParentDir);
-            Assert.Empty(_launcher.Plans);
+            var card = Assert.IsType<NewProjectSpec>(_host.NewProject);
+            Assert.False(card.CanGit);
+            Assert.False(card.CanPlan);
 
-            Assert.Null(input.Submit("demo", null));
-            string created = Path.Combine(parent.FullName, "demo");
-            Assert.True(Directory.Exists(created));
-            Assert.Equal(created, Assert.Single(_launcher.Plans).Directory);
-            Assert.NotNull(input.Submit("demo", null)); // exists now: shown inline, nothing started
-            Assert.Single(_launcher.Plans);
+            Assert.Null(card.Submit(new NewProjectRequest("demo", new NewProjectOptions { Git = true, Plan = true }, null)));
+            var plan = Assert.Single(_launcher.Plans);
+            Assert.False(plan.InitGit);
+            Assert.Empty(plan.Arguments);
         }
         finally
         {
@@ -111,6 +154,10 @@ public class MenuFlowTests
         public void CloseMenu(bool restoreFocus) => Calls.Add($"close {restoreFocus}");
 
         public void StartInput(InputSpec spec) => Input = spec;
+
+        public NewProjectSpec? NewProject { get; private set; }
+
+        public void StartNewProject(NewProjectSpec spec) => NewProject = spec;
 
         public void ShowWarning(string message) => Calls.Add($"warn {message}");
     }

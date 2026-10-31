@@ -45,7 +45,7 @@ Each platform app owns the trigger, context detection and the menu window; every
 
 | Interface | What the platform provides | Windows |
 |---|---|---|
-| `IMenuHost` | Closing the menu, the inline name/prompt card, warnings outside the menu | `AppHost` (radial menu window, tray balloon) |
+| `IMenuHost` | Closing the menu, the inline name/prompt card, the New Project card, warnings outside the menu | `AppHost` (radial menu window, tray balloon) |
 | `ITerminalLauncher` | Running a `LaunchPlan` in a terminal | `WindowsTerminalLauncher` |
 | `IFolderNameValidator` | The file system's rules for a new folder name | `FolderNameValidator` (`FolderNameRules`, long paths, write permission) |
 | `IAutostart` | Starting with the user's session | `Autostart` (Run key) |
@@ -83,10 +83,22 @@ An agent profile describes one coding agent:
 | `Resume` | `--resume` |
 | `ResumeById` | `--resume {id}` |
 | `Prompt` | `{prompt}` |
+| `Plan` | `--permission-mode plan` |
 
 Menu actions refer to a **capability**, not to a command line. An action uses the default agent unless it names one, and it may add extra arguments (for example `--permission-mode plan`). A slice is hidden when its agent does not support the capability.
 
-An action may ask for input first (`Input`): a new folder's name (`FolderName`), a name and then a prompt (`FolderNameAndPrompt`), or only a prompt for the menu's folder (`Prompt`, the Ask slices). An action with `MentionFile` starts its prompt with the file the menu was opened on, in the agent's `FileMention` syntax; the agent starts in the file's folder, so `{file}` is the file's name, in double quotes unless it consists only of letters, digits and `._-()` (Claude Code reads `@"My Notes.md"` as one path). Such an action is hidden where there is no file or the agent has no `FileMention`.
+An action may ask for input first (`Input`): a new folder's name (`FolderName`), a name and then a prompt (`FolderNameAndPrompt`), only a prompt for the menu's folder (`Prompt`, the Ask slices), or the New Project card (`NewProject`). An action with `MentionFile` starts its prompt with the file the menu was opened on, in the agent's `FileMention` syntax; the agent starts in the file's folder, so `{file}` is the file's name, in double quotes unless it consists only of letters, digits and `._-()` (Claude Code reads `@"My Notes.md"` as one path). Such an action is hidden where there is no file or the agent has no `FileMention`.
+
+### New projects
+
+The New Project card asks for the folder name and how the project starts; the options combine:
+
+- **Prompt** starts the agent with the `Prompt` capability and the first prompt instead of `Open`.
+- **Git** sets `LaunchPlan.InitGit`: the launch script runs `git init` in the new folder before the agent, and says so and goes on when git is missing.
+- **Plan mode** puts the agent's `Plan` arguments in front of the others.
+- **Templates** come from `ProjectTemplates`: every folder in the templates folder is one, and the chosen ones are copied into the new folder in the order they are offered (sorted by name), so a later template's file wins. A template's own `.git` folder and links inside it are left out.
+
+The choice is saved as `NewProject` in the settings, so the card opens with it next time. `NewProjectCard` turns options off: an option that is off is not offered and not applied, whatever was chosen before.
 
 ### Claude Code session store
 
@@ -103,13 +115,13 @@ Claude Code keeps each session as `~/.claude/projects/<encoded folder>/<session 
 
 - `%APPDATA%\Rondel\settings.json` (macOS: `~/Library/Application Support/Rondel/settings.json`). The file is watched, so edits apply without a restart; saves are atomic, and an unreadable file is backed up before it is overwritten.
 - Comments and trailing commas are accepted. Non-ASCII characters are written as they are, so Turkish paths stay readable. Icons are Segoe Fluent Icons code points in hex (`"E8F4"`).
-- The schema is versioned and is at **3**. **Changing a default requires a migration**, applied only where the user still has the old default: version 2 added Recent Projects to the desktop menu, and version 3 added Ask to the folder and Explorer menus, each only where that menu was still the previous default. A menu for a new context (`FileItem` in version 3) needs no migration: a missing menu gets its default.
+- The schema is versioned and is at **4**. **Changing a default requires a migration**, applied only where the user still has the old default: version 2 added Recent Projects to the desktop menu, version 3 added Ask to the folder and Explorer menus, and version 4 removed New + Prompt from them once the New Project card took it over (and gave built-in agents their `Plan` arguments), each only where that menu was still the previous default. A menu for a new context (`FileItem` in version 3) needs no migration: a missing menu gets its default.
 
-Shape of version 3 (abridged):
+Shape of version 4 (abridged):
 
 ```jsonc
 {
-  "SchemaVersion": 3,
+  "SchemaVersion": 4,
   "Language": "auto",                       // "auto", "en" or "tr"
   "ProjectsRoot": "%USERPROFILE%\\Projects",       // "~/Projects" on macOS and Linux; ~ and %NAME% are expanded
   "HoldMs": 300,
@@ -119,8 +131,10 @@ Shape of version 3 (abridged):
   "DefaultAgent": "claude-code",
   "Agents": [
     { "Id": "claude-code", "Name": "Claude Code", "Command": "claude", "Sessions": "claude-code", "FileMention": "@{file}",
-      "Capabilities": { "Open": [], "Continue": ["--continue"], "Prompt": ["{prompt}"], "...": [] } }
+      "Capabilities": { "Open": [], "Continue": ["--continue"], "Prompt": ["{prompt}"], "Plan": ["--permission-mode", "plan"], "...": [] } }
   ],
+  "NewProject": { "Prompt": true, "Git": true, "Plan": false, "Templates": ["Python"] },   // the last choice
+  "NewProjectCard": { "Prompt": true, "Git": true, "Plan": true, "Templates": true },     // options the card offers
   "Actions": [
     { "Id": "continue", "Label": "@Action.Continue", "Icon": "E768", "Capability": "Continue", "Hint": "LastSession" },
     { "Id": "plan", "Label": "Plan", "Icon": "E8FD", "Capability": "Open", "ExtraArgs": ["--permission-mode", "plan"] },
@@ -128,8 +142,8 @@ Shape of version 3 (abridged):
     { "Id": "ask-file", "Label": "@Action.AskFile", "Icon": "E8F2", "Input": "Prompt", "Capability": "Prompt", "MentionFile": true }
   ],
   "Menus": {
-    "DesktopEmpty": ["new-project", "new-prompt", "recents"],
-    "ExplorerEmpty": ["new-project", "new-prompt", "open-here", "ask-here", "continue-here", "resume-here"],
+    "DesktopEmpty": ["new-project", "recents"],
+    "ExplorerEmpty": ["new-project", "open-here", "ask-here", "continue-here", "resume-here"],
     "FolderItem": ["open", "ask", "continue", "resume"],
     "FileItem": ["ask-file", "open-here", "continue-here", "resume-here"]
   }
@@ -161,7 +175,8 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 | `--export-icon out.ico` | Writes the application icon. |
 | `--show-menu [input [text]]` | Starts normally and opens the menu at the cursor without the gesture; `input` continues into the New + Prompt card. |
 | `--render-menu out.png [dark\|light] [en\|tr] [desktop\|item] [idle] [deep] [edge] [transparent] [FOLDER\|FILE]` | Draws the Explorer menu for a folder (the desktop menu with `desktop`, the folder's own menu with `item`, a file's menu when given a file) with its real session hints and recent sessions into a PNG, the first expandable slice opened unless `idle`; `edge` places the menu against the left edge of the screen, `transparent` leaves out the background. |
-| `--render-settings out.png [en\|tr]` | Draws the settings window (current Windows theme) into a PNG; a running Rondel is not touched. |
+| `--render-settings out.png [en\|tr] [bottom]` | Draws the settings window (current Windows theme) into a PNG, scrolled to the end with `bottom`. It works on a copy of settings.json: a running Rondel, and the real file, are not touched. |
+| `--render-new out.png [dark\|light] [en\|tr] [prompt] [empty] [transparent]` | Draws the New Project card with made-up templates (`prompt`: with Prompt on; `empty`: without templates). |
 
 ## Fixed identifiers
 
@@ -169,6 +184,7 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 |---|---|
 | Settings folder | `%APPDATA%\Rondel` (macOS: `~/Library/Application Support/Rondel`) |
 | Log folder | `%LOCALAPPDATA%\Rondel\logs` (macOS: `~/Library/Logs/Rondel`) |
+| Templates folder | `Templates` in the settings folder |
 | Single-instance mutex | `Local\Rondel.SingleInstance` (a second start opens Settings in the running instance) |
 | Activation event | `Local\Rondel.Activate` |
 | Start with Windows | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, value `Rondel` |

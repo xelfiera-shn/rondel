@@ -11,6 +11,9 @@ public interface IMenuHost
     /// <summary>Replaces the menu with the inline card that asks for a folder name (and a prompt).</summary>
     void StartInput(InputSpec spec);
 
+    /// <summary>Replaces the menu with the New Project card: a folder name, start options and templates, and a prompt.</summary>
+    void StartNewProject(NewProjectSpec spec);
+
     /// <summary>Tells the user about a problem outside the menu (a notification or tray balloon).</summary>
     void ShowWarning(string message);
 }

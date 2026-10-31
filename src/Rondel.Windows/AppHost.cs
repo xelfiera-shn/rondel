@@ -34,9 +34,10 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
     readonly MenuFlow _flow;
     SettingsWindow? _settingsWindow;
 
-    public AppHost()
+    /// <param name="settingsDirectory">Folder of settings.json; the real one when null (developer aids pass a copy).</param>
+    public AppHost(string? settingsDirectory = null)
     {
-        Store = new SettingsStore(new DispatcherSynchronizationContext(_ui));
+        Store = new SettingsStore(new DispatcherSynchronizationContext(_ui), settingsDirectory);
         Store.Load();
         var settings = Store.Current;
         Log.DebugEnabled = settings.DebugLogging;
@@ -47,7 +48,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         _worker = new DetectionWorker();
         _detector = new ShellContextDetector(() => Store.Current);
         _hook = new MouseHook(this, settings.HoldMs, settings.Paused);
-        _flow = new MenuFlow(this, new WindowsTerminalLauncher(), new FolderNameValidator(), () => Store.Current);
+        _flow = new MenuFlow(this, new WindowsTerminalLauncher(), new FolderNameValidator(), () => Store.Current, change => Store.Update(change));
     }
 
     public SettingsStore Store { get; }
@@ -245,6 +246,8 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
 
     void IMenuHost.StartInput(InputSpec spec) => _menu.StartInput(spec);
 
+    void IMenuHost.StartNewProject(NewProjectSpec spec) => _menu.StartNewProject(spec);
+
     void IMenuHost.ShowWarning(string message) => _tray.ShowBalloon(AppInfo.Name, message, warning: true);
 
     // ---- tray / settings ----
@@ -277,6 +280,21 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
     }
 
     public void OpenLogFolder() => ShellOpen(Log.Directory);
+
+    /// <summary>Opens the folder new projects' templates come from, creating it the first time.</summary>
+    public void OpenTemplatesFolder()
+    {
+        string directory = Rondel.Core.Projects.ProjectTemplates.Default.Directory;
+        try
+        {
+            Directory.CreateDirectory(directory);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Warn($"Creating the templates folder '{directory}' failed", ex);
+        }
+        ShellOpen(directory);
+    }
 
     public void OpenSettingsFile()
     {

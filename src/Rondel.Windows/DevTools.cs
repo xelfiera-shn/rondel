@@ -1,6 +1,7 @@
 using System.Text;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Rondel.Core;
 using Rondel.Core.Agents;
 using Rondel.Core.Agents.ClaudeCode;
 using Rondel.Core.Context;
@@ -29,7 +30,9 @@ namespace Rondel.Windows;
 /// --export-icon out.ico                      write the app icon (used for the exe)
 /// --render-menu out.png [dark|light] [en|tr] [desktop|item] [idle] [deep] [edge] [transparent] [FOLDER|FILE]   draw the Explorer menu
 ///                                            for FOLDER (default: current folder), its folder-icon menu with "item", or the menu of FILE
-/// --render-settings out.png [en|tr]          draw the settings window (in the current Windows theme)
+/// --render-settings out.png [en|tr] [bottom] draw the settings window (in the current Windows theme), scrolled down with "bottom"
+/// --render-new out.png [dark|light] [en|tr] [prompt] [empty] [transparent]   draw the New Project card with sample templates
+///                                            (prompt: with the Prompt option on; empty: with no templates)
 /// </code>
 /// </summary>
 internal static class DevTools
@@ -70,6 +73,10 @@ internal static class DevTools
 
             case ["--render-settings", var output, .. var options]:
                 RenderSettings(output, options);
+                return true;
+
+            case ["--render-new", var output, .. var options]:
+                RenderNewProject(output, options);
                 return true;
 
             default:
@@ -224,6 +231,46 @@ internal static class DevTools
         window.Close();
     }
 
+    static T? FindChild<T>(System.Windows.DependencyObject parent) where T : System.Windows.DependencyObject
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T match || FindChild<T>(child) is { } nested && (match = nested) is not null)
+                return match;
+        }
+        return null;
+    }
+
+    /// <summary>Draws the New Project card with made-up templates, for checking its design.</summary>
+    static void RenderNewProject(string output, string[] options)
+    {
+        bool dark = !options.Contains("light", StringComparer.OrdinalIgnoreCase);
+        bool tr = options.Contains("tr", StringComparer.OrdinalIgnoreCase);
+        bool prompt = options.Contains("prompt", StringComparer.OrdinalIgnoreCase);
+        Loc.SetLanguage(tr ? "tr" : "en");
+        string[] templates = options.Contains("empty", StringComparer.OrdinalIgnoreCase) ? []
+            : tr ? ["Claude talimatları", "Python", "Veri bilimi", "Web uygulaması"]
+            : ["Claude instructions", "Data science", "Python", "Web app"];
+        var initial = new NewProjectOptions { Prompt = prompt, Git = true, Templates = templates.Length > 1 ? [templates[0], templates[2]] : [] };
+        // A made-up location: these pictures end up in the README.
+        string parent = Path.Combine("C:" + Path.DirectorySeparatorChar, "Users", "dev", "Projects");
+        var spec = new NewProjectSpec(Loc.Get("Action.NewProject"), '', parent, "Claude Code", templates, initial,
+            CanPrompt: true, CanPlan: true, ValidateName: _ => null, Submit: _ => null)
+        { TemplatesDirectory = parent };
+
+        var window = new RadialMenuWindow();
+        var background = options.Contains("transparent", StringComparer.OrdinalIgnoreCase) ? Colors.Transparent
+            : dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6);
+        var bitmap = window.RenderNewProjectPreview(spec, new ThemeColors(dark), background, "weather-api",
+            prompt ? (tr ? "Hava durumu için küçük bir REST API kur, testleriyle birlikte." : "Set up a small REST API for the weather, with tests.") : null);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using (var file = File.Create(output))
+            encoder.Save(file);
+        window.Close();
+    }
+
     /// <summary>
     /// Draws the settings window with the current settings. The host is created but not started:
     /// no mouse hook, no tray icon, and a running Rondel is left alone.
@@ -231,7 +278,24 @@ internal static class DevTools
     static void RenderSettings(string output, string[] options)
     {
         bool dark = SystemTheme.Read().IsDark; // the window takes its theme at construction
-        using var host = new AppHost();
+        // A copy of the settings: loading migrates and saves them, and a running (possibly older) Rondel reads the real file.
+        var copy = Directory.CreateTempSubdirectory("rondel-render-");
+        string real = Path.Combine(AppInfo.SettingsDirectory, "settings.json");
+        if (File.Exists(real))
+            File.Copy(real, Path.Combine(copy.FullName, "settings.json"));
+        try
+        {
+            RenderSettingsWindow(output, options, dark, copy.FullName);
+        }
+        finally
+        {
+            copy.Delete(recursive: true);
+        }
+    }
+
+    static void RenderSettingsWindow(string output, string[] options, bool dark, string settingsDirectory)
+    {
+        using var host = new AppHost(settingsDirectory);
         Loc.SetLanguage(options.Contains("tr", StringComparer.OrdinalIgnoreCase) ? "tr" : "en");
         var window = new SettingsWindow(host)
         {
@@ -242,6 +306,11 @@ internal static class DevTools
         };
         window.Show();
         window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        if (options.Contains("bottom", StringComparer.OrdinalIgnoreCase) && FindChild<System.Windows.Controls.ScrollViewer>(window) is { } scroller)
+        {
+            scroller.ScrollToEnd();
+            window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        }
 
         var content = (System.Windows.FrameworkElement)window.Content;
         var size = new System.Windows.Size(content.ActualWidth, content.ActualHeight);

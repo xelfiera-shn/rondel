@@ -36,7 +36,7 @@ public class SettingsTests
     }
 
     [Theory]
-    [InlineData("""["new-project", "new-prompt"]""", new[] { "new-project", "new-prompt", "recents" })]
+    [InlineData("""["new-project", "new-prompt"]""", new[] { "new-project", "recents" })] // New + Prompt left with schema 4
     [InlineData("""["new-prompt"]""", new[] { "new-prompt" })]
     public void SchemaTwoAddsRecentProjectsOnlyToAnUntouchedDesktopMenu(string savedMenu, string[] expected)
     {
@@ -63,6 +63,28 @@ public class SettingsTests
         Assert.Equal(expected, settings.Menus[nameof(ContextKind.FolderItem)]);
         Assert.Equal(AppSettings.DefaultMenus()[nameof(ContextKind.FileItem)], settings.Menus[nameof(ContextKind.FileItem)]);
         Assert.Equal("@{file}", settings.FindAgent(BuiltInAgents.ClaudeCodeId)!.FileMention);
+    }
+
+    [Fact]
+    public void SchemaFourMovesNewWithPromptIntoTheNewProjectCard()
+    {
+        const string json = """
+            {
+              "SchemaVersion": 3,
+              "Agents": [ { "Id": "claude-code", "Capabilities": { "Open": [], "Prompt": ["{prompt}"] } } ],
+              "Actions": [ { "Id": "new-project", "Label": "@Action.NewProject", "Input": "FolderName", "Capability": "Open" } ],
+              "Menus": { "DesktopEmpty": ["new-project", "new-prompt", "recents"], "ExplorerEmpty": ["new-prompt", "open-here"] }
+            }
+            """;
+        var settings = JsonSerializer.Deserialize<AppSettings>(json, SettingsJson.Options)!;
+
+        settings.Normalize();
+
+        Assert.Equal(ActionInput.NewProject, settings.FindAction("new-project")!.Input);
+        Assert.Equal(["new-project", "recents"], settings.Menus[nameof(ContextKind.DesktopEmpty)]);
+        Assert.Equal(["new-prompt", "open-here"], settings.Menus[nameof(ContextKind.ExplorerEmpty)]); // changed by the user: kept
+        Assert.True(settings.FindAgent(BuiltInAgents.ClaudeCodeId)!.Supports(AgentCapability.Plan));
+        Assert.True(settings.NewProjectCard.Templates);
     }
 
     [Fact]

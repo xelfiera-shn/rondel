@@ -23,6 +23,15 @@ public class PowerShellScriptTests
         Assert.EndsWith("& $rondelName --model opus @rondelArgs" + Environment.NewLine, script);
     }
 
+    [Fact]
+    public void BuildCreatesTheRepositoryOnlyWhenAsked()
+    {
+        var plan = new LaunchPlan(Path.GetTempPath(), "Claude Code", "claude", []);
+
+        Assert.DoesNotContain("git init", PowerShellScript.Build(plan));
+        Assert.Contains("{ & git init }", PowerShellScript.Build(plan with { InitGit = true }));
+    }
+
     [Theory]
     [InlineData("claude", "claude", "")]
     [InlineData("  claude --model opus ", "claude", "--model opus")]
