@@ -47,7 +47,22 @@ public class SettingsTests
 
         Assert.Equal(expected, settings.Menus[nameof(ContextKind.DesktopEmpty)]);
         Assert.NotNull(settings.FindAction("recents"));
-        Assert.Equal(2, settings.SchemaVersion);
+        Assert.Equal(AppSettings.CurrentSchemaVersion, settings.SchemaVersion);
+    }
+
+    [Theory]
+    [InlineData("""["open", "continue", "resume"]""", new[] { "open", "ask", "continue", "resume" })]
+    [InlineData("""["open", "resume"]""", new[] { "open", "resume" })]
+    public void SchemaThreeAddsAskOnlyToUntouchedMenus(string savedMenu, string[] expected)
+    {
+        string json = $$"""{ "SchemaVersion": 2, "Menus": { "FolderItem": {{savedMenu}} } }""";
+        var settings = JsonSerializer.Deserialize<AppSettings>(json, SettingsJson.Options)!;
+
+        settings.Normalize();
+
+        Assert.Equal(expected, settings.Menus[nameof(ContextKind.FolderItem)]);
+        Assert.Equal(AppSettings.DefaultMenus()[nameof(ContextKind.FileItem)], settings.Menus[nameof(ContextKind.FileItem)]);
+        Assert.Equal("@{file}", settings.FindAgent(BuiltInAgents.ClaudeCodeId)!.FileMention);
     }
 
     [Fact]

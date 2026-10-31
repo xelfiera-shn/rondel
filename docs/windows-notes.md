@@ -42,12 +42,13 @@ Re-injected events are tagged with `dwExtraInfo = 0x524E444C` and the hook ignor
 
 Windows 11 Home's start page has no `UIItemsView`, so it does not trigger.
 
-**Folder resolution.**
+**Item resolution.**
 
 - The Explorer window is found in `Shell.Application.Windows()` by its top-level HWND. Windows 11 tabs share that HWND, so the active tab is matched through `IServiceProvider → IShellBrowser → GetWindow` against the `ShellTabWindowClass` ancestor of the window that was hit.
 - An item is resolved with `ParseName` first; otherwise `Items()` is scanned by display name (up to 2000 items), so localized names such as "Belgeler" work. Items with the same name are told apart by comparing the UIA `ItemType` with the shell `Type`; if it is still ambiguous, the result is `None`.
-- ZIP files report `IsFolder`, so a folder must also satisfy `Directory.Exists`. Shortcuts resolve through `GetLink.Path`, and drives in This PC count as folders.
-- Virtual containers (`::{GUID}` paths), the Recycle Bin and search results get no empty-area menu. Items inside them that resolve to real folders still work.
+- An item becomes a folder or a file only through the file system: ZIP files report `IsFolder` but are files, so a folder must satisfy `Directory.Exists` and a file `File.Exists`. Shortcuts resolve through `GetLink.Path` to what they point to, and drives in This PC count as folders.
+- A file opens the file menu for the folder it is in; the menu center shows its full name, with the extension even where File Explorer hides it.
+- Virtual containers (`::{GUID}` paths), the Recycle Bin and search results get no empty-area menu. Items inside them that resolve to real folders or files still work.
 
 **Shell COM through `dynamic`.** Cast results to `object` or a concrete type early (for example `Convert.ToInt64((object)w.HWND)`); mixing `dynamic` with `nint` comparisons throws at run time.
 

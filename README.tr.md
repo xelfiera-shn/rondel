@@ -24,10 +24,12 @@ Kurulum programı yoktur, yönetici izni gerekmez. Windows 10 ve 11 desteklenir.
 | Nerede basılı tutarsınız | Aksiyonlar | Klasör |
 |---|---|---|
 | Masaüstünde boş alan | Yeni Proje, Yeni + Prompt, Son Projeler | Proje klasörünüz (varsayılan `%USERPROFILE%\Projects`) ya da seçtiğiniz proje |
-| Dosya Gezgini'nde bir klasörün boş alanı | Yeni Proje, Yeni + Prompt, Burada Aç, Burada Devam Et, Burada Oturum Seç | Açık olan klasör |
-| Bir klasörün üzerinde (masaüstü veya Dosya Gezgini) | Aç, Devam Et, Oturum Seç | O klasör |
+| Dosya Gezgini'nde bir klasörün boş alanı | Yeni Proje, Yeni + Prompt, Burada Aç, Burada Sor, Burada Devam Et, Burada Oturum Seç | Açık olan klasör |
+| Bir klasörün üzerinde (masaüstü veya Dosya Gezgini) | Aç, Sor, Devam Et, Oturum Seç | O klasör |
+| Bir dosyanın üzerinde (masaüstü veya Dosya Gezgini) | Bu Dosyayı Sor, Burada Aç, Burada Devam Et, Burada Oturum Seç | Dosyanın bulunduğu klasör |
 
 - **Aç** yeni bir oturum başlatır, **Devam Et** en son oturumu sürdürür, **Oturum Seç** listeden seçtirir (`claude`, `claude --continue`, `claude --resume`).
+- **Sor** ve **Burada Sor** yalnızca bir prompt sorar ve yeni oturumu onunla başlatır. **Bu Dosyayı Sor** aynısını dosyanın klasöründe yapar ve dosyayı prompt'un başına ekler (`@Program.cs`, boşluklu adlarda `@"Proje Notları.md"`); Claude Code dosyayı hemen okur.
 - **Oturum Seç dışa doğru açılır** (klasörde iki veya daha fazla oturum varsa): son beş oturum dilimin etrafındaki bir yayda belirir, en yenisi tam dilimin dışında. Birini seçerek o oturumu doğrudan açabilirsiniz.
 - **Son Projeler** (masaüstü menüsü) en son çalıştığınız beş klasöre açılır. Birini seçince o projenin son oturumu açılır; iki veya daha fazla oturumu olan bir proje de aynı şekilde oturumlarına açılır.
 
@@ -36,9 +38,9 @@ Kurulum programı yoktur, yönetici izni gerekmez. Windows 10 ve 11 desteklenir.
 </p>
 
 - Devam Et ve Oturum Seç, son oturumun ne zaman olduğunu ve kaç oturum bulunduğunu gösterir; oturum yoksa soluk görünürler.
-- **Yeni + Prompt** önce klasör adını (**Enter**), sonra prompt'u sorar (**Ctrl+Enter** başlatır, **Esc** geri döner).
+- **Yeni + Prompt** önce klasör adını (**Enter**), sonra prompt'u sorar (**Ctrl+Enter** başlatır, **Esc** geri döner). Sor dilimleri doğrudan prompt'a geçer (**Esc** vazgeçer).
 - Dilime tıklayın, **1–N** tuşlarına basın ya da ok tuşları ve **Enter** kullanın; **Tab** seçili dilimin ya da projenin öğelerine (en yeniden başlayarak) geçer, **Esc** bir seviye geri çıkar ve en sonunda menüyü kapatır. Basılı tutmaya devam edip bir dilimin üzerine gelerek bırakmak da seçer.
-- Normal Ctrl+tık ve Ctrl+sürükle her yerde eskisi gibi çalışır. Dosyalar, gezinti bölmesi, adres çubuğu, Bu Bilgisayar gibi sanal konumlar ve yönetici olarak çalışan Dosya Gezgini pencereleri menüyü açmaz.
+- Normal Ctrl+tık ve Ctrl+sürükle her yerde eskisi gibi çalışır. Gezinti bölmesi, adres çubuğu, Bu Bilgisayar gibi sanal konumlar ve yönetici olarak çalışan Dosya Gezgini pencereleri menüyü açmaz.
 - İsteğe bağlı bir klavye kısayolu (Ayarlar) menüyü fare imlecinin olduğu yerde açar.
 
 ## Ayarlar ve özelleştirme
@@ -53,7 +55,7 @@ Menüler, aksiyonlar ve ajanlar `%APPDATA%\Rondel\settings.json` içindedir; dos
   { "Id": "plan", "Label": "Plan", "Icon": "E8FD", "Capability": "Open", "ExtraArgs": ["--permission-mode", "plan"] }
 ],
 "Menus": {
-  "FolderItem": ["open", "continue", "resume", "plan"]
+  "FolderItem": ["open", "ask", "continue", "resume", "plan"]
 }
 ```
 

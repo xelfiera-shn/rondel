@@ -64,7 +64,7 @@ Detection starts as soon as a Ctrl+press is swallowed, while the hold timer runs
 
 ## Contexts
 
-`ContextKind` is one of `None`, `DesktopEmpty`, `ExplorerEmpty` or `FolderItem`. A `TriggerContext` carries the kind, the target folder, the name shown in the menu center, a short reason for the log and, in debug mode, the detection trace. `None` means "not ours": the click is passed through unchanged.
+`ContextKind` is one of `None`, `DesktopEmpty`, `ExplorerEmpty`, `FolderItem` or `FileItem`. A `TriggerContext` carries the kind, the target folder (for a file, the folder it is in, with the file in `FilePath`), the name shown in the menu center, a short reason for the log and, in debug mode, the detection trace. `None` means "not ours": the click is passed through unchanged.
 
 ## Agent profiles
 
@@ -73,7 +73,8 @@ An agent profile describes one coding agent:
 - an id and a display name,
 - a base command, which the user can override (aliases defined in the shell profile work too),
 - the capabilities the agent supports, each with an argument template,
-- optionally a session store, used for the hints under Continue and Resume.
+- optionally a session store, used for the hints under Continue and Resume,
+- optionally how a prompt mentions a file (`FileMention`, `@{file}` for Claude Code).
 
 | Capability | Claude Code arguments |
 |---|---|
@@ -84,6 +85,8 @@ An agent profile describes one coding agent:
 | `Prompt` | `{prompt}` |
 
 Menu actions refer to a **capability**, not to a command line. An action uses the default agent unless it names one, and it may add extra arguments (for example `--permission-mode plan`). A slice is hidden when its agent does not support the capability.
+
+An action may ask for input first (`Input`): a new folder's name (`FolderName`), a name and then a prompt (`FolderNameAndPrompt`), or only a prompt for the menu's folder (`Prompt`, the Ask slices). An action with `MentionFile` starts its prompt with the file the menu was opened on, in the agent's `FileMention` syntax; the agent starts in the file's folder, so `{file}` is the file's name, in double quotes unless it consists only of letters, digits and `._-()` (Claude Code reads `@"My Notes.md"` as one path). Such an action is hidden where there is no file or the agent has no `FileMention`.
 
 ### Claude Code session store
 
@@ -100,13 +103,13 @@ Claude Code keeps each session as `~/.claude/projects/<encoded folder>/<session 
 
 - `%APPDATA%\Rondel\settings.json` (macOS: `~/Library/Application Support/Rondel/settings.json`). The file is watched, so edits apply without a restart; saves are atomic, and an unreadable file is backed up before it is overwritten.
 - Comments and trailing commas are accepted. Non-ASCII characters are written as they are, so Turkish paths stay readable. Icons are Segoe Fluent Icons code points in hex (`"E8F4"`).
-- The schema is versioned and is at **2**. **Changing a default requires a migration**, applied only where the user still has the old default: version 2 added Recent Projects to the desktop menu only where that menu was still the 0.1.0 default.
+- The schema is versioned and is at **3**. **Changing a default requires a migration**, applied only where the user still has the old default: version 2 added Recent Projects to the desktop menu, and version 3 added Ask to the folder and Explorer menus, each only where that menu was still the previous default. A menu for a new context (`FileItem` in version 3) needs no migration: a missing menu gets its default.
 
-Shape of version 2 (abridged):
+Shape of version 3 (abridged):
 
 ```jsonc
 {
-  "SchemaVersion": 2,
+  "SchemaVersion": 3,
   "Language": "auto",                       // "auto", "en" or "tr"
   "ProjectsRoot": "%USERPROFILE%\\Projects",       // "~/Projects" on macOS and Linux; ~ and %NAME% are expanded
   "HoldMs": 300,
@@ -115,18 +118,20 @@ Shape of version 2 (abridged):
   "Shell": "Auto",                          // Auto, Pwsh, WindowsPowerShell
   "DefaultAgent": "claude-code",
   "Agents": [
-    { "Id": "claude-code", "Name": "Claude Code", "Command": "claude", "Sessions": "claude-code",
+    { "Id": "claude-code", "Name": "Claude Code", "Command": "claude", "Sessions": "claude-code", "FileMention": "@{file}",
       "Capabilities": { "Open": [], "Continue": ["--continue"], "Prompt": ["{prompt}"], "...": [] } }
   ],
   "Actions": [
     { "Id": "continue", "Label": "@Action.Continue", "Icon": "E768", "Capability": "Continue", "Hint": "LastSession" },
     { "Id": "plan", "Label": "Plan", "Icon": "E8FD", "Capability": "Open", "ExtraArgs": ["--permission-mode", "plan"] },
-    { "Id": "recents", "Label": "@Action.Recents", "Icon": "E823", "Capability": "ResumeById", "Source": "RecentProjects" }
+    { "Id": "recents", "Label": "@Action.Recents", "Icon": "E823", "Capability": "ResumeById", "Source": "RecentProjects" },
+    { "Id": "ask-file", "Label": "@Action.AskFile", "Icon": "E8F2", "Input": "Prompt", "Capability": "Prompt", "MentionFile": true }
   ],
   "Menus": {
     "DesktopEmpty": ["new-project", "new-prompt", "recents"],
-    "ExplorerEmpty": ["new-project", "new-prompt", "open-here", "continue-here", "resume-here"],
-    "FolderItem": ["open", "continue", "resume"]
+    "ExplorerEmpty": ["new-project", "new-prompt", "open-here", "ask-here", "continue-here", "resume-here"],
+    "FolderItem": ["open", "ask", "continue", "resume"],
+    "FileItem": ["ask-file", "open-here", "continue-here", "resume-here"]
   }
 }
 ```
@@ -155,7 +160,7 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 | `--launch-now FOLDER COMMAND prompt.txt` | Launches like the menu does, with COMMAND instead of the configured one. |
 | `--export-icon out.ico` | Writes the application icon. |
 | `--show-menu [input [text]]` | Starts normally and opens the menu at the cursor without the gesture; `input` continues into the New + Prompt card. |
-| `--render-menu out.png [dark\|light] [en\|tr] [idle] [edge] [transparent] [FOLDER]` | Draws the Explorer menu for a folder (with its real session hints and recent sessions) into a PNG, the first expandable slice opened unless `idle`; `edge` places the menu against the left edge of the screen, `transparent` leaves out the background. |
+| `--render-menu out.png [dark\|light] [en\|tr] [desktop\|item] [idle] [deep] [edge] [transparent] [FOLDER\|FILE]` | Draws the Explorer menu for a folder (the desktop menu with `desktop`, the folder's own menu with `item`, a file's menu when given a file) with its real session hints and recent sessions into a PNG, the first expandable slice opened unless `idle`; `edge` places the menu against the left edge of the screen, `transparent` leaves out the background. |
 | `--render-settings out.png [en\|tr]` | Draws the settings window (current Windows theme) into a PNG; a running Rondel is not touched. |
 
 ## Fixed identifiers

@@ -27,7 +27,8 @@ namespace Rondel.Windows;
 /// --launch-script FOLDER COMMAND PROMPT.txt out.ps1   the PowerShell script a launch would run
 /// --launch-now FOLDER COMMAND PROMPT.txt     launch exactly like the menu, with COMMAND instead of the configured one
 /// --export-icon out.ico                      write the app icon (used for the exe)
-/// --render-menu out.png [dark|light] [en|tr] [desktop] [idle] [deep] [edge] [transparent] [FOLDER]   draw the Explorer menu for FOLDER (default: current folder)
+/// --render-menu out.png [dark|light] [en|tr] [desktop|item] [idle] [deep] [edge] [transparent] [FOLDER|FILE]   draw the Explorer menu
+///                                            for FOLDER (default: current folder), its folder-icon menu with "item", or the menu of FILE
 /// --render-settings out.png [en|tr]          draw the settings window (in the current Windows theme)
 /// </code>
 /// </summary>
@@ -180,18 +181,22 @@ internal static class DevTools
     }
 
     /// <summary>
-    /// Draws the Explorer menu for a folder with its real session hints and recent sessions: the first
-    /// expandable slice hovered and opened, or nothing hovered with "idle".
+    /// Draws the Explorer menu for a folder (or the menu of a file) with its real session hints and recent sessions:
+    /// the first expandable slice hovered and opened, or nothing hovered with "idle".
     /// </summary>
     static void RenderMenu(string output, string[] options)
     {
         bool dark = !options.Contains("light", StringComparer.OrdinalIgnoreCase);
         Loc.SetLanguage(options.Contains("tr", StringComparer.OrdinalIgnoreCase) ? "tr" : "en");
-        string folder = options.FirstOrDefault(o => o.Contains('\\') || o.Contains('/')) ?? Environment.CurrentDirectory;
+        string target = options.FirstOrDefault(o => o.Contains('\\') || o.Contains('/')) ?? Environment.CurrentDirectory;
         var settings = new AppSettings();
         settings.Normalize();
-        var kind = options.Contains("desktop", StringComparer.OrdinalIgnoreCase) ? ContextKind.DesktopEmpty : ContextKind.ExplorerEmpty;
-        var context = new TriggerContext(kind, folder, Path.GetFileName(folder), "render-menu");
+        var kind = options.Contains("desktop", StringComparer.OrdinalIgnoreCase) ? ContextKind.DesktopEmpty
+            : options.Contains("item", StringComparer.OrdinalIgnoreCase) ? ContextKind.FolderItem
+            : ContextKind.ExplorerEmpty;
+        var context = File.Exists(target)
+            ? new TriggerContext(ContextKind.FileItem, Path.GetDirectoryName(target), Path.GetFileName(target), "render-menu") { FilePath = target }
+            : new TriggerContext(kind, target, Path.GetFileName(target), "render-menu");
         var model = MenuBuilder.Build(context, settings);
         var details = MenuDetails.Load(model);
         var children = details.Children.ToList();

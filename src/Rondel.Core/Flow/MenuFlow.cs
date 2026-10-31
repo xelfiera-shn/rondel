@@ -58,6 +58,26 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
             return;
         }
 
+        if (action.Input == ActionInput.Prompt)
+        {
+            string? file = action.MentionFile ? model.Context.FilePath : null;
+            host.StartInput(new InputSpec(
+                item.Label,
+                item.Glyph,
+                directory,
+                item.Agent.Name,
+                AskPrompt: true,
+                ValidateName: _ => null,
+                Submit: (_, prompt) =>
+                {
+                    host.CloseMenu(restoreFocus: false);
+                    Start(item.Agent, action, directory, WithMention(item.Agent, file, prompt));
+                    return null;
+                })
+            { AskName = false, Location = file ?? directory });
+            return;
+        }
+
         host.StartInput(new InputSpec(
             item.Label,
             item.Glyph,
@@ -88,6 +108,12 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
         Start(agent, action, path, prompt);
         return null;
     }
+
+    /// <summary>The prompt, after a mention of <paramref name="file"/> in the agent's syntax ("@Program.cs explain this").</summary>
+    static string? WithMention(AgentProfile agent, string? file, string? prompt) =>
+        file is null || string.IsNullOrEmpty(agent.FileMention)
+            ? prompt
+            : $"{FileMention.Format(agent.FileMention, Path.GetFileName(file))} {prompt}".TrimEnd();
 
     void Start(AgentProfile agent, ActionDefinition action, string directory, string? prompt, string? sessionId = null)
     {

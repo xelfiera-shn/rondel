@@ -6,7 +6,19 @@ using Rondel.Core.Sessions;
 namespace Rondel.Core.Menus;
 
 /// <summary>What the menu asks for before running the action.</summary>
-public enum ActionInput { None, FolderName, FolderNameAndPrompt }
+public enum ActionInput
+{
+    None,
+
+    /// <summary>A name for a new folder, created in the menu's folder.</summary>
+    FolderName,
+
+    /// <summary>A name for a new folder, then a prompt.</summary>
+    FolderNameAndPrompt,
+
+    /// <summary>A prompt only; the agent starts in the menu's folder.</summary>
+    Prompt,
+}
 
 /// <summary>Which folder an action works on.</summary>
 public enum ActionSource
@@ -50,6 +62,13 @@ public sealed class ActionDefinition
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public ActionSource Source { get; set; } = ActionSource.Context;
+
+    /// <summary>
+    /// The prompt starts with a mention of the file the menu was opened on, in the agent's own syntax
+    /// (<see cref="AgentProfile.FileMention"/>). Hidden where there is no file or the agent cannot mention one.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool MentionFile { get; set; }
 
     public char Glyph =>
         int.TryParse(Icon, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int code) && code is > 0 and <= 0xFFFF

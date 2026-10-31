@@ -77,11 +77,11 @@ internal sealed class ShellNamespace
     public ShellFolder GetDesktop() => Describe((object)Shell.NameSpace(0));
 
     /// <summary>
-    /// Resolves the item named <paramref name="displayName"/> in <paramref name="container"/> to a
-    /// directory: a real folder (not a ZIP, which also reports IsFolder) or a shortcut to one.
+    /// Resolves the item named <paramref name="displayName"/> in <paramref name="container"/> to a path in the
+    /// file system: a real folder, a file (a ZIP is a file, although it reports IsFolder), or what a shortcut points to.
     /// </summary>
-    /// <returns>The directory and its display name, or null with the reason in <paramref name="reason"/>.</returns>
-    public (string Path, string Name)? ResolveFolderItem(ShellFolder container, string displayName, string? itemType,
+    /// <returns>The path, the display name and whether it is a folder, or null with the reason in <paramref name="reason"/>.</returns>
+    public (string Path, string Name, bool IsDirectory)? ResolveItem(ShellFolder container, string displayName, string? itemType,
         bool tryParseName, List<string>? trace, out string reason)
     {
         if (container.IsRecycleBin)
@@ -147,37 +147,45 @@ internal sealed class ShellNamespace
             return null;
         }
 
-        var resolved = candidates.Select(c => ToDirectory(c, trace)).ToList();
-        if (resolved.Any(r => r is null) && resolved.Any(r => r is not null))
+        var resolved = candidates.Select(c => ToFileSystem(c, trace)).ToList();
+        if (resolved.Any(r => r is null) && resolved.Any(r => r is not null)
+            || resolved.Select(r => r?.Path).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
         {
-            reason = $"'{displayName}' is ambiguous (a folder and a non-folder share the name)";
+            reason = $"'{displayName}' is ambiguous (several items share the name)";
             return null;
         }
-        if (resolved[0] is not { } directory)
+        if (resolved[0] is not { } target)
         {
-            reason = $"'{displayName}' is not a folder";
+            reason = $"'{displayName}' is neither a folder nor a file";
             return null;
         }
-        reason = "folder item";
-        return (directory, displayName);
+        reason = target.IsDirectory ? "folder item" : "file item";
+        return (target.Path, displayName, target.IsDirectory);
     }
 
-    static string? ToDirectory(object shellItem, List<string>? trace)
+    static (string Path, bool IsDirectory)? ToFileSystem(object shellItem, List<string>? trace)
     {
         dynamic item = shellItem;
         try
         {
+            string path;
             if ((bool)item.IsLink)
             {
-                string target = item.GetLink.Path;
-                trace?.Add($"Shortcut → '{target}'");
-                return Directory.Exists(target) ? target : null;
+                path = item.GetLink.Path;
+                trace?.Add($"Shortcut → '{path}'");
             }
-            string path = item.Path;
-            bool isFolder = item.IsFolder, isFileSystem = item.IsFileSystem;
-            trace?.Add($"Item path='{path}' folder={isFolder} filesystem={isFileSystem}");
-            // ZIP files report IsFolder too; Directory.Exists rules them out.
-            return isFolder && isFileSystem && Directory.Exists(path) ? path : null;
+            else
+            {
+                path = item.Path;
+                bool isFolder = item.IsFolder, isFileSystem = item.IsFileSystem;
+                trace?.Add($"Item path='{path}' folder={isFolder} filesystem={isFileSystem}");
+                if (!isFileSystem)
+                    return null;
+            }
+            // ZIP files report IsFolder too; the file system tells folders and files apart.
+            return Directory.Exists(path) ? (path, true)
+                : File.Exists(path) ? (path, false)
+                : null;
         }
         catch (Exception ex) when (IsComFailure(ex))
         {

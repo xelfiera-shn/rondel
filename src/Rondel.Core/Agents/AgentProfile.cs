@@ -25,6 +25,12 @@ public sealed class AgentProfile
     /// <summary>Session store used for the hints under Continue and Resume (see <see cref="Sessions.SessionStores"/>), or null.</summary>
     public string? Sessions { get; set; }
 
+    /// <summary>
+    /// How a prompt refers to a file, "{file}" being its name (the agent starts in the file's folder), e.g. "@{file}".
+    /// Null or empty: the agent cannot mention a file, and actions that would are hidden.
+    /// </summary>
+    public string? FileMention { get; set; }
+
     public bool TryGetArguments(AgentCapability capability, [NotNullWhen(true)] out List<string>? templates) =>
         Capabilities.TryGetValue(capability.ToString(), out templates) && templates is not null;
 
