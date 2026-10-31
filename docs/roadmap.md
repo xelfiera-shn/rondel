@@ -31,7 +31,7 @@ Verified for 0.1.0:
 ## Phase 2 — Features (Windows)
 
 - ~~In-menu session list (`--resume <id>`)~~ — shipped in 0.1.0 as the Resume arc.
-- **0.2.0 — Recents**: a desktop-menu slice that opens into the five most recently worked-on project folders. Clicking a project resumes its latest session; a project with two or more sessions opens further into them. The Resume slice and project items only expand when there are at least two sessions.
+- **0.2.0 — Recents** (done, ships with 0.2.0): a desktop-menu slice that opens into the five most recently worked-on project folders. Clicking a project resumes its latest session; a project with two or more sessions opens further into them. The Resume slice and project items only expand when there are at least two sessions.
 - File context: "ask about this file" with an @-mention of the file.
 - New-project templates (git init, agent instruction file).
 - A modifier key for an alternate mode (for example Shift for plan mode).
