@@ -128,6 +128,12 @@ public partial class RadialMenuWindow : Window
     bool _promptStage;
     string _acceptedName = "";
 
+    /// <summary>
+    /// Label layouts already worked out while this menu is open: arcs open again and again as the pointer
+    /// moves between tiles, and fitting a label takes many measurements.
+    /// </summary>
+    readonly Dictionary<(string Label, string Hint, double Mid, double Span, double Radius), (double FontSize, Size Size)> _labelLayouts = [];
+
     public RadialMenuWindow()
     {
         InitializeComponent();
@@ -202,6 +208,8 @@ public partial class RadialMenuWindow : Window
         _previousForeground = GetForegroundWindow();
         _pressedInside = false;
         ResetInputMode();
+        _labelLayouts.Clear();
+        Width = Height = StageSizeFor(model);
         BuildSlices(model);
         SetCenterTitle(model.Title);
         CenterSubtitle.Text = model.Subtitle ?? "";
@@ -211,6 +219,7 @@ public partial class RadialMenuWindow : Window
         // Center on the cursor, but keep the ring and its shadow inside the monitor's work area.
         var (work, dpi) = GetMonitorWorkArea(anchor);
         _scale = dpi / 96.0;
+        CacheRingBase(_scale);
         int size = (int)Math.Round(Width * _scale);
         double half = (OuterR + ShadowPad) * _scale;
         int cx = ClampCenter(anchor.X, work.Left + half, work.Right - half);
@@ -310,6 +319,8 @@ public partial class RadialMenuWindow : Window
         _glow = _palette.Glow;
         ApplyPalette();
         _model = model;
+        Width = Height = StageSizeFor(model);
+        CacheRingBase(2); // the preview is drawn at 192 DPI
         BuildSlices(model);
         SetCenterTitle(model.Title);
         CenterSubtitle.Text = model.Subtitle ?? "";
@@ -396,6 +407,18 @@ public partial class RadialMenuWindow : Window
 
     // ---- placement, focus, animation ----
 
+    /// <summary>
+    /// The window is only as big as the deepest arc this menu can open (none, sessions, or recent projects and
+    /// their sessions): a per-pixel transparent window is copied whole for every frame, so size is speed.
+    /// The stage keeps its full size and is centered in the window, so all geometry stays the same.
+    /// </summary>
+    double StageSizeFor(MenuModel model)
+    {
+        int depth = model.Items.Any(MenuBuilder.ListsRecentProjects) ? 2 : model.Items.Any(MenuBuilder.CanExpand) ? 1 : 0;
+        double reach = (depth == 0 ? OuterR : _bands[depth].EdgeR) + ArrowReach + ShadowPad;
+        return Math.Min(2 * StageR, Math.Ceiling(2 * reach));
+    }
+
     void ApplyBounds() =>
         SetWindowPos(_hwnd, HWND_TOPMOST, _bounds.Left, _bounds.Top, _bounds.Width, _bounds.Height, SWP_NOACTIVATE);
 
@@ -414,14 +437,30 @@ public partial class RadialMenuWindow : Window
         var duration = AnimationTime(160);
         var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
         Surface.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, duration) { EasingFunction = ease });
-        var grow = new DoubleAnimation(SystemParameters.ClientAreaAnimation ? 0.86 : 1, 1, duration) { EasingFunction = ease };
+        var grow = new DoubleAnimation(Animate ? 0.86 : 1, 1, duration) { EasingFunction = ease };
         SurfaceScale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
         SurfaceScale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
     }
 
-    /// <summary>Respects "Animation effects" being turned off in Windows.</summary>
-    static Duration AnimationTime(int milliseconds) =>
-        TimeSpan.FromMilliseconds(SystemParameters.ClientAreaAnimation ? milliseconds : 0);
+    /// <summary>
+    /// The ring's base disc never changes while the menu is open, but its large blurred shadow was redrawn
+    /// whenever anything above it changed. Cached as a bitmap at the monitor's scale, it stays sharp.
+    /// (Layers with text are not cached: a cached bitmap would soften the text.)
+    /// </summary>
+    void CacheRingBase(double scale)
+    {
+        if (RingBase.CacheMode is BitmapCache { RenderAtScale: var current } && current == scale)
+            return;
+        RingBase.CacheMode = new BitmapCache(scale) { SnapsToDevicePixels = true };
+    }
+
+    /// <summary>
+    /// Animations run unless "Animation effects" is off in Windows or the PC runs on battery: every frame of
+    /// a large layered window costs noticeably there, and an instant menu feels faster than a slow animation.
+    /// </summary>
+    static bool Animate => SystemParameters.ClientAreaAnimation && SystemParameters.PowerLineStatus != PowerLineStatus.Offline;
+
+    static Duration AnimationTime(int milliseconds) => TimeSpan.FromMilliseconds(Animate ? milliseconds : 0);
 
     static int ClampCenter(int value, double min, double max) =>
         min > max ? (int)Math.Round((min + max) / 2) : (int)Math.Round(Math.Clamp(value, min, max));
@@ -679,7 +718,7 @@ public partial class RadialMenuWindow : Window
             var item = CreateTile(byPosition[position], mid, band.Span, band.InnerR, band.OuterR, band.Layer, withGlyph: false);
             item.Children = byPosition[position].Children;
             item.Label.MaxHeight = band.LabelMaxHeight;
-            PlaceLabel(item.Content, item.Label, mid, maxWidth, labelR, band.InnerR, band.OuterR, band.Span, band.FontSizes);
+            PlaceLabel(item, mid, maxWidth, labelR, band.InnerR, band.OuterR, band.Span, band.FontSizes);
             band.Tiles.Add(item);
             if (item.Children.Count > 0 && level + 2 < _bands.Length)
                 AddArrow(level + 1, item);
@@ -692,7 +731,7 @@ public partial class RadialMenuWindow : Window
             var duration = AnimationTime(150);
             var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
             band.Layer.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, duration) { EasingFunction = ease });
-            var grow = new DoubleAnimation(SystemParameters.ClientAreaAnimation ? 0.94 : 1, 1, duration) { EasingFunction = ease };
+            var grow = new DoubleAnimation(Animate ? 0.94 : 1, 1, duration) { EasingFunction = ease };
             scale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
             scale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
         }
@@ -792,7 +831,7 @@ public partial class RadialMenuWindow : Window
         var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
         MenuRoot.BeginAnimation(OpacityProperty, new DoubleAnimation(0, duration));
         InputCard.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, duration) { EasingFunction = ease });
-        var grow = new DoubleAnimation(SystemParameters.ClientAreaAnimation ? 0.9 : 1, 1, duration) { EasingFunction = ease };
+        var grow = new DoubleAnimation(Animate ? 0.9 : 1, 1, duration) { EasingFunction = ease };
         InputScale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
         InputScale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
 
@@ -946,7 +985,7 @@ public partial class RadialMenuWindow : Window
                 : expectsHint ? Visibility.Hidden
                 : Visibility.Collapsed;
             tile.Dimmed = item.Dimmed;
-            PlaceLabel(tile.Content, tile.Label, mid, maxLabelWidth, LabelR, TileInnerR, TileOuterR, _span, _bands[0].FontSizes);
+            PlaceLabel(tile, mid, maxLabelWidth, LabelR, TileInnerR, TileOuterR, _span, _bands[0].FontSizes);
             Slices.Add(tile);
             Paint(tile, hot: false, expanded: false);
         }
@@ -1013,32 +1052,63 @@ public partial class RadialMenuWindow : Window
     }
 
     /// <summary>
-    /// Centers a block on its middle angle, using the widest width (≤ max) at which the measured block
-    /// stays inside its band and its own wedge. Narrower widths wrap the label onto a second line,
+    /// Centers a tile's icon + label on its middle angle, using the widest width (≤ max) at which the measured
+    /// block stays inside its band and its own wedge. Narrower widths wrap the label onto a second line,
     /// which matters for the left/right slices where the ring is only ~100 DIP deep.
     /// </summary>
-    static void PlaceLabel(FrameworkElement block, TextBlock label, double mid, double maxWidth,
-        double labelR, double innerR, double outerR, double span, double[] fontSizes)
+    void PlaceLabel(Tile tile, double mid, double maxWidth, double labelR, double innerR, double outerR, double span, double[] fontSizes)
     {
-        Size size = default;
+        var (block, label) = (tile.Content, tile.Label);
+        var key = (label.Text, tile.Hint.Visibility == Visibility.Collapsed ? "" : tile.Hint.Text, Math.Round(mid, 1), span, labelR);
+        if (_labelLayouts.TryGetValue(key, out var known))
+        {
+            label.FontSize = known.FontSize;
+            block.Width = known.Size.Width;
+            Position(block, known.Size, OnCircle(labelR, mid));
+            return;
+        }
+
+        Size? TryWidth(double width)
+        {
+            block.Width = width;
+            block.Measure(new Size(width, double.PositiveInfinity));
+            var size = new Size(width, block.DesiredSize.Height);
+            return Fits(mid, size, labelR, innerR, outerR, span) ? size : null;
+        }
+
+        Size last = default;
         foreach (double fontSize in fontSizes)
         {
             label.FontSize = fontSize;
             // Never narrower than the longest word, so words are not broken in the middle.
             double minWidth = Math.Clamp(LongestWordWidth(label) + 2, MinLabelWidth, maxWidth);
-            for (double width = maxWidth; width >= minWidth; width -= 2)
+            // Steps of 4 down from the widest width, then one step back up: half the measurements of going down
+            // by 2, and fitting is not monotonic (a narrower, taller block can fail where a wider one fits), so
+            // the steps stay small enough not to jump over a width that fits.
+            for (double width = maxWidth; ; width = Math.Max(minWidth, width - 4))
             {
-                block.Width = width;
-                block.Measure(new Size(width, double.PositiveInfinity));
-                size = new Size(width, block.DesiredSize.Height);
-                if (Fits(mid, size, labelR, innerR, outerR, span))
+                if (TryWidth(width) is { } fit)
                 {
-                    Position(block, size, OnCircle(labelR, mid));
+                    for (double wider = Math.Min(maxWidth, width + 2); wider > width; wider -= 2)
+                    {
+                        if (TryWidth(wider) is { } better)
+                        {
+                            fit = better;
+                            break;
+                        }
+                    }
+                    block.Width = fit.Width;
+                    _labelLayouts[key] = (fontSize, fit);
+                    Position(block, fit, OnCircle(labelR, mid));
                     return;
                 }
+                last = new Size(width, block.DesiredSize.Height);
+                if (width <= minWidth)
+                    break;
             }
         }
-        Position(block, size, OnCircle(labelR, mid)); // best effort with the smallest size tried
+        block.Width = last.Width;
+        Position(block, last, OnCircle(labelR, mid)); // best effort with the smallest size tried
     }
 
     static void Position(FrameworkElement block, Size size, Point center)
