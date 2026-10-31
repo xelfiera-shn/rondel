@@ -73,7 +73,12 @@ internal sealed class AppHost : IGestureSink, IDisposable
 
         _tray.Activated += OpenSettings;
         _tray.HotkeyPressed += OnHotkey;
-        _tray.ThemeChanged += () => _menu.UpdateTheme(SystemTheme.Read());
+        _tray.ThemeChanged += () =>
+        {
+            var theme = SystemTheme.Read();
+            _menu.UpdateTheme(theme);
+            _settingsWindow?.ApplyBrand(theme);
+        };
         _tray.Show(Store.Current.Paused, TrayTooltip(Store.Current));
 
         _hook.Start();

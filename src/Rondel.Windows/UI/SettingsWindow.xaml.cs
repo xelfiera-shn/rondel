@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using Rondel.Core;
@@ -31,6 +32,8 @@ public partial class SettingsWindow : Window
         ThemeMode = ThemeMode.System; // Fluent styles: native look on Windows 11, follows light/dark
         InitializeComponent();
         Icon = AppIconRenderer.Render(64);
+        HeaderIcon.Source = AppIconRenderer.Render(72);
+        ApplyBrand(SystemTheme.Read());
 
         Loc.Changed += LoadValues;
         Closed += (_, _) =>
@@ -43,6 +46,58 @@ public partial class SettingsWindow : Window
     }
 
     SettingsStore Store => _host.Store;
+
+    /// <summary>
+    /// Rondel's teal instead of the Windows accent for checked boxes, the slider, selections and focus,
+    /// by overriding the Fluent theme's accent brushes for this window, plus the header's brand line.
+    /// </summary>
+    internal void ApplyBrand(ThemeColors theme)
+    {
+        var palette = RondelPalette.For(theme);
+        // The Fluent theme derives its accent brushes from these shades (lighter ones on dark surfaces).
+        string[] shades = ["SystemAccentColorLight3", "SystemAccentColorLight2", "SystemAccentColorLight1", "SystemAccentColor",
+            "SystemAccentColorDark1", "SystemAccentColorDark2", "SystemAccentColorDark3"];
+        Color[] teal = [Color.FromRgb(0x99, 0xF6, 0xE4), Color.FromRgb(0x2D, 0xD4, 0xBF), Color.FromRgb(0x14, 0xB8, 0xA6), Color.FromRgb(0x0D, 0x94, 0x88),
+            Color.FromRgb(0x0F, 0x76, 0x6E), Color.FromRgb(0x11, 0x5E, 0x59), Color.FromRgb(0x13, 0x4E, 0x4A)];
+        for (int i = 0; i < shades.Length; i++)
+            Resources[shades[i]] = teal[i];
+        // Controls such as the slider use the SystemColors accent keys directly.
+        (ResourceKey Color, ResourceKey Brush)[] systemKeys =
+        [
+            (SystemColors.AccentColorLight3Key, SystemColors.AccentColorLight3BrushKey),
+            (SystemColors.AccentColorLight2Key, SystemColors.AccentColorLight2BrushKey),
+            (SystemColors.AccentColorLight1Key, SystemColors.AccentColorLight1BrushKey),
+            (SystemColors.AccentColorKey, SystemColors.AccentColorBrushKey),
+            (SystemColors.AccentColorDark1Key, SystemColors.AccentColorDark1BrushKey),
+            (SystemColors.AccentColorDark2Key, SystemColors.AccentColorDark2BrushKey),
+            (SystemColors.AccentColorDark3Key, SystemColors.AccentColorDark3BrushKey),
+        ];
+        for (int i = 0; i < systemKeys.Length; i++)
+        {
+            Resources[systemKeys[i].Color] = teal[i];
+            Resources[systemKeys[i].Brush] = Solid(teal[i], 1);
+        }
+        var accent = theme.IsDark ? teal[1] : teal[4];
+        Resources["AccentFillColorPrimaryBrush"] = Solid(accent, 1);
+        Resources["AccentFillColorDefaultBrush"] = Solid(accent, 1);
+        Resources["AccentFillColorSecondaryBrush"] = Solid(accent, 0.9);
+        Resources["AccentFillColorTertiaryBrush"] = Solid(accent, 0.8);
+        Resources["AccentTextFillColorPrimaryBrush"] = Solid(accent, 1);
+        Resources["AccentTextFillColorSecondaryBrush"] = Solid(accent, 1);
+        Resources["AccentTextFillColorTertiaryBrush"] = Solid(accent, 1);
+        // Text on the accent: dark on the bright teal of the dark theme, white on the deep teal of the light theme.
+        Resources["TextOnAccentFillColorPrimaryBrush"] = Solid(theme.IsDark ? Color.FromRgb(0x0B, 0x10, 0x14) : Colors.White, 1);
+        var line = new LinearGradientBrush(palette.BrandFrom, palette.BrandTo, 0);
+        line.Freeze();
+        BrandLine.Background = line;
+    }
+
+    static SolidColorBrush Solid(Color color, double opacity)
+    {
+        var brush = new SolidColorBrush(color) { Opacity = opacity };
+        brush.Freeze();
+        return brush;
+    }
 
     /// <summary>The agent whose command this page edits.</summary>
     static AgentProfile? DefaultAgent(AppSettings settings) => settings.FindAgent(settings.DefaultAgent);

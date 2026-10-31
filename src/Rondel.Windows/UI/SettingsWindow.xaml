@@ -33,12 +33,25 @@
 
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="24,12,24,16">
+        <!-- Header: icon, name and tagline over a thin line in the brand gradient. -->
+        <StackPanel Margin="24,20,24,0">
+            <StackPanel Orientation="Horizontal">
+                <Image x:Name="HeaderIcon" Width="36" Height="36" VerticalAlignment="Center" />
+                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="Rondel" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock Style="{StaticResource Description}" Margin="0,0,0,0" Text="{l:Loc Settings.Tagline}" />
+                </StackPanel>
+            </StackPanel>
+            <Border x:Name="BrandLine" Height="2" Margin="0,14,0,0" CornerRadius="1" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="24,0,24,16">
 
                 <!-- General -->
                 <TextBlock Style="{StaticResource SectionHeader}" Text="{l:Loc Settings.General}" />
@@ -199,7 +212,7 @@
             </StackPanel>
         </ScrollViewer>
 
-        <Border Grid.Row="1" Padding="24,12" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+        <Border Grid.Row="2" Padding="24,12" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
