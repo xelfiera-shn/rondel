@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Rondel.Core\Rondel.Core.csproj" />
+    <ProjectReference Include="..\ArgEcho\ArgEcho.csproj" />
   </ItemGroup>
 
   <ItemGroup>

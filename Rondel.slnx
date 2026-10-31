@@ -4,6 +4,7 @@
     <Project Path="src/Rondel.Windows/Rondel.Windows.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/ArgEcho/ArgEcho.csproj" />
     <Project Path="tests/Rondel.Core.Tests/Rondel.Core.Tests.csproj" />
   </Folder>
 </Solution>
