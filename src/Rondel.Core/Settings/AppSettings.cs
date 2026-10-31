@@ -25,7 +25,7 @@ public sealed class AppSettings
     /// Bumped whenever a default changes, so <see cref="Normalize"/> can migrate saved files.
     /// A migration only touches values that are still at the old default.
     /// </summary>
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
 
     /// <summary>0 for a file written by hand without the field.</summary>
     public int SchemaVersion { get; set; }
@@ -161,14 +161,17 @@ public sealed class AppSettings
     {
         if (SchemaVersion >= CurrentSchemaVersion)
             return;
-        // Future migrations go here, oldest first, e.g. "if (SchemaVersion < 2) { ... }".
+        // 2: Recent Projects joined the desktop menu. Only touch a menu that is still at the old default;
+        // the action itself was added by NormalizeActions like any new built-in action.
+        if (SchemaVersion < 2 && Menus[nameof(ContextKind.DesktopEmpty)].SequenceEqual(["new-project", "new-prompt"], StringComparer.OrdinalIgnoreCase))
+            Menus[nameof(ContextKind.DesktopEmpty)].Add("recents");
         SchemaVersion = CurrentSchemaVersion;
         WasMigrated = true;
     }
 
     public static Dictionary<string, List<string>> DefaultMenus() => new(StringComparer.OrdinalIgnoreCase)
     {
-        [nameof(ContextKind.DesktopEmpty)] = ["new-project", "new-prompt"],
+        [nameof(ContextKind.DesktopEmpty)] = ["new-project", "new-prompt", "recents"],
         [nameof(ContextKind.ExplorerEmpty)] = ["new-project", "new-prompt", "open-here", "continue-here", "resume-here"],
         [nameof(ContextKind.FolderItem)] = ["open", "continue", "resume"],
     };
@@ -183,5 +186,6 @@ public sealed class AppSettings
         new() { Id = "open", Label = "@Action.Open", Icon = "E756", Capability = AgentCapability.Open },
         new() { Id = "continue", Label = "@Action.Continue", Icon = "E768", Capability = AgentCapability.Continue, Hint = SessionHint.LastSession },
         new() { Id = "resume", Label = "@Action.Resume", Icon = "E81C", Capability = AgentCapability.Resume, Hint = SessionHint.SessionCount },
+        new() { Id = "recents", Label = "@Action.Recents", Icon = "E823", Capability = AgentCapability.ResumeById, Source = ActionSource.RecentProjects },
     ];
 }

@@ -26,7 +26,7 @@ namespace Rondel.Windows;
 /// --launch-script FOLDER COMMAND PROMPT.txt out.ps1   the PowerShell script a launch would run
 /// --launch-now FOLDER COMMAND PROMPT.txt     launch exactly like the menu, with COMMAND instead of the configured one
 /// --export-icon out.ico                      write the app icon (used for the exe)
-/// --render-menu out.png [dark|light] [en|tr] [idle] [edge] [transparent] [FOLDER]   draw the Explorer menu for FOLDER (default: current folder)
+/// --render-menu out.png [dark|light] [en|tr] [desktop] [idle] [deep] [edge] [transparent] [FOLDER]   draw the Explorer menu for FOLDER (default: current folder)
 /// --render-settings out.png [en|tr]          draw the settings window (in the current Windows theme)
 /// </code>
 /// </summary>
@@ -189,7 +189,8 @@ internal static class DevTools
         string folder = options.FirstOrDefault(o => o.Contains('\\') || o.Contains('/')) ?? Environment.CurrentDirectory;
         var settings = new AppSettings();
         settings.Normalize();
-        var context = new TriggerContext(ContextKind.ExplorerEmpty, folder, Path.GetFileName(folder), "render-menu");
+        var kind = options.Contains("desktop", StringComparer.OrdinalIgnoreCase) ? ContextKind.DesktopEmpty : ContextKind.ExplorerEmpty;
+        var context = new TriggerContext(kind, folder, Path.GetFileName(folder), "render-menu");
         var model = MenuBuilder.Build(context, settings);
 
         var hints = new List<(string?, bool)>();
@@ -198,8 +199,10 @@ internal static class DevTools
         {
             var store = SessionStores.Get(item.Agent.Sessions);
             hints.Add(SessionHints.Describe(item.Action.Hint, store?.Lookup(folder)));
-            children.Add(store is not null && MenuBuilder.CanExpand(item)
-                ? MenuBuilder.SessionItems(item, store.Recent(folder, MenuBuilder.MaxSessionItems))
+            children.Add(store is null ? []
+                : MenuBuilder.CanExpand(item) ? MenuBuilder.SessionItems(item, store.Recent(folder, MenuBuilder.MaxSessionItems))
+                : MenuBuilder.ListsRecentProjects(item) ? MenuBuilder.ProjectItems(item, store.RecentFolders(MenuBuilder.MaxRecentProjects),
+                    project => store.Recent(project, MenuBuilder.MaxSessionItems))
                 : []);
         }
         int hover = options.Contains("idle", StringComparer.OrdinalIgnoreCase) ? -1 : children.FindIndex(c => c.Count > 0);

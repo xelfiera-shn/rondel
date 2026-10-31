@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json.Serialization;
 using Rondel.Core.Agents;
 using Rondel.Core.Sessions;
 
@@ -6,6 +7,19 @@ namespace Rondel.Core.Menus;
 
 /// <summary>What the menu asks for before running the action.</summary>
 public enum ActionInput { None, FolderName, FolderNameAndPrompt }
+
+/// <summary>Which folder an action works on.</summary>
+public enum ActionSource
+{
+    /// <summary>The folder under the cursor (or the projects folder on the desktop).</summary>
+    Context,
+
+    /// <summary>
+    /// The slice opens into the folders worked in most recently; choosing one runs the action there
+    /// (with its latest session as "{id}").
+    /// </summary>
+    RecentProjects,
+}
 
 /// <summary>
 /// One menu action. Menus reference actions by <see cref="Id"/>, so adding an action is a
@@ -33,6 +47,9 @@ public sealed class ActionDefinition
     public List<string> ExtraArgs { get; set; } = [];
 
     public SessionHint Hint { get; set; } = SessionHint.None;
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public ActionSource Source { get; set; } = ActionSource.Context;
 
     public char Glyph =>
         int.TryParse(Icon, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int code) && code is > 0 and <= 0xFFFF
