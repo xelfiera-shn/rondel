@@ -1,0 +1,98 @@
+<Window x:Class="Rondel.Windows.UI.RadialMenuWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Rondel"
+        Width="440" Height="440"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False" Topmost="True" ShowActivated="False"
+        UseLayoutRounding="True"
+        FontFamily="Segoe UI Variable Text, Segoe UI"
+        TextOptions.TextFormattingMode="Ideal">
+    <Window.Resources>
+        <!-- Flat text box that takes its colors from the menu palette (set from code). -->
+        <Style x:Key="InputBox" TargetType="TextBox">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="KeyboardNavigation.TabNavigation" Value="None" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            <Grid>
+                                <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" Focusable="False"
+                                              HorizontalScrollBarVisibility="Hidden"
+                                              VerticalScrollBarVisibility="{TemplateBinding VerticalScrollBarVisibility}" />
+                                <!-- Margin is replaced from code with the caret position of the empty box. -->
+                                <TextBlock x:Name="Placeholder" Text="{TemplateBinding Tag}" Margin="{TemplateBinding Padding}"
+                                           VerticalAlignment="Top" Opacity="0.5" IsHitTestVisible="False" Visibility="Collapsed"
+                                           Foreground="{TemplateBinding Foreground}" TextWrapping="Wrap" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Text" Value="">
+                                <Setter TargetName="Placeholder" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- Surface carries the open/close animation for both the ring and the input card. -->
+    <Grid x:Name="Surface" RenderTransformOrigin="0.5,0.5">
+        <Grid.RenderTransform>
+            <ScaleTransform x:Name="SurfaceScale" ScaleX="1" ScaleY="1" />
+        </Grid.RenderTransform>
+
+        <Grid x:Name="MenuRoot" Width="328" Height="328"
+              HorizontalAlignment="Center" VerticalAlignment="Center"
+              Focusable="True" FocusVisualStyle="{x:Null}">
+
+            <!-- Full disc under everything, so there is no transparent gap that clicks could fall through. -->
+            <Ellipse x:Name="RingBase" Width="328" Height="328" StrokeThickness="1">
+                <Ellipse.Effect>
+                    <DropShadowEffect x:Name="RingShadow" BlurRadius="26" ShadowDepth="5" Direction="270" Color="Black" Opacity="0.4" />
+                </Ellipse.Effect>
+            </Ellipse>
+
+            <Canvas x:Name="SliceLayer" Width="328" Height="328" IsHitTestVisible="False" />
+
+            <Ellipse x:Name="CenterDisc" Width="116" Height="116" StrokeThickness="1" IsHitTestVisible="False" />
+
+            <StackPanel x:Name="CenterContent" Width="98" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                <TextBlock x:Name="CenterGlyph" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18"
+                           HorizontalAlignment="Center" Margin="0,0,0,3" Text="&#xE8B7;" />
+                <TextBlock x:Name="CenterTitle" FontSize="12.5" FontWeight="SemiBold" TextAlignment="Center"
+                           TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="34" />
+                <TextBlock x:Name="CenterSubtitle" FontSize="10.5" TextAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,1,0,0" />
+            </StackPanel>
+        </Grid>
+
+        <!-- The menu center expands into this card for "New Project" / "New + Prompt". -->
+        <Border x:Name="InputCard" Width="360" HorizontalAlignment="Center" VerticalAlignment="Center"
+                CornerRadius="12" BorderThickness="1" Padding="16,14,16,12" Visibility="Collapsed"
+                RenderTransformOrigin="0.5,0.5">
+            <Border.RenderTransform>
+                <ScaleTransform x:Name="InputScale" ScaleX="1" ScaleY="1" />
+            </Border.RenderTransform>
+            <Border.Effect>
+                <DropShadowEffect x:Name="CardShadow" BlurRadius="26" ShadowDepth="5" Direction="270" Color="Black" Opacity="0.4" />
+            </Border.Effect>
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="InputGlyph" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" />
+                    <TextBlock x:Name="InputTitle" FontSize="13.5" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" MaxWidth="290" />
+                </StackPanel>
+                <TextBlock x:Name="InputLocation" FontSize="11" Margin="0,3,0,10" TextTrimming="CharacterEllipsis" />
+                <TextBox x:Name="NameBox" Style="{StaticResource InputBox}" />
+                <TextBox x:Name="PromptBox" Style="{StaticResource InputBox}" Height="132" AcceptsReturn="True" AcceptsTab="False"
+                         TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Visibility="Collapsed" />
+                <TextBlock x:Name="InputMessage" FontSize="11.5" Margin="1,8,0,0" TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

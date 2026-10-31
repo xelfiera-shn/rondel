@@ -1,0 +1,217 @@
+<Window x:Class="Rondel.Windows.UI.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="clr-namespace:Rondel.Windows.UI"
+        Title="{l:Loc Settings.Title}"
+        Width="680" Height="760" MinWidth="560" MinHeight="460"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="2,18,0,8" />
+        </Style>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Padding" Value="16,12" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+        </Style>
+        <Style x:Key="Description" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,2,0,0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+        <Style x:Key="Status" TargetType="TextBlock" BasedOn="{StaticResource Description}">
+            <Setter Property="Margin" Value="0,8,0,0" />
+            <Setter Property="Visibility" Value="Collapsed" />
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="24,12,24,16">
+
+                <!-- General -->
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{l:Loc Settings.General}" />
+
+                <Border Style="{StaticResource Card}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="{l:Loc Settings.Language}" />
+                            <TextBlock Style="{StaticResource Description}" Text="{l:Loc Settings.Language.Desc}" />
+                        </StackPanel>
+                        <ComboBox x:Name="LanguageBox" Grid.Column="1" Width="240" VerticalAlignment="Center" SelectionChanged="OnLanguageChanged">
+                            <ComboBoxItem Tag="auto" Content="{l:Loc Settings.Language.Auto}" />
+                            <ComboBoxItem Tag="en" Content="English" />
+                            <ComboBoxItem Tag="tr" Content="Türkçe" />
+                        </ComboBox>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="{l:Loc Settings.ProjectsRoot}" />
+                        <TextBlock Style="{StaticResource Description}" Text="{l:Loc Settings.ProjectsRoot.Desc}" />
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="RootBox" VerticalContentAlignment="Center" LostKeyboardFocus="OnRootCommitted" KeyDown="OnTextBoxKeyDown" />
+                            <Button Grid.Column="1" Margin="8,0,0,0" Padding="14,5" Content="{l:Loc Settings.Browse}" Click="OnBrowseRoot" />
+                        </Grid>
+                        <TextBlock x:Name="RootStatus" Style="{StaticResource Status}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Trigger -->
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{l:Loc Settings.Trigger}" />
+
+                <Border Style="{StaticResource Card}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="{l:Loc Settings.HoldMs}" />
+                            <TextBlock Style="{StaticResource Description}" Text="{l:Loc Settings.HoldMs.Desc}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Slider x:Name="HoldSlider" Width="180" Minimum="150" Maximum="1000" SmallChange="50" LargeChange="100"
+                                    TickFrequency="50" IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                    ValueChanged="OnHoldChanged" />
+                            <TextBlock x:Name="HoldValue" Width="60" Margin="10,0,0,0" VerticalAlignment="Center" TextAlignment="Right" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                                <TextBlock Text="{l:Loc Settings.Hotkey}" />
+                                <TextBlock Style="{StaticResource Description}" Text="{l:Loc Settings.Hotkey.Desc}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBox x:Name="HotkeyBox" Width="170" IsReadOnly="True" IsReadOnlyCaretVisible="False"
+                                         VerticalContentAlignment="Center" PreviewKeyDown="OnHotkeyKeyDown" />
+                                <Button Margin="8,0,0,0" Padding="12,5" Content="{l:Loc Settings.Hotkey.Clear}" Click="OnClearHotkey" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock x:Name="HotkeyStatus" Style="{StaticResource Status}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Launch -->
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{l:Loc Settings.Launch}" />
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                                <TextBlock x:Name="CommandLabel" />
+                                <TextBlock Style="{StaticResource Description}" Text="{l:Loc Settings.Command.Desc}" />
+                            </StackPanel>
+                            <TextBox x:Name="CommandBox" Grid.Column="1" Width="240" VerticalAlignment="Center" VerticalContentAlignment="Center"
+                                     LostKeyboardFocus="OnCommandCommitted" KeyDown="OnTextBoxKeyDown" />
+                        </Grid>
+                        <TextBlock x:Name="CommandStatus" Style="{StaticResource Status}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                                <TextBlock Text="{l:Loc Settings.Terminal}" />
+                                <TextBlock Style="{StaticResource Description}" Text="{l:Loc Settings.Terminal.Desc}" />
+                            </StackPanel>
+                            <ComboBox x:Name="TerminalBox" Grid.Column="1" Width="240" VerticalAlignment="Center" SelectionChanged="OnTerminalChanged">
+                                <ComboBoxItem Tag="Auto" Content="{l:Loc Settings.Terminal.Auto}" />
+                                <ComboBoxItem Tag="WindowsTerminal" Content="{l:Loc Settings.Terminal.WindowsTerminal}" />
+                                <ComboBoxItem Tag="Console" Content="{l:Loc Settings.Terminal.Console}" />
+                            </ComboBox>
+                        </Grid>
+                        <TextBlock x:Name="TerminalStatus" Style="{StaticResource Status}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                                <TextBlock Text="{l:Loc Settings.Shell}" />
+                                <TextBlock Style="{StaticResource Description}" Text="{l:Loc Settings.Shell.Desc}" />
+                            </StackPanel>
+                            <ComboBox x:Name="ShellBox" Grid.Column="1" Width="240" VerticalAlignment="Center" SelectionChanged="OnShellChanged">
+                                <ComboBoxItem Tag="Auto" Content="{l:Loc Settings.Shell.Auto}" />
+                                <ComboBoxItem Tag="Pwsh" Content="{l:Loc Settings.Shell.Pwsh}" />
+                                <ComboBoxItem Tag="WindowsPowerShell" Content="{l:Loc Settings.Shell.WindowsPowerShell}" />
+                            </ComboBox>
+                        </Grid>
+                        <TextBlock x:Name="ShellStatus" Style="{StaticResource Status}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- System -->
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{l:Loc Settings.System}" />
+
+                <Border Style="{StaticResource Card}">
+                    <CheckBox x:Name="AutostartBox" Content="{l:Loc Settings.Autostart}" Click="OnAutostartClicked" />
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <CheckBox x:Name="DebugBox" Content="{l:Loc Settings.Debug}" Click="OnDebugClicked" />
+                        <TextBlock Style="{StaticResource Description}" Margin="28,2,0,0" Text="{l:Loc Settings.Debug.Desc}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="1" Padding="24,12" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                    <Button Padding="12,5" Content="{l:Loc Settings.EditJson}" Click="OnEditJson" />
+                    <Button Margin="8,0,0,0" Padding="12,5" Content="{l:Loc Settings.OpenLogs}" Click="OnOpenLogs" />
+                    <TextBlock x:Name="VersionText" Margin="12,0,0,0" VerticalAlignment="Center" Style="{StaticResource Description}" />
+                </StackPanel>
+                <Button Grid.Column="1" Padding="20,5" MinWidth="90" Content="{l:Loc Settings.Close}" IsCancel="True" Click="OnClose" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

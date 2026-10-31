@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <RootNamespace>Rondel.Windows</RootNamespace>
+    <AssemblyName>Rondel</AssemblyName>
+    <!-- WPF0001: Window.ThemeMode (Fluent theme) is marked experimental; used only for the settings window. -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Interop.UIAutomationClient" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Rondel.Core\Rondel.Core.csproj" />
+  </ItemGroup>
+
+</Project>
