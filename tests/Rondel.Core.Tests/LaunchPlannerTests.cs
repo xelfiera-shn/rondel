@@ -6,12 +6,14 @@ namespace Rondel.Core.Tests;
 
 public class LaunchPlannerTests
 {
+    static readonly string Work = Path.Combine(Path.GetTempPath(), "work");
+
     [Fact]
     public void CreatePutsExtraArgumentsBeforeTheCapabilityArguments()
     {
         var action = new ActionDefinition { Capability = AgentCapability.Prompt, ExtraArgs = ["--permission-mode", "plan"] };
 
-        var plan = LaunchPlanner.Create(BuiltInAgents.ClaudeCode(), action, @"C:\work", prompt: "fix the build");
+        var plan = LaunchPlanner.Create(BuiltInAgents.ClaudeCode(), action, Work, prompt: "fix the build");
 
         Assert.NotNull(plan);
         Assert.Equal(["--permission-mode", "plan", "fix the build"], plan.Arguments);
@@ -24,7 +26,7 @@ public class LaunchPlannerTests
     {
         var agent = new AgentProfile { Id = "minimal", Name = "Minimal", Command = "m", Capabilities = { ["Open"] = [] } };
 
-        Assert.Null(LaunchPlanner.Create(agent, new ActionDefinition { Capability = AgentCapability.Continue }, @"C:\work"));
+        Assert.Null(LaunchPlanner.Create(agent, new ActionDefinition { Capability = AgentCapability.Continue }, Work));
     }
 
     [Fact]
