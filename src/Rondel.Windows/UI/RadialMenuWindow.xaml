@@ -145,7 +145,11 @@
                 CornerRadius="14" BorderThickness="1.2" Padding="16,14,16,12" Visibility="Collapsed"
                 RenderTransformOrigin="0.5,0.5">
             <Border.RenderTransform>
-                <ScaleTransform x:Name="InputScale" ScaleX="1" ScaleY="1" />
+                <TransformGroup>
+                    <ScaleTransform x:Name="InputScale" ScaleX="1" ScaleY="1" />
+                    <!-- Moves the card back onto the screen when it is taller than the room around the menu's center. -->
+                    <TranslateTransform x:Name="InputShift" />
+                </TransformGroup>
             </Border.RenderTransform>
             <Border.Effect>
                 <DropShadowEffect x:Name="CardShadow" BlurRadius="30" ShadowDepth="6" Direction="270" Color="Black" Opacity="0.4" />
