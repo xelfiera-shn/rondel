@@ -85,7 +85,11 @@ public partial class RadialMenuWindow : Window
     Effect _glow;
     double _span = 360, _offset;
     int _hover = -1, _childHover = -1, _expanded = -1;
-    double _childFrom, _childSpan;
+    double _childFrom, _childSpan, _bridgeFrom, _bridgeTo;
+    /// <summary>Clockwise position of the expanded item with each rank (0 = newest).</summary>
+    int[] _positionOfRank = [];
+    /// <summary>Room around the ring center up to the monitor's work area (DIPs): left, top, right, bottom.</summary>
+    (double Left, double Top, double Right, double Bottom) _room = (double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity);
     bool _isOpen;
     int _version;
     bool _pressedInside;
@@ -152,7 +156,7 @@ public partial class RadialMenuWindow : Window
         SetCenterTitle(model.Title);
         CenterSubtitle.Text = model.Subtitle ?? "";
         CenterSubtitle.Visibility = string.IsNullOrEmpty(model.Subtitle) ? Visibility.Collapsed : Visibility.Visible;
-        CenterGlyph.Text = model.Context.Kind == ContextKind.DesktopEmpty ? "" : ""; // desktop / folder
+        CenterGlyph.Text = model.Context.Kind == ContextKind.DesktopEmpty ? "\uE7F4" : "\uE8B7"; // desktop / folder
 
         // Center on the cursor, but keep the ring and its shadow inside the monitor's work area.
         var (work, dpi) = GetMonitorWorkArea(anchor);
@@ -166,6 +170,8 @@ public partial class RadialMenuWindow : Window
         _bounds.Bottom = _bounds.Top + size;
         _centerX = _bounds.Left + size / 2.0;
         _centerY = _bounds.Top + size / 2.0;
+        _room = ((_centerX - work.Left) / _scale, (_centerY - work.Top) / _scale,
+            (work.Right - _centerX) / _scale, (work.Bottom - _centerY) / _scale);
 
         Surface.BeginAnimation(OpacityProperty, null);
         Surface.Opacity = 0;
@@ -243,8 +249,12 @@ public partial class RadialMenuWindow : Window
     /// the window, on a solid background so the shadows read as they would on screen.
     /// </summary>
     internal BitmapSource RenderPreview(MenuModel model, ThemeColors theme, IReadOnlyList<(string? Hint, bool Dimmed)> hints,
-        IReadOnlyList<IReadOnlyList<MenuItemModel>> children, int hover, int childHover, Color background)
+        IReadOnlyList<IReadOnlyList<MenuItemModel>> children, int hover, int childHover, Color background, bool atLeftEdge = false)
     {
+        // As if the menu opened at the left edge of the work area (the ring clamped against it).
+        _room = atLeftEdge
+            ? (OuterR + ShadowPad, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity)
+            : (double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity);
         _palette = RondelPalette.For(theme);
         _glow = _palette.Glow;
         ApplyPalette();
@@ -252,14 +262,14 @@ public partial class RadialMenuWindow : Window
         BuildSlices(model);
         SetCenterTitle(model.Title);
         CenterSubtitle.Text = model.Subtitle ?? "";
-        CenterGlyph.Text = model.Context.Kind == ContextKind.DesktopEmpty ? "" : "";
+        CenterGlyph.Text = model.Context.Kind == ContextKind.DesktopEmpty ? "\uE7F4" : "\uE8B7";
         ApplyHints(model, hints);
         ApplyChildren(model, children, force: true);
         if (hover >= 0)
         {
             SetHover(hover, -1);
             if (childHover >= 0 && _children.Count > 0)
-                SetHover(hover, CenteredPosition(childHover, _children.Count));
+                SetHover(hover, _positionOfRank[Math.Min(childHover, _positionOfRank.Length - 1)]);
         }
 
         // Animations do not run in a window that is not shown: jump to their end state.
@@ -447,9 +457,9 @@ public partial class RadialMenuWindow : Window
                 if (_hover >= 0)
                     Invoke(_hover, -1);
                 break;
-            case Key.Tab when _hover >= 0 && _slices[_hover].Children.Count > 0:
-                // Tab on an expandable slice steps into its items, starting with the newest one in the middle.
-                SetHover(_hover, CenteredPosition(0, _slices[_hover].Children.Count));
+            case Key.Tab when _hover >= 0 && _hover == _expanded && _children.Count > 0:
+                // Tab on an expanded slice steps into its items, starting with the newest one.
+                SetHover(_hover, _positionOfRank[0]);
                 break;
             case Key.Right or Key.Down or Key.Tab when !shift:
                 SetHover(_hover < 0 ? 0 : (_hover + 1) % n, -1);
@@ -483,14 +493,20 @@ public partial class RadialMenuWindow : Window
 
         if (_expanded >= 0 && _children.Count > 0 && distance > OuterR - 2 && distance <= ChildOuterR + 2)
         {
-            double total = _children.Count * _childSpan;
-            double fromStart = AngleBetween(_childFrom + total / 2, angle) + total / 2;
-            if (fromStart >= -1 && fromStart <= total + 1)
+            if (distance >= ChildInnerR - 6)
+            {
+                double total = _children.Count * _childSpan;
+                double fromStart = AngleBetween(_childFrom + total / 2, angle) + total / 2;
+                if (fromStart >= -1 && fromStart <= total + 1)
+                    return (_expanded, Math.Clamp((int)(fromStart / _childSpan), 0, _children.Count - 1));
+            }
+            else
             {
                 // Between the ring and the items is a bridge that keeps the parent selected.
-                return distance < ChildInnerR - 6
-                    ? (_expanded, -1)
-                    : (_expanded, Math.Clamp((int)(fromStart / _childSpan), 0, _children.Count - 1));
+                double width = _bridgeTo - _bridgeFrom;
+                double fromStart = AngleBetween(_bridgeFrom + width / 2, angle) + width / 2;
+                if (fromStart >= -1 && fromStart <= width + 1)
+                    return (_expanded, -1);
             }
         }
 
@@ -569,13 +585,19 @@ public partial class RadialMenuWindow : Window
             return;
         _expanded = index;
         _childSpan = Math.Min(ChildSpan, 300.0 / k);
-        _childFrom = slice.Mid - k * _childSpan / 2;
+        double total = k * _childSpan;
+        _childFrom = slice.Mid + ArcShift(slice.Mid, total) - total / 2;
+        // The bridge reaches from the slice's arrow to the items, even when the arc had to turn away from the edge.
+        double arrowHalf = Math.Min(_span / 2 - 7, 15);
+        double startOffset = AngleBetween(slice.Mid, _childFrom), endOffset = startOffset + total;
+        _bridgeFrom = slice.Mid + Math.Min(startOffset, -arrowHalf) - 1;
+        _bridgeTo = slice.Mid + Math.Max(endOffset, arrowHalf) + 1;
 
         // Invisible but mouse-catching band from the ring to the items, so moving outward never falls through,
         // and a base band under the items, so the gaps between them look like the ring's.
         ChildLayer.Children.Add(new Path
         {
-            Data = TileGeometry(OuterR - 2, ChildOuterR, _childFrom - 1, _childFrom + k * _childSpan + 1, 0),
+            Data = TileGeometry(OuterR - 2, ChildInnerR, _bridgeFrom, _bridgeTo, 0),
             Fill = RondelPalette.Catcher,
         });
         ChildLayer.Children.Add(new Path
@@ -586,12 +608,18 @@ public partial class RadialMenuWindow : Window
             StrokeThickness = 1,
         });
 
-        // Items arrive newest first; the newest goes right outside the slice and the next ones alternate
-        // clockwise and counterclockwise around it. _children is kept in position order (clockwise).
+        // Items arrive newest first. The newest takes the place closest to the slice (right outside it when the
+        // arc is centered) and the next ones the next closest, alternating clockwise and counterclockwise.
+        // Near a screen edge, where the arc had to turn, the newest is at the end next to the slice.
+        // _children is kept in position order (clockwise).
         double maxWidth = Math.Max(MinLabelWidth, 2 * ChildLabelR * Math.Sin(_childSpan * Math.PI / 360) - 10);
+        _positionOfRank = Enumerable.Range(0, k)
+            .OrderBy(position => Math.Round(Math.Abs(AngleBetween(slice.Mid, _childFrom + (position + 0.5) * _childSpan)), 2))
+            .ThenByDescending(position => position)
+            .ToArray();
         var byPosition = new MenuItemModel[k];
         for (int rank = 0; rank < k; rank++)
-            byPosition[CenteredPosition(rank, k)] = slice.Children[rank];
+            byPosition[_positionOfRank[rank]] = slice.Children[rank];
         for (int position = 0; position < k; position++)
         {
             double mid = _childFrom + (position + 0.5) * _childSpan;
@@ -612,14 +640,33 @@ public partial class RadialMenuWindow : Window
     }
 
     /// <summary>
-    /// Clockwise position of the item with the given rank (0 = newest): 0 goes in the middle, 1 right
-    /// after it, 2 right before it, and so on.
+    /// How far (degrees) an arc of <paramref name="total"/> degrees has to turn away from being centered on
+    /// <paramref name="mid"/> to stay inside the monitor's work area: 0 when it fits, else the smallest turn
+    /// that fits (clockwise first). Near a screen edge the items then open towards the free side.
     /// </summary>
-    static int CenteredPosition(int rank, int count)
+    double ArcShift(double mid, double total)
     {
-        int middle = (count - 1) / 2;
-        int step = (rank + 1) / 2;
-        return rank % 2 == 1 ? middle + step : middle - step;
+        const double Margin = 8;
+        double reach = ChildOuterR + 4 + Margin;
+        bool FitsOnScreen(double shift)
+        {
+            for (double a = mid + shift - total / 2; a <= mid + shift + total / 2 + 0.01; a += 4)
+            {
+                double rad = a * Math.PI / 180;
+                double x = reach * Math.Sin(rad), y = -reach * Math.Cos(rad);
+                if (x < -_room.Left || x > _room.Right || y < -_room.Top || y > _room.Bottom)
+                    return false;
+            }
+            return true;
+        }
+        for (double shift = 0; shift <= 180; shift += 3)
+        {
+            if (FitsOnScreen(shift))
+                return shift;
+            if (shift > 0 && FitsOnScreen(-shift))
+                return -shift;
+        }
+        return 0; // nowhere fully on screen (tiny work area): keep it centered
     }
 
     void Collapse()

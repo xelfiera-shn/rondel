@@ -134,7 +134,7 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 | `--launch-now FOLDER COMMAND prompt.txt` | Launches like the menu does, with COMMAND instead of the configured one. |
 | `--export-icon out.ico` | Writes the application icon. |
 | `--show-menu [input [text]]` | Starts normally and opens the menu at the cursor without the gesture; `input` continues into the New + Prompt card. |
-| `--render-menu out.png [dark\|light] [en\|tr] [idle] [FOLDER]` | Draws the Explorer menu for a folder (with its real session hints and recent sessions) into a PNG, the first expandable slice opened unless `idle`. |
+| `--render-menu out.png [dark\|light] [en\|tr] [idle] [edge] [FOLDER]` | Draws the Explorer menu for a folder (with its real session hints and recent sessions) into a PNG, the first expandable slice opened unless `idle`; `edge` places the menu against the left edge of the screen. |
 
 ## Fixed identifiers
 
