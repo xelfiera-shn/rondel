@@ -34,7 +34,7 @@ namespace Rondel.Windows.UI;
 /// </summary>
 public partial class RadialMenuWindow : Window
 {
-    const double StageR = 400;         // the window is 2 × this; the ring center is its center
+    const double StageR = 410;         // the window is 2 × this; the ring center is its center
     const double OuterR = 168;         // ring radius (RingBase in the XAML is 2 × this)
     const double HubR = 52;            // hub disc radius (Hub in the XAML is 2 × this)
     const double TileInnerR = HubR + 7;
@@ -143,8 +143,8 @@ public partial class RadialMenuWindow : Window
             // A recent project's sessions: a narrower band further out.
             new Band
             {
-                Layer = GrandLayer, Scale = GrandScale, InnerR = OuterR + ArcGap + 86 + ArcGap, OuterR = OuterR + ArcGap + 86 + ArcGap + 68,
-                EdgeR = OuterR + ArcGap + 86 + ArcGap + 72, TileSpan = 24, LabelMaxHeight = 32, FontSizes = [11, 10.5, 10],
+                Layer = GrandLayer, Scale = GrandScale, InnerR = OuterR + ArcGap + 86 + ArcGap, OuterR = OuterR + ArcGap + 86 + ArcGap + 76,
+                EdgeR = OuterR + ArcGap + 86 + ArcGap + 80, TileSpan = 24, LabelMaxHeight = 46, FontSizes = [11, 10.5, 10],
             },
         ];
         _glow = _palette.Glow;
