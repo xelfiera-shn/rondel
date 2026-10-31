@@ -18,20 +18,20 @@ The platform-neutral parts (what the menu contains, how an agent is started, set
 
 ```
 src/Rondel.Core/
-  Agents/         IAgentProfile, AgentCapability, ClaudeCode/ (profile defaults, session store)
+  Agents/         AgentProfile, AgentCapability, BuiltInAgents, ClaudeCode/ (session store)
   Context/        TriggerContext, ContextKind
-  Menus/          ActionDefinition, MenuModel, MenuBuilder
-  Launch/         LaunchPlan, LaunchPlanner, PowerShellScript, FolderNameRules
-  Sessions/       ISessionStore, SessionInfo, relative-time formatting
-  Settings/       AppSettings, SettingsMigrator, SettingsStore
+  Menus/          ActionDefinition, MenuBuilder, MenuModel
+  Launch/         LaunchPlan, LaunchPlanner, CommandLine, PowerShellScript, FolderNameRules
+  Sessions/       ISessionStore, SessionStores, SessionHints, RelativeTime
+  Settings/       AppSettings (schema and migrations), SettingsJson, SettingsStore
   Localization/   Loc, string tables (English, Turkish)
   Logging/        Log
-  Platform/       ITriggerSource, IContextDetector, IMenuPresenter, ITerminalLauncher, ITray, IAutostart
+  Platform/       ITerminalLauncher, IAutostart
 src/Rondel.Windows/
   Hook/ Interop/ Detection/ Shell/ Launch/ Settings/ UI/
 ```
 
-Linux and macOS get their own projects when that work starts; they implement the interfaces in `Core/Platform`.
+Linux and macOS get their own projects when that work starts; they implement the interfaces in `Core/Platform`. More of the trigger → menu → launch flow moves into the core (with interfaces for triggers, context detection and the menu) when a second platform needs it.
 
 ## Threads (Windows)
 
@@ -73,6 +73,7 @@ Claude Code keeps each session as `~/.claude/projects/<encoded folder>/<session 
 - The folder encoding replaces every UTF-16 code unit outside `[A-Za-z0-9]` with `-`. Names longer than 200 characters are cut to 200 characters plus `-` and a hash, so they are matched by prefix.
 - The encoding is lossy: `a.b` and `a-b` collide, and every Turkish letter becomes `-`. Each session file's first recorded `"cwd"` is therefore read (and cached) and compared case-insensitively with the target folder.
 - If the store does not exist at all, the result is *unknown* and nothing is dimmed. If it exists but has no sessions for the folder, Continue and Resume are dimmed.
+- The Resume slice expands into the five newest sessions. Their titles come from the session file: a title the user gave (`custom-title`), else Claude Code's latest generated title (`ai-title`), else an old-style `summary`, else the first real prompt. Only the first and last 256 KB of a file are read.
 - This is an internal format of another program: any failure means "no hints", never an error.
 
 ## Settings
@@ -94,7 +95,8 @@ Shape of version 1 (abridged):
   "Shell": "Auto",                          // Auto, Pwsh, WindowsPowerShell
   "DefaultAgent": "claude-code",
   "Agents": [
-    { "Id": "claude-code", "Command": "claude", "Capabilities": { "Continue": ["--continue"], "...": [] } }
+    { "Id": "claude-code", "Name": "Claude Code", "Command": "claude", "Sessions": "claude-code",
+      "Capabilities": { "Open": [], "Continue": ["--continue"], "Prompt": ["{prompt}"], "...": [] } }
   ],
   "Actions": [
     { "Id": "continue", "Label": "@Action.Continue", "Icon": "E768", "Capability": "Continue", "Hint": "LastSession" },
@@ -132,6 +134,8 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 | `--launch-now FOLDER COMMAND prompt.txt` | Launches like the menu does, with COMMAND instead of the configured one. |
 | `--export-icon out.ico` | Writes the application icon. |
 | `--show-menu [input [text]]` | Starts normally and opens the menu at the cursor without the gesture; `input` continues into the New + Prompt card. |
+| `--render-menu out.png [dark\|light] [en\|tr] [idle] [edge] [transparent] [FOLDER]` | Draws the Explorer menu for a folder (with its real session hints and recent sessions) into a PNG, the first expandable slice opened unless `idle`; `edge` places the menu against the left edge of the screen, `transparent` leaves out the background. |
+| `--render-settings out.png [en\|tr]` | Draws the settings window (current Windows theme) into a PNG; a running Rondel is not touched. |
 
 ## Fixed identifiers
 

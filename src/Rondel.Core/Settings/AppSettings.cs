@@ -1,0 +1,187 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Rondel.Core.Agents;
+using Rondel.Core.Context;
+using Rondel.Core.Menus;
+using Rondel.Core.Sessions;
+
+namespace Rondel.Core.Settings;
+
+public enum TerminalKind { Auto, WindowsTerminal, Console }
+
+public enum ShellKind { Auto, Pwsh, WindowsPowerShell }
+
+/// <summary>
+/// Contents of settings.json. Anything a user may get wrong in a hand-edited file is repaired by
+/// <see cref="Normalize"/>, which also brings older files up to <see cref="CurrentSchemaVersion"/>.
+/// </summary>
+public sealed class AppSettings
+{
+    public const int MinHoldMs = 150;
+    public const int MaxHoldMs = 2000;
+    public const string DefaultProjectsRoot = @"%USERPROFILE%\Projects";
+
+    /// <summary>
+    /// Bumped whenever a default changes, so <see cref="Normalize"/> can migrate saved files.
+    /// A migration only touches values that are still at the old default.
+    /// </summary>
+    public const int CurrentSchemaVersion = 1;
+
+    /// <summary>0 for a file written by hand without the field.</summary>
+    public int SchemaVersion { get; set; }
+
+    /// <summary>"auto", "en" or "tr".</summary>
+    public string Language { get; set; } = "auto";
+
+    /// <summary>Target of the desktop actions. Environment variables are expanded.</summary>
+    public string ProjectsRoot { get; set; } = DefaultProjectsRoot;
+
+    public int HoldMs { get; set; } = 300;
+
+    /// <summary>e.g. "Ctrl+Alt+Space"; empty = disabled.</summary>
+    public string Hotkey { get; set; } = "";
+
+    public TerminalKind Terminal { get; set; } = TerminalKind.Auto;
+
+    public ShellKind Shell { get; set; } = ShellKind.Auto;
+
+    public bool Paused { get; set; }
+
+    public bool DebugLogging { get; set; }
+
+    /// <summary>Agent used by actions that do not name one.</summary>
+    public string DefaultAgent { get; set; } = BuiltInAgents.ClaudeCodeId;
+
+    public List<AgentProfile> Agents { get; set; } = BuiltInAgents.Create();
+
+    /// <summary>Context name (DesktopEmpty, ExplorerEmpty, FolderItem) → action ids, clockwise from the top.</summary>
+    public Dictionary<string, List<string>> Menus { get; set; } = DefaultMenus();
+
+    public List<ActionDefinition> Actions { get; set; } = DefaultActions();
+
+    /// <summary>Set by <see cref="Normalize"/> when the file was upgraded and should be saved back.</summary>
+    [JsonIgnore]
+    public bool WasMigrated { get; private set; }
+
+    public string ResolveProjectsRoot()
+    {
+        string raw = string.IsNullOrWhiteSpace(ProjectsRoot) ? DefaultProjectsRoot : ProjectsRoot.Trim();
+        string expanded = Environment.ExpandEnvironmentVariables(raw);
+        if (!Path.IsPathRooted(expanded))
+            expanded = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), expanded);
+        try
+        {
+            return Path.TrimEndingDirectorySeparator(Path.GetFullPath(expanded));
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return expanded;
+        }
+    }
+
+    public ActionDefinition? FindAction(string id) =>
+        Actions.FirstOrDefault(a => string.Equals(a.Id, id, StringComparison.OrdinalIgnoreCase));
+
+    public AgentProfile? FindAgent(string? id) =>
+        Agents.FirstOrDefault(a => string.Equals(a.Id, id, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>The agent an action starts: its own, or the default agent.</summary>
+    public AgentProfile? AgentFor(ActionDefinition action) =>
+        FindAgent(string.IsNullOrWhiteSpace(action.Agent) ? DefaultAgent : action.Agent);
+
+    public AppSettings Clone() =>
+        JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(this, SettingsJson.Options), SettingsJson.Options)!;
+
+    /// <summary>Repairs values a hand-edited file may get wrong and adds agents and actions introduced by newer versions.</summary>
+    public void Normalize()
+    {
+        Language = Language?.Trim().ToLowerInvariant() is "en" or "tr" ? Language.Trim().ToLowerInvariant() : "auto";
+        if (string.IsNullOrWhiteSpace(ProjectsRoot))
+            ProjectsRoot = DefaultProjectsRoot;
+        HoldMs = Math.Clamp(HoldMs, MinHoldMs, MaxHoldMs);
+        Hotkey = Hotkey?.Trim() ?? "";
+
+        NormalizeAgents();
+        NormalizeActions();
+
+        Menus = Menus is null
+            ? DefaultMenus()
+            : new Dictionary<string, List<string>>(Menus, StringComparer.OrdinalIgnoreCase);
+        foreach (var (context, ids) in DefaultMenus())
+        {
+            if (!Menus.TryGetValue(context, out var list) || list is null)
+                Menus[context] = ids;
+        }
+
+        Migrate();
+    }
+
+    void NormalizeAgents()
+    {
+        Agents ??= [];
+        Agents.RemoveAll(a => a is null || string.IsNullOrWhiteSpace(a.Id));
+        foreach (var agent in Agents)
+        {
+            var builtIn = BuiltInAgents.Find(agent.Id);
+            agent.Id = agent.Id.Trim();
+            agent.Name = string.IsNullOrWhiteSpace(agent.Name) ? builtIn?.Name ?? agent.Id : agent.Name.Trim();
+            agent.Command = string.IsNullOrWhiteSpace(agent.Command) ? builtIn?.Command ?? agent.Id : agent.Command.Trim();
+            agent.Capabilities = new Dictionary<string, List<string>>(
+                (agent.Capabilities ?? builtIn?.Capabilities ?? new Dictionary<string, List<string>>()).Where(c => c.Value is not null),
+                StringComparer.OrdinalIgnoreCase);
+        }
+        foreach (var builtIn in BuiltInAgents.Create())
+        {
+            if (FindAgent(builtIn.Id) is null)
+                Agents.Add(builtIn);
+        }
+        if (FindAgent(DefaultAgent) is null)
+            DefaultAgent = Agents[0].Id;
+    }
+
+    void NormalizeActions()
+    {
+        Actions ??= [];
+        Actions.RemoveAll(a => a is null || string.IsNullOrWhiteSpace(a.Id));
+        foreach (var action in Actions)
+        {
+            action.Label ??= action.Id;
+            action.Icon ??= "";
+            action.ExtraArgs ??= [];
+            action.ExtraArgs.RemoveAll(a => a is null);
+        }
+        foreach (var builtIn in DefaultActions())
+        {
+            if (FindAction(builtIn.Id) is null)
+                Actions.Add(builtIn);
+        }
+    }
+
+    void Migrate()
+    {
+        if (SchemaVersion >= CurrentSchemaVersion)
+            return;
+        // Future migrations go here, oldest first, e.g. "if (SchemaVersion < 2) { ... }".
+        SchemaVersion = CurrentSchemaVersion;
+        WasMigrated = true;
+    }
+
+    public static Dictionary<string, List<string>> DefaultMenus() => new(StringComparer.OrdinalIgnoreCase)
+    {
+        [nameof(ContextKind.DesktopEmpty)] = ["new-project", "new-prompt"],
+        [nameof(ContextKind.ExplorerEmpty)] = ["new-project", "new-prompt", "open-here", "continue-here", "resume-here"],
+        [nameof(ContextKind.FolderItem)] = ["open", "continue", "resume"],
+    };
+
+    public static List<ActionDefinition> DefaultActions() =>
+    [
+        new() { Id = "new-project", Label = "@Action.NewProject", Icon = "E8F4", Input = ActionInput.FolderName, Capability = AgentCapability.Open },
+        new() { Id = "new-prompt", Label = "@Action.NewWithPrompt", Icon = "E8BD", Input = ActionInput.FolderNameAndPrompt, Capability = AgentCapability.Prompt },
+        new() { Id = "open-here", Label = "@Action.OpenHere", Icon = "E756", Capability = AgentCapability.Open },
+        new() { Id = "continue-here", Label = "@Action.ContinueHere", Icon = "E768", Capability = AgentCapability.Continue, Hint = SessionHint.LastSession },
+        new() { Id = "resume-here", Label = "@Action.ResumeHere", Icon = "E81C", Capability = AgentCapability.Resume, Hint = SessionHint.SessionCount },
+        new() { Id = "open", Label = "@Action.Open", Icon = "E756", Capability = AgentCapability.Open },
+        new() { Id = "continue", Label = "@Action.Continue", Icon = "E768", Capability = AgentCapability.Continue, Hint = SessionHint.LastSession },
+        new() { Id = "resume", Label = "@Action.Resume", Icon = "E81C", Capability = AgentCapability.Resume, Hint = SessionHint.SessionCount },
+    ];
+}
