@@ -12,7 +12,7 @@ The platform-neutral parts (what the menu contains, how an agent is started, set
 
 | Project | Target | Contents |
 |---|---|---|
-| `src/Rondel.Core` | `net10.0` | Agent profiles, menu model, launch planning, folder-name rules, session stores, settings schema and migrations, localization, logging, platform interfaces. No Win32 or WPF. |
+| `src/Rondel.Core` | `net10.0` | The shared menu flow, agent profiles, menu model, launch planning, folder-name rules, session stores, settings schema and migrations, localization, logging, platform interfaces. No Win32 or WPF. |
 | `src/Rondel.Windows` | `net10.0-windows` (WPF) | `Rondel.exe`: mouse hook, input re-injection, UI Automation and Shell detection, terminal launching, tray icon, radial menu and settings windows, autostart. |
 | `tests/Rondel.Core.Tests` | `net10.0` | Unit tests for core logic that can break silently. |
 
@@ -20,18 +20,37 @@ The platform-neutral parts (what the menu contains, how an agent is started, set
 src/Rondel.Core/
   Agents/         AgentProfile, AgentCapability, BuiltInAgents, ClaudeCode/ (session store)
   Context/        TriggerContext, ContextKind
+  Flow/           MenuFlow, MenuDetails, InputSpec
   Menus/          ActionDefinition, MenuBuilder, MenuModel
   Launch/         LaunchPlan, LaunchPlanner, CommandLine, PowerShellScript, FolderNameRules
   Sessions/       ISessionStore, SessionStores, SessionHints, RelativeTime
   Settings/       AppSettings (schema and migrations), SettingsJson, SettingsStore
   Localization/   Loc, string tables (English, Turkish)
   Logging/        Log
-  Platform/       ITerminalLauncher, IAutostart
+  Platform/       IMenuHost, ITerminalLauncher, IFolderNameValidator, IAutostart
 src/Rondel.Windows/
   Hook/ Interop/ Detection/ Shell/ Launch/ Settings/ UI/
 ```
 
-Linux and macOS get their own projects when that work starts; they implement the interfaces in `Core/Platform`. More of the trigger → menu → launch flow moves into the core (with interfaces for triggers, context detection and the menu) when a second platform needs it.
+The core builds and its tests run on Windows and macOS (CI checks both); the whole solution compiles on macOS and Linux too.
+
+## Shared flow and platform interfaces
+
+Each platform app owns the trigger, context detection and the menu window; everything between them is shared:
+
+1. The platform turns a gesture or hotkey into a `TriggerContext`. With nothing useful under the pointer, the hotkey falls back to `MenuFlow.ProjectsContext`.
+2. `MenuFlow.Build` returns the menu for the context (null when none is configured), and the platform shows it.
+3. `MenuDetails.Load` reads the session stores off the UI thread; the platform fills in the hints and the items that open further when they arrive. `MenuDetails.Needed` says whether there is anything to look up.
+4. The platform reports the chosen item to `MenuFlow.Invoke`, which starts the agent or asks for a folder name (and a prompt) first, creates the folder and launches.
+
+| Interface | What the platform provides | Windows |
+|---|---|---|
+| `IMenuHost` | Closing the menu, the inline name/prompt card, warnings outside the menu | `AppHost` (radial menu window, tray balloon) |
+| `ITerminalLauncher` | Running a `LaunchPlan` in a terminal | `WindowsTerminalLauncher` |
+| `IFolderNameValidator` | The file system's rules for a new folder name | `FolderNameValidator` (`FolderNameRules`, long paths, write permission) |
+| `IAutostart` | Starting with the user's session | `Autostart` (Run key) |
+
+Some core parts carry Windows rules because they are pure and worth testing in the core: `FolderNameRules` (Windows naming rules) and `PowerShellScript` (the Windows launch script). The `Terminal` and `Shell` settings list Windows choices. Another platform adds its own counterparts next to them.
 
 ## Threads (Windows)
 
@@ -79,7 +98,7 @@ Claude Code keeps each session as `~/.claude/projects/<encoded folder>/<session 
 
 ## Settings
 
-- `%APPDATA%\Rondel\settings.json`. The file is watched, so edits apply without a restart; saves are atomic, and an unreadable file is backed up before it is overwritten.
+- `%APPDATA%\Rondel\settings.json` (macOS: `~/Library/Application Support/Rondel/settings.json`). The file is watched, so edits apply without a restart; saves are atomic, and an unreadable file is backed up before it is overwritten.
 - Comments and trailing commas are accepted. Non-ASCII characters are written as they are, so Turkish paths stay readable. Icons are Segoe Fluent Icons code points in hex (`"E8F4"`).
 - The schema is versioned and is at **2**. **Changing a default requires a migration**, applied only where the user still has the old default: version 2 added Recent Projects to the desktop menu only where that menu was still the 0.1.0 default.
 
@@ -89,7 +108,7 @@ Shape of version 2 (abridged):
 {
   "SchemaVersion": 2,
   "Language": "auto",                       // "auto", "en" or "tr"
-  "ProjectsRoot": "%USERPROFILE%\\Projects",
+  "ProjectsRoot": "%USERPROFILE%\\Projects",       // "~/Projects" on macOS and Linux; ~ and %NAME% are expanded
   "HoldMs": 300,
   "Hotkey": "",                             // e.g. "Ctrl+Alt+Space"
   "Terminal": "Auto",                       // Auto, WindowsTerminal, Console
@@ -124,7 +143,7 @@ English and Turkish string tables live in the core. The language follows the Win
 
 ## Logging and diagnostics
 
-Logs go to `%LOCALAPPDATA%\Rondel\logs`: one file per day, rolled at 5 MB, the newest 20 kept. Writing happens on a background task, so logging is safe from the hook thread. With **Debug logging** on, every trigger writes the UI Automation chain, the detected context and the resolved folder.
+Logs go to `%LOCALAPPDATA%\Rondel\logs` (macOS: `~/Library/Logs/Rondel`): one file per day, rolled at 5 MB, the newest 20 kept. Writing happens on a background task, so logging is safe from the hook thread. With **Debug logging** on, every trigger writes the UI Automation chain, the detected context and the resolved folder.
 
 Command-line diagnostics run instead of the tray app, never touch a running instance and write their result to a file:
 
@@ -143,8 +162,8 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 
 | What | Value |
 |---|---|
-| Settings folder | `%APPDATA%\Rondel` |
-| Log folder | `%LOCALAPPDATA%\Rondel\logs` |
+| Settings folder | `%APPDATA%\Rondel` (macOS: `~/Library/Application Support/Rondel`) |
+| Log folder | `%LOCALAPPDATA%\Rondel\logs` (macOS: `~/Library/Logs/Rondel`) |
 | Single-instance mutex | `Local\Rondel.SingleInstance` (a second start opens Settings in the running instance) |
 | Activation event | `Local\Rondel.Activate` |
 | Start with Windows | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, value `Rondel` |

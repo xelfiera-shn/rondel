@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using Rondel.Core.Launch;
 using Rondel.Core.Localization;
+using Rondel.Core.Platform;
 using Rondel.Windows.Interop;
 
 namespace Rondel.Windows.Launch;
@@ -10,7 +11,7 @@ namespace Rondel.Windows.Launch;
 /// <see cref="FolderNameRules"/> plus what only Windows can answer: whether long paths are enabled
 /// and whether the user may create a folder in the parent.
 /// </summary>
-internal static class FolderNameValidator
+internal sealed class FolderNameValidator : IFolderNameValidator
 {
     static readonly Lazy<bool> LongPathsEnabled = new(() =>
     {
@@ -25,10 +26,10 @@ internal static class FolderNameValidator
         }
     });
 
-    static (string Directory, bool CanCreate, long Tick) s_accessCache;
+    (string Directory, bool CanCreate, long Tick) _accessCache;
 
     /// <returns>A localized error, or null when <paramref name="name"/> can be created in <paramref name="parent"/>.</returns>
-    public static string? Validate(string parent, string name)
+    public string? Validate(string parent, string name)
     {
         int limit = LongPathsEnabled.Value ? FolderNameRules.LongPathLimit : FolderNameRules.ClassicPathLimit;
         if (FolderNameRules.Validate(parent, name, limit) is { } error)
@@ -40,10 +41,10 @@ internal static class FolderNameValidator
     /// Asks the file system whether we may add a subdirectory to the nearest existing ancestor,
     /// without creating anything (no temp folders appearing in Explorer or OneDrive).
     /// </summary>
-    static bool CanCreateIn(string directory)
+    bool CanCreateIn(string directory)
     {
         long now = Environment.TickCount64;
-        var cached = s_accessCache;
+        var cached = _accessCache;
         if (cached.Directory == directory && now - cached.Tick < 10_000)
             return cached.CanCreate;
 
@@ -60,7 +61,7 @@ internal static class FolderNameValidator
             // Only a definite "access denied" blocks; anything else surfaces when creating.
             canCreate = !handle.IsInvalid || Marshal.GetLastPInvokeError() != Native.ERROR_ACCESS_DENIED;
         }
-        s_accessCache = (directory, canCreate, now);
+        _accessCache = (directory, canCreate, now);
         return canCreate;
     }
 }
