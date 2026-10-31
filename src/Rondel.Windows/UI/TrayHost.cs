@@ -56,6 +56,9 @@ internal sealed unsafe class TrayHost : IDisposable
 
     public event Action? HotkeyPressed;
 
+    /// <summary>The last notification shown was clicked.</summary>
+    public event Action? BalloonClicked;
+
     public void Show(bool paused, string tooltip)
     {
         _paused = paused;
@@ -151,6 +154,9 @@ internal sealed unsafe class TrayHost : IDisposable
                 case NIN_SELECT:
                 case NIN_KEYSELECT:
                     Activated?.Invoke();
+                    break;
+                case NIN_BALLOONUSERCLICK:
+                    BalloonClicked?.Invoke();
                     break;
             }
             handled = true;

@@ -121,6 +121,10 @@ public partial class SettingsWindow : Window
             Select(TerminalBox, s.Terminal.ToString());
             Select(ShellBox, s.Shell.ToString());
             DebugBox.IsChecked = s.DebugLogging;
+            FollowAgentsBox.IsChecked = s.ActiveAgents.Follow;
+            NotifyAsksBox.IsChecked = s.ActiveAgents.NotifyAsks;
+            NotifyFinishedBox.IsChecked = s.ActiveAgents.NotifyFinished;
+            AgentNotificationsPanel.IsEnabled = s.ActiveAgents.Follow;
             CardPromptBox.IsChecked = s.NewProjectCard.Prompt;
             CardGitBox.IsChecked = s.NewProjectCard.Git;
             CardPlanBox.IsChecked = s.NewProjectCard.Plan;
@@ -302,6 +306,20 @@ public partial class SettingsWindow : Window
         bool value = DebugBox.IsChecked == true;
         if (!_loading)
             Store.Update(s => s.DebugLogging = value);
+    }
+
+    void OnActiveAgentsClicked(object sender, RoutedEventArgs e)
+    {
+        if (_loading)
+            return;
+        bool follow = FollowAgentsBox.IsChecked == true, asks = NotifyAsksBox.IsChecked == true, finished = NotifyFinishedBox.IsChecked == true;
+        AgentNotificationsPanel.IsEnabled = follow;
+        Store.Update(s =>
+        {
+            s.ActiveAgents.Follow = follow;
+            s.ActiveAgents.NotifyAsks = asks;
+            s.ActiveAgents.NotifyFinished = finished;
+        });
     }
 
     void OnNewProjectCardClicked(object sender, RoutedEventArgs e)

@@ -165,6 +165,24 @@ static class Strings
         ["Launch.NotFoundHint"] = "Install {0}, or change its command in Rondel settings (tray icon > Settings).",
         ["Launch.NotFoundHintMac"] = "Install {0}, or change its command in Rondel settings (menu bar icon > Settings).",
         ["Launch.BatchNote"] = "Note: '{0}' is a .cmd wrapper: line breaks and double quotes in the prompt were simplified, and %VARIABLES% may be expanded by cmd.exe. A native installation of the agent avoids this.",
+
+        ["Agent.Someone"] = "The agent",
+        ["Agent.Permission.Title"] = "{0} needs your permission",
+        ["Agent.Permission.Text"] = "{0} wants to use {1}.",
+        ["Agent.Question.Title"] = "{0} has a question",
+        ["Agent.Question.Text"] = "{0} is waiting for your answer.",
+        ["Agent.Finished.Title"] = "{0} is done",
+        ["Agent.Finished.Text"] = "{0} is ready for your next prompt.",
+        ["Agent.Failed.Title"] = "{0} stopped with an error",
+        ["Agent.Failed.Text"] = "Open its terminal to see what happened.",
+
+        ["Settings.ActiveAgents"] = "Active agents",
+        ["Settings.ActiveAgents.Follow"] = "Follow the agents Rondel starts",
+        ["Settings.ActiveAgents.Follow.Desc"] = "Each agent opens in a window of its own and tells Rondel what it is doing. Applies to agents started from now on.",
+        ["Settings.ActiveAgents.Notify"] = "Notifications",
+        ["Settings.ActiveAgents.Notify.Desc"] = "Click a notification to bring the agent's terminal to the front. None is shown while you are in that terminal.",
+        ["Settings.ActiveAgents.NotifyAsks"] = "When it asks something",
+        ["Settings.ActiveAgents.NotifyFinished"] = "When it is done",
     };
 
     public static readonly IReadOnlyDictionary<string, string> Tr = new Dictionary<string, string>
@@ -329,5 +347,23 @@ static class Strings
         ["Launch.NotFoundHint"] = "{0} uygulamasını yükleyin ya da komutunu Rondel ayarlarından değiştirin (tray ikonu > Ayarlar).",
         ["Launch.NotFoundHintMac"] = "{0} uygulamasını yükleyin ya da komutunu Rondel ayarlarından değiştirin (menü çubuğu simgesi > Ayarlar).",
         ["Launch.BatchNote"] = "Not: '{0}' bir .cmd sarmalayıcısı: prompttaki satır sonları ve çift tırnaklar sadeleştirildi, %DEĞİŞKEN% ifadeleri cmd.exe tarafından genişletilebilir. Ajanın native kurulumunda bu sorun yoktur.",
+
+        ["Agent.Someone"] = "Ajan",
+        ["Agent.Permission.Title"] = "{0} izin bekliyor",
+        ["Agent.Permission.Text"] = "{0}, {1} aracını kullanmak istiyor.",
+        ["Agent.Question.Title"] = "{0} bir soru soruyor",
+        ["Agent.Question.Text"] = "{0} cevabını bekliyor.",
+        ["Agent.Finished.Title"] = "{0} işini bitirdi",
+        ["Agent.Finished.Text"] = "{0} sıradaki istemini bekliyor.",
+        ["Agent.Failed.Title"] = "{0} bir hatayla durdu",
+        ["Agent.Failed.Text"] = "Ne olduğunu görmek için terminaline bak.",
+
+        ["Settings.ActiveAgents"] = "Aktif ajanlar",
+        ["Settings.ActiveAgents.Follow"] = "Rondel'in başlattığı ajanları takip et",
+        ["Settings.ActiveAgents.Follow.Desc"] = "Her ajan kendi penceresinde açılır ve ne yaptığını Rondel'e bildirir. Bundan sonra başlatılan ajanlar için geçerlidir.",
+        ["Settings.ActiveAgents.Notify"] = "Bildirimler",
+        ["Settings.ActiveAgents.Notify.Desc"] = "Bildirime tıklayınca ajanın terminali öne gelir. O terminaldeyken bildirim gösterilmez.",
+        ["Settings.ActiveAgents.NotifyAsks"] = "Bir şey sorduğunda",
+        ["Settings.ActiveAgents.NotifyFinished"] = "İşini bitirdiğinde",
     };
 }

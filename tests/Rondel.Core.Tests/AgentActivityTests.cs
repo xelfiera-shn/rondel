@@ -1,5 +1,6 @@
 using System.Text;
 using Rondel.Core.Activity;
+using Rondel.Core.Localization;
 
 namespace Rondel.Core.Tests;
 
@@ -193,6 +194,23 @@ public class AgentActivityTests
 
         Assert.Null(HookEvent.Parse(Encoding.UTF8.GetBytes("""{ "type": "user" }""")));
         Assert.Null(HookEvent.Parse(Encoding.UTF8.GetBytes("not json")));
+    }
+
+    [Fact]
+    public void NotificationsSayWhatTheAgentWantsInTheProjectsName()
+    {
+        // The language is left as it is: tests run side by side, and the words come from the string tables.
+        var agent = new ActiveAgent("0123456789ab", _folder, "Claude Code");
+
+        Assert.Equal((Loc.Format("Agent.Permission.Title", "weather-api"), Loc.Format("Agent.Permission.Text", "Claude Code", "Bash")),
+            AgentNotices.Describe(agent with { Tool = "Bash" }, AgentNotice.Asks));
+        Assert.Equal((Loc.Format("Agent.Question.Title", "weather-api"), "Which database?"),
+            AgentNotices.Describe(agent with { Message = "Which database?" }, AgentNotice.Asks));
+        Assert.Equal((Loc.Format("Agent.Finished.Title", "weather-api"), Loc.Format("Agent.Finished.Text", "Claude Code")),
+            AgentNotices.Describe(agent, AgentNotice.Finished));
+        Assert.Equal(Loc.Format("Agent.Question.Text", Loc.Get("Agent.Someone")),
+            AgentNotices.Describe(agent with { AgentName = null }, AgentNotice.Asks).Text); // picked up after a restart
+        Assert.Equal(Loc.Get("Agent.Failed.Text"), AgentNotices.Describe(agent, AgentNotice.Failed).Text);
     }
 
     sealed class ManualTime : TimeProvider
