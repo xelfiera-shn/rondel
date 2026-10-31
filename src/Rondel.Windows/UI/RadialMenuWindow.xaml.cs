@@ -47,6 +47,7 @@ public partial class RadialMenuWindow : Window
     const double ArcGap = 26;          // from a band's edge to the tiles of the arc it opens (room for the arrow)
     const double ArrowReach = 17;      // how far beyond its band's edge an arrow (and its hit area) reaches
     const double MinLabelWidth = 56;
+    const double UnbrokenSlack = 4;    // how much closer to the edges an unbroken folder name may come
     const double ShadowPad = 32;       // shadow extent kept on-screen when clamping to the work area
     const int MaxPromptLength = 8000;  // keeps the encoded command line well under CreateProcess's limit
 
@@ -133,7 +134,7 @@ public partial class RadialMenuWindow : Window
     /// Label layouts already worked out while this menu is open: arcs open again and again as the pointer
     /// moves between tiles, and fitting a label takes many measurements.
     /// </summary>
-    readonly Dictionary<(string Label, string Hint, double Mid, double Span, double Radius), (double FontSize, Size Size)> _labelLayouts = [];
+    readonly Dictionary<(string Label, string Hint, double Mid, double Span, double Radius), (string Text, double FontSize, Size Size)> _labelLayouts = [];
 
     public RadialMenuWindow()
     {
@@ -713,13 +714,16 @@ public partial class RadialMenuWindow : Window
         var byPosition = new MenuItemModel[k];
         for (int rank = 0; rank < k; rank++)
             byPosition[band.PositionOfRank[rank]] = tile.Children[rank];
+        // Recent projects are folder names, often one long word (Contoso.Platform.Web, my_project); session titles
+        // are sentences and only wrap between words.
+        bool folderNames = MenuBuilder.ListsRecentProjects(tile.Item);
         for (int position = 0; position < k; position++)
         {
             double mid = band.From + (position + 0.5) * band.Span;
             var item = CreateTile(byPosition[position], mid, band.Span, band.InnerR, band.OuterR, band.Layer, withGlyph: false);
             item.Children = byPosition[position].Children;
             item.Label.MaxHeight = band.LabelMaxHeight;
-            PlaceLabel(item, mid, maxWidth, labelR, band.InnerR, band.OuterR, band.Span, band.FontSizes);
+            PlaceLabel(item, mid, maxWidth, labelR, band.InnerR, band.OuterR, band.Span, band.FontSizes, folderName: folderNames);
             band.Tiles.Add(item);
             if (item.Children.Count > 0 && level + 2 < _bands.Length)
                 AddArrow(level + 1, item);
@@ -1057,59 +1061,126 @@ public partial class RadialMenuWindow : Window
     /// block stays inside its band and its own wedge. Narrower widths wrap the label onto a second line,
     /// which matters for the left/right slices where the ring is only ~100 DIP deep.
     /// </summary>
-    void PlaceLabel(Tile tile, double mid, double maxWidth, double labelR, double innerR, double outerR, double span, double[] fontSizes)
+    /// <param name="folderName">
+    /// The label is a folder name, often one long word whose last part is what tells it apart (….Modules.Auth,
+    /// ….Modules.Web). The whole name is shown if any font size allows it: unbroken if possible, else wrapped at
+    /// its camel-case and separator boundaries. Then come shorter forms that keep its start and end, and only
+    /// then is its end trimmed like any other label's.
+    /// </param>
+    void PlaceLabel(Tile tile, double mid, double maxWidth, double labelR, double innerR, double outerR, double span, double[] fontSizes,
+        bool folderName = false)
     {
         var (block, label) = (tile.Content, tile.Label);
-        var key = (label.Text, tile.Hint.Visibility == Visibility.Collapsed ? "" : tile.Hint.Text, Math.Round(mid, 1), span, labelR);
+        string text = label.Text;
+        var key = (text, tile.Hint.Visibility == Visibility.Collapsed ? "" : tile.Hint.Text, Math.Round(mid, 1), span, labelR);
         if (_labelLayouts.TryGetValue(key, out var known))
         {
+            label.Text = known.Text;
             label.FontSize = known.FontSize;
             block.Width = known.Size.Width;
             Position(block, known.Size, OnCircle(labelR, mid));
             return;
         }
 
-        Size? TryWidth(double width)
+        bool trimmed = false;
+        Size? TryWidth(double width, bool whole, double slack)
         {
             block.Width = width;
-            block.Measure(new Size(width, double.PositiveInfinity));
+            trimmed = false;
+            if (whole)
+            {
+                // Measured without the height limit: a taller label would be trimmed.
+                double maxHeight = label.MaxHeight;
+                label.MaxHeight = double.PositiveInfinity;
+                block.Measure(new Size(width, double.PositiveInfinity));
+                label.MaxHeight = maxHeight;
+                trimmed = label.DesiredSize.Height > maxHeight + 0.5;
+                if (trimmed)
+                    return null;
+            }
+            else
+            {
+                block.Measure(new Size(width, double.PositiveInfinity));
+            }
             var size = new Size(width, block.DesiredSize.Height);
-            return Fits(mid, size, labelR, innerR, outerR, span) ? size : null;
+            bool fits = folderName && block is Panel rows
+                ? RowsFit(rows, mid, size, labelR, innerR, outerR, span, slack)
+                : Fits(mid, size, labelR, innerR, outerR, span);
+            return fits ? size : null;
         }
 
         Size last = default;
-        foreach (double fontSize in fontSizes)
+        bool Search(bool whole, double slack = 0)
         {
-            label.FontSize = fontSize;
-            // Never narrower than the longest word, so words are not broken in the middle.
-            double minWidth = Math.Clamp(LongestWordWidth(label) + 2, MinLabelWidth, maxWidth);
-            // Steps of 4 down from the widest width, then one step back up: half the measurements of going down
-            // by 2, and fitting is not monotonic (a narrower, taller block can fail where a wider one fits), so
-            // the steps stay small enough not to jump over a width that fits.
-            for (double width = maxWidth; ; width = Math.Max(minWidth, width - 4))
+            foreach (double fontSize in fontSizes)
             {
-                if (TryWidth(width) is { } fit)
+                label.FontSize = fontSize;
+                // Never narrower than the longest word, so words are not broken in the middle.
+                double longestWord = LongestWordWidth(label) + 2;
+                if (whole && longestWord > maxWidth)
+                    continue; // a word would break in the middle
+                double minWidth = Math.Clamp(longestWord, MinLabelWidth, maxWidth);
+                // Steps of 4 down from the widest width, then one step back up: half the measurements of going down
+                // by 2, and fitting is not monotonic (a narrower, taller block can fail where a wider one fits), so
+                // the steps stay small enough not to jump over a width that fits.
+                for (double width = maxWidth; ; width = Math.Max(minWidth, NextWidth(width)))
                 {
-                    for (double wider = Math.Min(maxWidth, width + 2); wider > width; wider -= 2)
+                    if (TryWidth(width, whole, slack) is { } fit)
                     {
-                        if (TryWidth(wider) is { } better)
+                        for (double wider = Math.Min(maxWidth, width + 2); wider > width; wider -= 2)
                         {
-                            fit = better;
-                            break;
+                            if (TryWidth(wider, whole, slack) is { } better)
+                            {
+                                fit = better;
+                                break;
+                            }
                         }
+                        block.Width = fit.Width;
+                        _labelLayouts[key] = (label.Text, fontSize, fit);
+                        Position(block, fit, OnCircle(labelR, mid));
+                        return true;
                     }
-                    block.Width = fit.Width;
-                    _labelLayouts[key] = (fontSize, fit);
-                    Position(block, fit, OnCircle(labelR, mid));
-                    return;
+                    last = new Size(width, block.DesiredSize.Height);
+                    if (width <= minWidth || trimmed)
+                        break; // narrower is only taller: trimmed as well
                 }
-                last = new Size(width, block.DesiredSize.Height);
-                if (width <= minWidth)
-                    break;
             }
+            return false;
         }
+
+        // A folder name's rows are checked at their own width, so every width down to its widest line wraps it the
+        // same way and gives the same answer: those are skipped.
+        double NextWidth(double width) =>
+            folderName ? Math.Min(width - 4, Math.Floor(label.DesiredSize.Width) - 1) : width - 4;
+
+        if (folderName)
+        {
+            string breakable = BreakableName(text);
+            foreach (string candidate in new[] { text, breakable }.Concat(MiddleShortened(breakable)).Distinct())
+            {
+                label.Text = candidate;
+                // The unbroken name may come a little closer to the edges: the corners of its line are empty.
+                if (Search(whole: true, slack: candidate == text ? UnbrokenSlack : 0))
+                    return;
+            }
+            label.Text = breakable; // trimmed, but still not broken in the middle of a word
+        }
+        if (Search(whole: false))
+            return;
         block.Width = last.Width;
         Position(block, last, OnCircle(labelR, mid)); // best effort with the smallest size tried
+    }
+
+    /// <summary>
+    /// Shorter forms of a long folder name (made breakable by <see cref="BreakableName"/>) that keep its start and
+    /// its end: "Contoso.Platform.Modules.CCTV" → "Contoso…Modules.CCTV", then "Contoso…CCTV".
+    /// </summary>
+    static IEnumerable<string> MiddleShortened(string name)
+    {
+        string[] parts = name.Split('\u200B');
+        string first = parts[0].TrimEnd('.', '_', '-') is { Length: > 0 } stem ? stem : parts[0];
+        for (int keep = Math.Min(2, parts.Length - 2); keep >= 1; keep--)
+            yield return first + "…\u200B" + string.Join('\u200B', parts[^keep..]);
     }
 
     static void Position(FrameworkElement block, Size size, Point center)
@@ -1128,20 +1199,43 @@ public partial class RadialMenuWindow : Window
             .Max();
     }
 
-    static bool Fits(double mid, Size size, double labelR, double innerR, double outerR, double span)
+    static bool Fits(double mid, Size size, double labelR, double innerR, double outerR, double span) =>
+        RectFits(OnCircle(labelR, mid), size, mid, innerR, outerR, span, slack: 0);
+
+    /// <summary>
+    /// Like <see cref="Fits"/>, but each row of the block (label, hint) is checked with its own width instead of the
+    /// block's bounding box: a short hint under a long name leaves the bottom corners empty.
+    /// </summary>
+    /// <param name="slack">How much closer to the edges than <see cref="Fits"/> allows the rows may come, in DIP.</param>
+    static bool RowsFit(Panel block, double mid, Size size, double labelR, double innerR, double outerR, double span, double slack)
     {
         var center = OnCircle(labelR, mid);
+        double top = center.Y - size.Height / 2;
+        foreach (UIElement row in block.Children)
+        {
+            if (row.Visibility != Visibility.Visible)
+                continue;
+            var rowSize = row.DesiredSize;
+            if (!RectFits(new Point(center.X, top + rowSize.Height / 2), rowSize, mid, innerR, outerR, span, slack))
+                return false;
+            top += rowSize.Height;
+        }
+        return true;
+    }
+
+    static bool RectFits(Point center, Size size, double mid, double innerR, double outerR, double span, double slack)
+    {
         foreach (var (sx, sy) in new[] { (-1, -1), (1, -1), (-1, 1), (1, 1) })
         {
             double dx = center.X + sx * size.Width / 2 - StageR;
             double dy = center.Y + sy * size.Height / 2 - StageR;
             double radius = Math.Sqrt(dx * dx + dy * dy);
-            if (radius < innerR + 2 || radius > outerR - RimWidth - 1)
+            if (radius < innerR + 2 - slack || radius > outerR - RimWidth - 1 + slack)
                 return false;
             if (span < 360)
             {
                 double angle = Math.Atan2(dx, -dy) * 180 / Math.PI;
-                if (Math.Abs(AngleBetween(mid, angle)) > span / 2 - 3)
+                if (Math.Abs(AngleBetween(mid, angle)) > span / 2 - 3 + slack * 180 / (Math.PI * radius))
                     return false;
             }
         }
