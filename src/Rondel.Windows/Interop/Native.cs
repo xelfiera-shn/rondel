@@ -173,6 +173,7 @@ internal static unsafe partial class Native
     // System metrics
     public const int SM_MENUDROPALIGNMENT = 40;
     public const int SM_CXSMICON = 49;
+    public const int SM_CXICON = 11;
     public const int SM_CXDRAG = 68;
     public const int SM_CYDRAG = 69;
     public const int SM_XVIRTUALSCREEN = 76;
@@ -209,6 +210,8 @@ internal static unsafe partial class Native
     public const uint NIF_SHOWTIP = 0x80;
     public const uint NIIF_INFO = 0x1;
     public const uint NIIF_WARNING = 0x2;
+    public const uint NIIF_USER = 0x4;
+    public const uint NIIF_LARGE_ICON = 0x20;
     public const uint NOTIFYICON_VERSION_4 = 4;
     public const uint NIN_SELECT = WM_USER;
     public const uint NIN_KEYSELECT = WM_USER + 1;

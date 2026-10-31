@@ -28,6 +28,7 @@ namespace Rondel.Windows;
 /// --launch-script FOLDER COMMAND PROMPT.txt out.ps1   the PowerShell script a launch would run
 /// --launch-now FOLDER COMMAND PROMPT.txt     launch exactly like the menu, with COMMAND instead of the configured one
 /// --export-icon out.ico                      write the app icon (used for the exe)
+/// --render-notice-icons out.png              the icons of notifications about agents, dark and light
 /// --render-menu out.png [dark|light] [en|tr] [desktop|item] [idle] [deep] [edge] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]
 ///              [hover=N] [FOLDER|FILE]                 draw the Explorer menu
 ///                                            for FOLDER (default: current folder), its folder-icon menu with "item", or the menu of FILE
@@ -81,6 +82,10 @@ internal static class DevTools
                 RenderNewProject(output, options);
                 return true;
 
+            case ["--render-notice-icons", var output]:
+                RenderNoticeIcons(output);
+                return true;
+
             default:
                 return false;
         }
@@ -125,6 +130,37 @@ internal static class DevTools
     }
 
     /// <summary>Multi-size .ico: classic 32-bit BMP frames, plus a PNG frame for 256 px (the usual layout).</summary>
+    /// <summary>The notification icons at the sizes Windows shows them, on a dark and a light notification.</summary>
+    static void RenderNoticeIcons(string output)
+    {
+        int[] sizes = [32, 48, 64];
+        var kinds = Enum.GetValues<NoticeIcon>();
+        int cell = 80, width = cell * kinds.Length * sizes.Length, height = cell * 2;
+        var visual = new DrawingVisual();
+        using (var dc = visual.RenderOpen())
+        {
+            foreach (var (row, background) in new[] { (0, Color.FromRgb(0x2B, 0x2B, 0x2B)), (1, Color.FromRgb(0xF9, 0xF9, 0xF9)) })
+            {
+                dc.DrawRectangle(new SolidColorBrush(background), null, new System.Windows.Rect(0, row * cell, width, cell));
+                int column = 0;
+                foreach (int size in sizes)
+                {
+                    foreach (var kind in kinds)
+                    {
+                        double x = column++ * cell + (cell - size) / 2.0, y = row * cell + (cell - size) / 2.0;
+                        dc.DrawImage(NoticeIconRenderer.Render(kind, size), new System.Windows.Rect(x, y, size, size));
+                    }
+                }
+            }
+        }
+        var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var file = File.Create(output);
+        encoder.Save(file);
+    }
+
     static void ExportIcon(string output)
     {
         int[] sizes = [16, 20, 24, 32, 40, 48, 64, 256];
