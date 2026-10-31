@@ -23,15 +23,21 @@ Kurulum programı yoktur, yönetici izni gerekmez. Windows 10 ve 11 desteklenir.
 
 | Nerede basılı tutarsınız | Aksiyonlar | Klasör |
 |---|---|---|
-| Masaüstünde boş alan | Yeni Proje, Yeni + Prompt | Proje klasörünüz (varsayılan `%USERPROFILE%\Projects`) |
+| Masaüstünde boş alan | Yeni Proje, Yeni + Prompt, Son Projeler | Proje klasörünüz (varsayılan `%USERPROFILE%\Projects`) ya da seçtiğiniz proje |
 | Dosya Gezgini'nde bir klasörün boş alanı | Yeni Proje, Yeni + Prompt, Burada Aç, Burada Devam Et, Burada Oturum Seç | Açık olan klasör |
 | Bir klasörün üzerinde (masaüstü veya Dosya Gezgini) | Aç, Devam Et, Oturum Seç | O klasör |
 
 - **Aç** yeni bir oturum başlatır, **Devam Et** en son oturumu sürdürür, **Oturum Seç** listeden seçtirir (`claude`, `claude --continue`, `claude --resume`).
-- **Oturum Seç dışa doğru açılır**: son beş oturum dilimin etrafındaki bir yayda belirir, en yenisi tam dilimin dışında. Birini seçerek o oturumu doğrudan açabilirsiniz.
+- **Oturum Seç dışa doğru açılır** (klasörde iki veya daha fazla oturum varsa): son beş oturum dilimin etrafındaki bir yayda belirir, en yenisi tam dilimin dışında. Birini seçerek o oturumu doğrudan açabilirsiniz.
+- **Son Projeler** (masaüstü menüsü) en son çalıştığınız beş klasöre açılır. Birini seçince o projenin son oturumu açılır; iki veya daha fazla oturumu olan bir proje de aynı şekilde oturumlarına açılır.
+
+<p align="center">
+  <img src="docs/images/recents-tr.png" width="460" alt="Masaüstü menüsünde Son Projeler beş proje klasörüne, bir proje de oturumlarına açılmış">
+</p>
+
 - Devam Et ve Oturum Seç, son oturumun ne zaman olduğunu ve kaç oturum bulunduğunu gösterir; oturum yoksa soluk görünürler.
 - **Yeni + Prompt** önce klasör adını (**Enter**), sonra prompt'u sorar (**Ctrl+Enter** başlatır, **Esc** geri döner).
-- Dilime tıklayın, **1–N** tuşlarına basın ya da ok tuşları ve **Enter** kullanın; **Tab** Oturum Seç'in oturumlarına geçer; **Esc** kapatır. Basılı tutmaya devam edip bir dilimin üzerine gelerek bırakmak da seçer.
+- Dilime tıklayın, **1–N** tuşlarına basın ya da ok tuşları ve **Enter** kullanın; **Tab** seçili dilimin ya da projenin öğelerine (en yeniden başlayarak) geçer, **Esc** bir seviye geri çıkar ve en sonunda menüyü kapatır. Basılı tutmaya devam edip bir dilimin üzerine gelerek bırakmak da seçer.
 - Normal Ctrl+tık ve Ctrl+sürükle her yerde eskisi gibi çalışır. Dosyalar, gezinti bölmesi, adres çubuğu, Bu Bilgisayar gibi sanal konumlar ve yönetici olarak çalışan Dosya Gezgini pencereleri menüyü açmaz.
 - İsteğe bağlı bir klavye kısayolu (Ayarlar) menüyü fare imlecinin olduğu yerde açar.
 

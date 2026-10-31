@@ -23,15 +23,21 @@ There is no installer and Rondel needs no admin rights. Windows 10 and 11 are su
 
 | Where you hold | Actions | Folder |
 |---|---|---|
-| Empty desktop | New Project, New + Prompt | Your projects folder (default `%USERPROFILE%\Projects`) |
+| Empty desktop | New Project, New + Prompt, Recent Projects | Your projects folder (default `%USERPROFILE%\Projects`), or the project you pick |
 | Empty area of a folder in File Explorer | New Project, New + Prompt, Open Here, Continue Here, Resume Here | The folder that is open |
 | A folder (on the desktop or in File Explorer) | Open, Continue, Resume | That folder |
 
 - **Open** starts a new session, **Continue** the most recent one, **Resume** lets you pick (`claude`, `claude --continue`, `claude --resume`).
-- **Resume opens outward**: the five newest sessions appear on an arc around it, the newest right outside the slice. Pick one to resume it directly.
+- **Resume opens outward** when the folder has two or more sessions: the five newest appear on an arc around it, the newest right outside the slice. Pick one to resume it directly.
+- **Recent Projects** (desktop menu) opens into the five folders you worked in most recently. Pick one to resume its latest session; a project with two or more sessions opens further into them, the same way.
+
+<p align="center">
+  <img src="docs/images/recents-en.png" width="460" alt="The desktop menu with Recent Projects opened into five project folders, and one project opened further into its sessions">
+</p>
+
 - Continue and Resume show when the last session was and how many there are, and are dimmed when there are none.
 - **New + Prompt** asks for a folder name (**Enter**), then a prompt (**Ctrl+Enter** starts, **Esc** goes back).
-- Click a slice, press **1–N**, or use the arrow keys and **Enter**; **Tab** steps into the sessions of Resume; **Esc** closes. You can also keep holding, move onto a slice and release.
+- Click a slice, press **1–N**, or use the arrow keys and **Enter**; **Tab** steps into the items of the selected slice or project (newest first), **Esc** steps back out and finally closes. You can also keep holding, move onto a slice and release.
 - Ordinary Ctrl+click and Ctrl+drag keep working everywhere. Files, the navigation pane, the address bar, virtual locations such as This PC, and File Explorer windows running as administrator don't open the menu.
 - An optional keyboard shortcut (Settings) opens the menu at the mouse cursor.
 

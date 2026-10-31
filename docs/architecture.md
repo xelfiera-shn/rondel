@@ -73,20 +73,21 @@ Claude Code keeps each session as `~/.claude/projects/<encoded folder>/<session 
 - The folder encoding replaces every UTF-16 code unit outside `[A-Za-z0-9]` with `-`. Names longer than 200 characters are cut to 200 characters plus `-` and a hash, so they are matched by prefix.
 - The encoding is lossy: `a.b` and `a-b` collide, and every Turkish letter becomes `-`. Each session file's first recorded `"cwd"` is therefore read (and cached) and compared case-insensitively with the target folder.
 - If the store does not exist at all, the result is *unknown* and nothing is dimmed. If it exists but has no sessions for the folder, Continue and Resume are dimmed.
-- The Resume slice expands into the five newest sessions. Their titles come from the session file: a title the user gave (`custom-title`), else Claude Code's latest generated title (`ai-title`), else an old-style `summary`, else the first real prompt. Only the first and last 256 KB of a file are read.
+- `RecentFolders` lists the folders worked in most recently across the whole store (for Recent Projects), each with its session count and latest session. Folders that no longer exist and folders under the temp folder are left out.
+- The Resume slice and a recent project expand into their five newest sessions, but only when there are at least two. Their titles come from the session file: a title the user gave (`custom-title`), else Claude Code's latest generated title (`ai-title`), else an old-style `summary`, else the first real prompt. Only the first and last 256 KB of a file are read.
 - This is an internal format of another program: any failure means "no hints", never an error.
 
 ## Settings
 
 - `%APPDATA%\Rondel\settings.json`. The file is watched, so edits apply without a restart; saves are atomic, and an unreadable file is backed up before it is overwritten.
 - Comments and trailing commas are accepted. Non-ASCII characters are written as they are, so Turkish paths stay readable. Icons are Segoe Fluent Icons code points in hex (`"E8F4"`).
-- The schema is versioned and starts at **1**. **Changing a default requires a migration**, applied only where the user still has the old default.
+- The schema is versioned and is at **2**. **Changing a default requires a migration**, applied only where the user still has the old default: version 2 added Recent Projects to the desktop menu only where that menu was still the 0.1.0 default.
 
-Shape of version 1 (abridged):
+Shape of version 2 (abridged):
 
 ```jsonc
 {
-  "SchemaVersion": 1,
+  "SchemaVersion": 2,
   "Language": "auto",                       // "auto", "en" or "tr"
   "ProjectsRoot": "%USERPROFILE%\\Projects",
   "HoldMs": 300,
@@ -100,10 +101,11 @@ Shape of version 1 (abridged):
   ],
   "Actions": [
     { "Id": "continue", "Label": "@Action.Continue", "Icon": "E768", "Capability": "Continue", "Hint": "LastSession" },
-    { "Id": "plan", "Label": "Plan", "Icon": "E8FD", "Capability": "Open", "ExtraArgs": ["--permission-mode", "plan"] }
+    { "Id": "plan", "Label": "Plan", "Icon": "E8FD", "Capability": "Open", "ExtraArgs": ["--permission-mode", "plan"] },
+    { "Id": "recents", "Label": "@Action.Recents", "Icon": "E823", "Capability": "ResumeById", "Source": "RecentProjects" }
   ],
   "Menus": {
-    "DesktopEmpty": ["new-project", "new-prompt"],
+    "DesktopEmpty": ["new-project", "new-prompt", "recents"],
     "ExplorerEmpty": ["new-project", "new-prompt", "open-here", "continue-here", "resume-here"],
     "FolderItem": ["open", "continue", "resume"]
   }
