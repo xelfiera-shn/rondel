@@ -55,6 +55,7 @@ What every platform gets, with a mark per platform. A Linux column is added when
 | C-21 | Update notification | ⬜ | ⬜ | |
 | C-22 | First-run hint that explains the gesture | ⬜ | ⬜ | |
 | C-23 | Pick up where you left off: a desktop slice that resumes the latest project's last session | ⏸️ | ⏸️ | Parked; to be decided later |
+| C-24 | Active agents: a notification when an agent asks something or finishes, and clicking it brings that session's terminal to the front; an Active Agents arc on the desktop with a status dot per session (working, waiting for you, done) and a shortcut that opens it anywhere | 🔄 xelfiera-shn | ⬜ | Sessions started from Rondel, through Claude Code's hooks. Spike first: hooks reaching Rondel, bringing the right terminal window to the front |
 
 ## Windows
 
@@ -88,7 +89,6 @@ Kept by the macOS side. The first rows are the steps of [macos.md](https://githu
 Not agreed yet. Once an idea is agreed, it moves into one of the lists above with an ID.
 
 - Saved prompts: an arc of ready-made prompts (review, write tests, explain) next to Ask.
-- Notifications when an agent finishes or waits for input, through Claude Code's hooks.
 - Parallel sessions: start in a git worktree or in the background, and open the agents view.
 - More agent profiles: Codex CLI, Gemini CLI.
 - A menu editor in Settings, instead of editing `settings.json`.
