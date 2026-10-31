@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Threading;
 using Rondel.Core;
+using Rondel.Core.Activity;
 using Rondel.Core.Context;
 using Rondel.Core.Flow;
 using Rondel.Core.Localization;
@@ -23,7 +24,7 @@ namespace Rondel.Windows;
 /// them to the shared <see cref="MenuFlow"/>. IGestureSink callbacks arrive on the hook thread and are only
 /// forwarded from here.
 /// </summary>
-internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
+internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 {
     readonly Dispatcher _ui = Dispatcher.CurrentDispatcher;
     readonly TrayHost _tray;
@@ -48,7 +49,11 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         _worker = new DetectionWorker();
         _detector = new ShellContextDetector(() => Store.Current);
         _hook = new MouseHook(this, settings.HoldMs, settings.Paused);
-        _flow = new MenuFlow(this, new WindowsTerminalLauncher(), new FolderNameValidator(), () => Store.Current, change => Store.Update(change));
+        // Developer aids work on a copy of the settings and leave the real agents' windows alone.
+        _agentWindows = new AgentWindows(settingsDirectory is null ? AgentWindowsFile : null);
+        _hooks = new HookServer(_activity);
+        _flow = new MenuFlow(this, new WindowsTerminalLauncher(_agentWindows), new FolderNameValidator(), () => Store.Current,
+            change => Store.Update(change), activity: _activity);
     }
 
     public SettingsStore Store { get; }
@@ -66,7 +71,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
             if (external)
                 _settingsWindow?.LoadValues();
         };
-        Store.LoadFailed += _ => _tray.ShowBalloon(AppInfo.Name, Loc.Get("Tray.SettingsInvalid"), warning: true);
+        Store.LoadFailed += _ => ShowBalloon(AppInfo.Name, Loc.Get("Tray.SettingsInvalid"), warning: true);
 
         _menu.ItemInvoked += _flow.Invoke;
         _menu.MenuClosed += _hook.NotifyMenuClosed;
@@ -83,11 +88,12 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
 
         _hook.Start();
         if (!_hook.IsInstalled)
-            _tray.ShowBalloon(AppInfo.Name, Loc.Get("Tray.HookFailed"), warning: true);
+            ShowBalloon(AppInfo.Name, Loc.Get("Tray.HookFailed"), warning: true);
 
         ApplySettings(Store.Current);
+        StartFollowingAgents();
         if (Store.LoadError is not null)
-            _tray.ShowBalloon(AppInfo.Name, Loc.Get("Tray.SettingsInvalid"), warning: true);
+            ShowBalloon(AppInfo.Name, Loc.Get("Tray.SettingsInvalid"), warning: true);
 
         Log.Info($"{AppInfo.Name} {AppInfo.Version} started (Windows {Environment.OSVersion.Version}, UI culture {System.Globalization.CultureInfo.CurrentUICulture.Name}, language {Loc.Language})");
     }
@@ -261,7 +267,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
 
     void IMenuHost.StartNewProject(NewProjectSpec spec) => _menu.StartNewProject(spec);
 
-    void IMenuHost.ShowWarning(string message) => _tray.ShowBalloon(AppInfo.Name, message, warning: true);
+    void IMenuHost.ShowWarning(string message) => ShowBalloon(AppInfo.Name, message, warning: true);
 
     // ---- tray / settings ----
 
@@ -331,6 +337,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
 
     public void Dispose()
     {
+        StopFollowingAgents();
         _hook.Dispose();
         _worker.Dispose();
         _tray.Dispose();

@@ -64,6 +64,8 @@ Windows 11 Home's start page has no `UIItemsView`, so it does not trigger.
 - `AllowSetForegroundWindow(ASFW_ANY)` lets an already-running Windows Terminal bring its new tab to the front.
 - "Command not found" is reported inside the terminal in the user's language. There is no hard pre-check, because aliases from the PowerShell profile are valid commands.
 - The whole command line must stay below `CreateProcess`'s 32,767-character limit (a margin is kept).
+- **Followed agents** (see [architecture.md](architecture.md#following-agents)) get a Windows Terminal window of their own, named `rondel-<id>` (`wt -w rondel-<id> …`), even when Windows Terminal is set to open new tabs in an existing window: a tab cannot be brought to the front from outside. Right after the launch Rondel looks for the one terminal window that was not there before and remembers it in `%LOCALAPPDATA%\Rondel\agent-windows.txt`, so a restarted Rondel still knows it. A notification's click brings it to the front with `wt -w rondel-<id> focus-tab -t 0`, which works even when Rondel may not take the foreground itself. That command opens a new, empty window when no window has the name, so it is only sent while the remembered window is open; a console window is brought to the front with `SetForegroundWindow`. A console window that Windows hands to a tab of an open Windows Terminal window has no window of its own and cannot be brought to the front.
+- Notifications use the tray icon's balloons, which Windows shows as toasts; a click on one arrives as `NIN_BALLOONUSERCLICK`. None is shown while the agent's window is the active window.
 
 ## Radial menu window
 
