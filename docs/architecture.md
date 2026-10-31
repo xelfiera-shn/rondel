@@ -73,6 +73,7 @@ Claude Code keeps each session as `~/.claude/projects/<encoded folder>/<session 
 - The folder encoding replaces every UTF-16 code unit outside `[A-Za-z0-9]` with `-`. Names longer than 200 characters are cut to 200 characters plus `-` and a hash, so they are matched by prefix.
 - The encoding is lossy: `a.b` and `a-b` collide, and every Turkish letter becomes `-`. Each session file's first recorded `"cwd"` is therefore read (and cached) and compared case-insensitively with the target folder.
 - If the store does not exist at all, the result is *unknown* and nothing is dimmed. If it exists but has no sessions for the folder, Continue and Resume are dimmed.
+- The Resume slice expands into the five newest sessions. Their titles come from the session file: a title the user gave (`custom-title`), else Claude Code's latest generated title (`ai-title`), else an old-style `summary`, else the first real prompt. Only the first and last 256 KB of a file are read.
 - This is an internal format of another program: any failure means "no hints", never an error.
 
 ## Settings
@@ -133,6 +134,7 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 | `--launch-now FOLDER COMMAND prompt.txt` | Launches like the menu does, with COMMAND instead of the configured one. |
 | `--export-icon out.ico` | Writes the application icon. |
 | `--show-menu [input [text]]` | Starts normally and opens the menu at the cursor without the gesture; `input` continues into the New + Prompt card. |
+| `--render-menu out.png [dark\|light] [en\|tr] [idle] [FOLDER]` | Draws the Explorer menu for a folder (with its real session hints and recent sessions) into a PNG, the first expandable slice opened unless `idle`. |
 
 ## Fixed identifiers
 

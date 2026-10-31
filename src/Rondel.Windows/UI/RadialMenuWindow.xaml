@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Rondel"
-        Width="440" Height="440"
+        Width="600" Height="600"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" ShowInTaskbar="False" Topmost="True" ShowActivated="False"
         UseLayoutRounding="True"
@@ -19,7 +19,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
                         <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8">
                             <Grid>
                                 <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" Focusable="False"
                                               HorizontalScrollBarVisibility="Hidden"
@@ -47,39 +47,53 @@
             <ScaleTransform x:Name="SurfaceScale" ScaleX="1" ScaleY="1" />
         </Grid.RenderTransform>
 
-        <Grid x:Name="MenuRoot" Width="328" Height="328"
-              HorizontalAlignment="Center" VerticalAlignment="Center"
-              Focusable="True" FocusVisualStyle="{x:Null}">
+        <!-- The stage is the whole window; every shape is placed around its center (300, 300). -->
+        <Grid x:Name="MenuRoot" Width="600" Height="600" Focusable="True" FocusVisualStyle="{x:Null}">
 
-            <!-- Full disc under everything, so there is no transparent gap that clicks could fall through. -->
-            <Ellipse x:Name="RingBase" Width="328" Height="328" StrokeThickness="1">
+            <!-- Full disc under the slices, so the gaps between them never let a click fall through. -->
+            <Ellipse x:Name="RingBase" Width="336" Height="336" StrokeThickness="1"
+                     HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Ellipse.Effect>
-                    <DropShadowEffect x:Name="RingShadow" BlurRadius="26" ShadowDepth="5" Direction="270" Color="Black" Opacity="0.4" />
+                    <DropShadowEffect x:Name="RingShadow" BlurRadius="30" ShadowDepth="6" Direction="270" Color="Black" Opacity="0.4" />
                 </Ellipse.Effect>
             </Ellipse>
 
-            <Canvas x:Name="SliceLayer" Width="328" Height="328" IsHitTestVisible="False" />
+            <Canvas x:Name="SliceLayer" Width="600" Height="600" IsHitTestVisible="False" />
 
-            <Ellipse x:Name="CenterDisc" Width="116" Height="116" StrokeThickness="1" IsHitTestVisible="False" />
+            <!-- Hub: a thin brand-colored ring around the center disc. -->
+            <Ellipse x:Name="HubRing" Width="114" Height="114" StrokeThickness="1.6" IsHitTestVisible="False"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <Ellipse x:Name="Hub" Width="104" Height="104" IsHitTestVisible="False"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" />
 
-            <StackPanel x:Name="CenterContent" Width="98" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+            <StackPanel x:Name="CenterContent" Width="88" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
                 <TextBlock x:Name="CenterGlyph" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18"
                            HorizontalAlignment="Center" Margin="0,0,0,3" Text="&#xE8B7;" />
                 <TextBlock x:Name="CenterTitle" FontSize="12.5" FontWeight="SemiBold" TextAlignment="Center"
                            TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="34" />
                 <TextBlock x:Name="CenterSubtitle" FontSize="10.5" TextAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,1,0,0" />
             </StackPanel>
+
+            <!-- An expanded slice's items, on an arc outside the ring centered on that slice. -->
+            <Canvas x:Name="ChildLayer" Width="600" Height="600" IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5">
+                <Canvas.RenderTransform>
+                    <ScaleTransform x:Name="ChildScale" ScaleX="1" ScaleY="1" />
+                </Canvas.RenderTransform>
+                <Canvas.Effect>
+                    <DropShadowEffect x:Name="ChildShadow" BlurRadius="22" ShadowDepth="4" Direction="270" Color="Black" Opacity="0.35" />
+                </Canvas.Effect>
+            </Canvas>
         </Grid>
 
         <!-- The menu center expands into this card for "New Project" / "New + Prompt". -->
         <Border x:Name="InputCard" Width="360" HorizontalAlignment="Center" VerticalAlignment="Center"
-                CornerRadius="12" BorderThickness="1" Padding="16,14,16,12" Visibility="Collapsed"
+                CornerRadius="14" BorderThickness="1.2" Padding="16,14,16,12" Visibility="Collapsed"
                 RenderTransformOrigin="0.5,0.5">
             <Border.RenderTransform>
                 <ScaleTransform x:Name="InputScale" ScaleX="1" ScaleY="1" />
             </Border.RenderTransform>
             <Border.Effect>
-                <DropShadowEffect x:Name="CardShadow" BlurRadius="26" ShadowDepth="5" Direction="270" Color="Black" Opacity="0.4" />
+                <DropShadowEffect x:Name="CardShadow" BlurRadius="30" ShadowDepth="6" Direction="270" Color="Black" Opacity="0.4" />
             </Border.Effect>
             <StackPanel>
                 <StackPanel Orientation="Horizontal">

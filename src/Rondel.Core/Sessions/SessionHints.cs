@@ -15,7 +15,7 @@ public static class SessionHints
         {
             SessionHint.LastSession => (none || sessions.LastActivityUtc is null
                 ? Loc.Get("Hint.NoSessions")
-                : Loc.Format("Hint.Last", RelativeTime.Describe(sessions.LastActivityUtc.Value)), none),
+                : RelativeTime.Describe(sessions.LastActivityUtc.Value), none),
             SessionHint.SessionCount => (none ? Loc.Get("Hint.NoSessions")
                 : sessions.Count == 1 ? Loc.Get("Hint.OneSession")
                 : Loc.Format("Hint.Sessions", sessions.Count), none),

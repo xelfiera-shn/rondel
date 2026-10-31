@@ -6,34 +6,43 @@ using Rondel.Windows.Interop;
 
 namespace Rondel.Windows.UI;
 
-/// <summary>Draws the app icon (four ring segments around a dot) at any pixel size.</summary>
+/// <summary>
+/// Draws the app icon at any pixel size: four ring segments in the brand gradient around a hub, the
+/// top one lifted outward like a selected slice. Paused draws the same shape in gray.
+/// </summary>
 internal static class AppIconRenderer
 {
-    static readonly Color Active = Color.FromRgb(0xD9, 0x77, 0x57);
+    static readonly Color BrandFrom = Color.FromRgb(0x2D, 0xD4, 0xBF);
+    static readonly Color BrandTo = Color.FromRgb(0x8B, 0x5C, 0xF6);
     static readonly Color Paused = Color.FromRgb(0x8C, 0x8C, 0x8C);
 
     public static BitmapSource Render(int px, bool paused = false)
     {
-        var brush = new SolidColorBrush(paused ? Paused : Active);
+        Brush brush = paused
+            ? new SolidColorBrush(Paused)
+            : new LinearGradientBrush(BrandFrom, BrandTo, new Point(0, 0), new Point(px, px)) { MappingMode = BrushMappingMode.Absolute }; // one gradient across the whole icon
         brush.Freeze();
         double c = px / 2.0;
-        double thickness = Math.Max(1.6, px * 0.16);
-        double radius = px * 0.47 - thickness / 2;
-        var pen = new Pen(brush, thickness);
-        pen.Freeze();
+        double thickness = Math.Max(1.8, px * 0.16);
+        double radius = px * 0.40 - thickness / 2;
+        double lift = Math.Max(0.8, px * 0.06);
 
         var visual = new DrawingVisual();
         using (var dc = visual.RenderOpen())
         {
             for (int i = 0; i < 4; i++)
             {
-                double start = i * 90 - 45 + 13;
-                double end = start + 64;
-                var figure = new PathFigure { StartPoint = OnCircle(c, radius, start) };
-                figure.Segments.Add(new ArcSegment(OnCircle(c, radius, end), new Size(radius, radius), 0, false, SweepDirection.Clockwise, true));
+                double mid = i * 90;
+                double r = i == 0 ? radius + lift : radius;
+                var pen = new Pen(brush, thickness) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+                pen.Freeze();
+                var figure = new PathFigure { StartPoint = OnCircle(c, r, mid - 27) };
+                figure.Segments.Add(new ArcSegment(OnCircle(c, r, mid + 27), new Size(r, r), 0, false, SweepDirection.Clockwise, true));
+                dc.PushOpacity(i == 0 ? 1 : 0.78);
                 dc.DrawGeometry(null, pen, new PathGeometry([figure]));
+                dc.Pop();
             }
-            dc.DrawEllipse(brush, null, new Point(c, c), px * 0.15, px * 0.15);
+            dc.DrawEllipse(brush, null, new Point(c, c), px * 0.11, px * 0.11);
         }
 
         var bitmap = new RenderTargetBitmap(px, px, 96, 96, PixelFormats.Pbgra32);

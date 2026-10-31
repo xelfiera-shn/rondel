@@ -1,111 +1,117 @@
+using System.Windows;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using Microsoft.Win32;
 
 namespace Rondel.Windows.UI;
 
-/// <param name="AccentForDark">Accent shade Windows uses on dark surfaces (AccentLight2).</param>
-/// <param name="AccentForLight">Accent shade Windows uses on light surfaces (AccentDark1).</param>
-internal sealed record ThemeColors(bool IsDark, Color AccentForDark, Color AccentForLight)
-{
-    public Color Accent => IsDark ? AccentForDark : AccentForLight;
-}
+internal sealed record ThemeColors(bool IsDark);
 
-/// <summary>Reads the app light/dark mode and the accent color the same way on Windows 10 and 11.</summary>
+/// <summary>Reads the app light/dark mode the same way on Windows 10 and 11.</summary>
 internal static class SystemTheme
 {
-    static readonly Color FallbackAccent = Color.FromRgb(0x00, 0x78, 0xD4);
-
     public static ThemeColors Read()
     {
-        bool dark = false;
-        Color forDark = Lighten(FallbackAccent), forLight = FallbackAccent;
         try
         {
-            using (var personalize = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))
-                dark = personalize?.GetValue("AppsUseLightTheme") is int light && light == 0;
-
-            using var accent = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Explorer\Accent");
-            if (accent?.GetValue("AccentPalette") is byte[] { Length: >= 32 } palette)
-            {
-                // 8 RGBA entries: Light3, Light2, Light1, Base, Dark1, Dark2, Dark3, ...
-                forDark = Color.FromRgb(palette[4], palette[5], palette[6]);
-                forLight = Color.FromRgb(palette[16], palette[17], palette[18]);
-            }
-            else if (accent?.GetValue("AccentColorMenu") is int abgr)
-            {
-                forLight = Color.FromRgb((byte)abgr, (byte)(abgr >> 8), (byte)(abgr >> 16));
-                forDark = Lighten(forLight);
-            }
+            using var personalize = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            return new ThemeColors(personalize?.GetValue("AppsUseLightTheme") is int light && light == 0);
         }
         catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
         {
+            return new ThemeColors(false);
         }
-        return new ThemeColors(dark, forDark, forLight);
     }
-
-    static Color Lighten(Color c) =>
-        Color.FromRgb((byte)(c.R + (255 - c.R) * 0.45), (byte)(c.G + (255 - c.G) * 0.45), (byte)(c.B + (255 - c.B) * 0.45));
 }
 
-/// <summary>Brushes for the radial menu; an "acrylic-like" tinted surface drawn by WPF itself.</summary>
-internal sealed class RadialPalette
+/// <summary>
+/// Rondel's own colors, independent of the Windows accent. Ink surfaces carry the content; the brand
+/// pair (teal → violet) marks whatever is active: the lit rim of the hovered slice, the hub ring and
+/// the arrow of a slice that expands.
+/// </summary>
+internal sealed class RondelPalette
 {
-    public required Brush Ring { get; init; }
+    public required Color BrandFrom { get; init; }
+    public required Color BrandTo { get; init; }
+    public required Brush RingFill { get; init; }
     public required Brush RingStroke { get; init; }
-    public required Brush Center { get; init; }
-    public required Brush CenterStroke { get; init; }
-    public required Brush Separator { get; init; }
-    public required Brush Hover { get; init; }
-    public required Brush HoverText { get; init; }
+    public required Brush TileFill { get; init; }
+    public required Brush TileStroke { get; init; }
+    public required Brush RimIdle { get; init; }
+    public required Color WashInner { get; init; }
+    public required Color WashOuter { get; init; }
     public required Brush Text { get; init; }
     public required Brush SubText { get; init; }
+    public required Brush HubFill { get; init; }
     public required Brush Card { get; init; }
-    public required Brush CardStroke { get; init; }
     public required Brush InputBackground { get; init; }
     public required Brush Error { get; init; }
     public required double ShadowOpacity { get; init; }
 
-    public static RadialPalette From(ThemeColors theme) => theme.IsDark
-        ? new RadialPalette
+    public Brush Accent => Freeze(new SolidColorBrush(BrandFrom));
+
+    /// <summary>Brand gradient across an element's own bounds (hub ring, card border, icons).</summary>
+    public Brush Brand => Freeze(new LinearGradientBrush(BrandFrom, BrandTo, new Point(0, 0), new Point(1, 1)));
+
+    /// <summary>Nearly transparent fill: invisible, but makes an area receive the mouse in the layered window.</summary>
+    public static Brush Catcher { get; } = Freeze(new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)));
+
+    /// <summary>Soft brand-colored glow around lit elements.</summary>
+    public Effect Glow => Freeze(new DropShadowEffect { Color = BrandFrom, BlurRadius = 14, ShadowDepth = 0, Opacity = 0.9 });
+
+    /// <summary>Brand gradient between two points in canvas coordinates (e.g. along a slice's rim).</summary>
+    public Brush BrandBetween(Point from, Point to) =>
+        Freeze(new LinearGradientBrush(BrandFrom, BrandTo, from, to) { MappingMode = BrushMappingMode.Absolute });
+
+    /// <summary>Hover wash that deepens from the inner to the outer edge of a slice.</summary>
+    public Brush WashBetween(Point inner, Point outer) =>
+        Freeze(new LinearGradientBrush(WashInner, WashOuter, inner, outer) { MappingMode = BrushMappingMode.Absolute });
+
+    public static RondelPalette For(ThemeColors theme) => theme.IsDark
+        ? new RondelPalette
         {
-            Ring = Solid(0xF2, 0x24, 0x24, 0x26),
-            RingStroke = Solid(0x38, 0xFF, 0xFF, 0xFF),
-            Center = Solid(0xFF, 0x30, 0x30, 0x33),
-            CenterStroke = Solid(0x24, 0xFF, 0xFF, 0xFF),
-            Separator = Solid(0x1F, 0xFF, 0xFF, 0xFF),
-            Hover = Freeze(new SolidColorBrush(theme.Accent)),
-            HoverText = Solid(0xFF, 0x00, 0x00, 0x00),
-            Text = Solid(0xFF, 0xFF, 0xFF, 0xFF),
-            SubText = Solid(0xA8, 0xFF, 0xFF, 0xFF),
-            Card = Solid(0xFF, 0x2B, 0x2B, 0x2E),
-            CardStroke = Solid(0x33, 0xFF, 0xFF, 0xFF),
-            InputBackground = Solid(0xFF, 0x1E, 0x1E, 0x20),
-            Error = Solid(0xFF, 0xFF, 0x99, 0xA4),
-            ShadowOpacity = 0.5,
+            BrandFrom = Color.FromRgb(0x2D, 0xD4, 0xBF),
+            BrandTo = Color.FromRgb(0xA7, 0x8B, 0xFA),
+            RingFill = Solid(0xF0, 0x10, 0x12, 0x19),
+            RingStroke = Solid(0x1A, 0xFF, 0xFF, 0xFF),
+            TileFill = Solid(0xFF, 0x18, 0x1B, 0x26),
+            TileStroke = Solid(0x10, 0xFF, 0xFF, 0xFF),
+            RimIdle = Solid(0x16, 0xFF, 0xFF, 0xFF),
+            WashInner = Color.FromArgb(0x00, 0x2D, 0xD4, 0xBF),
+            WashOuter = Color.FromArgb(0x40, 0x2D, 0xD4, 0xBF),
+            Text = Solid(0xFF, 0xEE, 0xF0, 0xF7),
+            SubText = Solid(0xFF, 0x8B, 0x93, 0xA7),
+            HubFill = Solid(0xFF, 0x1D, 0x21, 0x30),
+            Card = Solid(0xFF, 0x16, 0x19, 0x22),
+            InputBackground = Solid(0xFF, 0x0F, 0x11, 0x18),
+            Error = Solid(0xFF, 0xFF, 0x8A, 0x9B),
+            ShadowOpacity = 0.55,
         }
-        : new RadialPalette
+        : new RondelPalette
         {
-            Ring = Solid(0xF5, 0xF9, 0xF9, 0xFA),
-            RingStroke = Solid(0x1F, 0x00, 0x00, 0x00),
-            Center = Solid(0xFF, 0xFF, 0xFF, 0xFF),
-            CenterStroke = Solid(0x17, 0x00, 0x00, 0x00),
-            Separator = Solid(0x14, 0x00, 0x00, 0x00),
-            Hover = Freeze(new SolidColorBrush(theme.Accent)),
-            HoverText = Solid(0xFF, 0xFF, 0xFF, 0xFF),
-            Text = Solid(0xE6, 0x00, 0x00, 0x00),
-            SubText = Solid(0x8F, 0x00, 0x00, 0x00),
-            Card = Solid(0xFF, 0xFB, 0xFB, 0xFB),
-            CardStroke = Solid(0x1F, 0x00, 0x00, 0x00),
-            InputBackground = Solid(0xFF, 0xFF, 0xFF, 0xFF),
-            Error = Solid(0xFF, 0xC4, 0x2B, 0x1C),
-            ShadowOpacity = 0.28,
+            BrandFrom = Color.FromRgb(0x0D, 0x94, 0x88),
+            BrandTo = Color.FromRgb(0x7C, 0x3A, 0xED),
+            RingFill = Solid(0xF5, 0xEC, 0xEE, 0xF5),
+            RingStroke = Solid(0x14, 0x00, 0x00, 0x00),
+            TileFill = Solid(0xFF, 0xFF, 0xFF, 0xFF),
+            TileStroke = Solid(0x12, 0x0B, 0x10, 0x20),
+            RimIdle = Solid(0x14, 0x0B, 0x10, 0x20),
+            WashInner = Color.FromArgb(0x00, 0x0D, 0x94, 0x88),
+            WashOuter = Color.FromArgb(0x2E, 0x0D, 0x94, 0x88),
+            Text = Solid(0xFF, 0x16, 0x1A, 0x26),
+            SubText = Solid(0xFF, 0x6A, 0x71, 0x84),
+            HubFill = Solid(0xFF, 0xFF, 0xFF, 0xFF),
+            Card = Solid(0xFF, 0xFF, 0xFF, 0xFF),
+            InputBackground = Solid(0xFF, 0xF4, 0xF5, 0xF9),
+            Error = Solid(0xFF, 0xC4, 0x31, 0x4B),
+            ShadowOpacity = 0.25,
         };
 
     static Brush Solid(byte a, byte r, byte g, byte b) => Freeze(new SolidColorBrush(Color.FromArgb(a, r, g, b)));
 
-    static Brush Freeze(Brush brush)
+    static T Freeze<T>(T freezable) where T : Freezable
     {
-        brush.Freeze();
-        return brush;
+        freezable.Freeze();
+        return freezable;
     }
 }

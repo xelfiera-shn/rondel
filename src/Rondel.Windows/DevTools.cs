@@ -1,9 +1,11 @@
 using System.Text;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Rondel.Core.Agents;
 using Rondel.Core.Agents.ClaudeCode;
 using Rondel.Core.Context;
 using Rondel.Core.Launch;
+using Rondel.Core.Localization;
 using Rondel.Core.Logging;
 using Rondel.Core.Menus;
 using Rondel.Core.Sessions;
@@ -24,6 +26,7 @@ namespace Rondel.Windows;
 /// --launch-script FOLDER COMMAND PROMPT.txt out.ps1   the PowerShell script a launch would run
 /// --launch-now FOLDER COMMAND PROMPT.txt     launch exactly like the menu, with COMMAND instead of the configured one
 /// --export-icon out.ico                      write the app icon (used for the exe)
+/// --render-menu out.png [dark|light] [en|tr] [idle] [FOLDER]   draw the Explorer menu for FOLDER (default: current folder)
 /// </code>
 /// </summary>
 internal static class DevTools
@@ -56,6 +59,10 @@ internal static class DevTools
 
             case ["--export-icon", var output]:
                 ExportIcon(output);
+                return true;
+
+            case ["--render-menu", var output, .. var options]:
+                RenderMenu(output, options);
                 return true;
 
             default:
@@ -164,6 +171,42 @@ internal static class DevTools
         writer.Write(new byte[maskStride * size]);
         writer.Flush();
         return frame.ToArray();
+    }
+
+    /// <summary>
+    /// Draws the Explorer menu for a folder with its real session hints and recent sessions: the first
+    /// expandable slice hovered and opened, or nothing hovered with "idle".
+    /// </summary>
+    static void RenderMenu(string output, string[] options)
+    {
+        bool dark = !options.Contains("light", StringComparer.OrdinalIgnoreCase);
+        Loc.SetLanguage(options.Contains("tr", StringComparer.OrdinalIgnoreCase) ? "tr" : "en");
+        string folder = options.FirstOrDefault(o => o.Contains('\\') || o.Contains('/')) ?? Environment.CurrentDirectory;
+        var settings = new AppSettings();
+        settings.Normalize();
+        var context = new TriggerContext(ContextKind.ExplorerEmpty, folder, Path.GetFileName(folder), "render-menu");
+        var model = MenuBuilder.Build(context, settings);
+
+        var hints = new List<(string?, bool)>();
+        var children = new List<IReadOnlyList<MenuItemModel>>();
+        foreach (var item in model.Items)
+        {
+            var store = SessionStores.Get(item.Agent.Sessions);
+            hints.Add(SessionHints.Describe(item.Action.Hint, store?.Lookup(folder)));
+            children.Add(store is not null && MenuBuilder.CanExpand(item)
+                ? MenuBuilder.SessionItems(item, store.Recent(folder, MenuBuilder.MaxSessionItems))
+                : []);
+        }
+        int hover = options.Contains("idle", StringComparer.OrdinalIgnoreCase) ? -1 : children.FindIndex(c => c.Count > 0);
+
+        var window = new RadialMenuWindow();
+        var background = dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6);
+        var bitmap = window.RenderPreview(model, new ThemeColors(dark), hints, children, hover, hover >= 0 ? 0 : -1, background);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var file = File.Create(output);
+        encoder.Save(file);
+        window.Close();
     }
 
     static void Write(string path, string text) => File.WriteAllText(path, text, new UTF8Encoding(true));
