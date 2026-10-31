@@ -27,6 +27,7 @@ namespace Rondel.Windows;
 /// --launch-now FOLDER COMMAND PROMPT.txt     launch exactly like the menu, with COMMAND instead of the configured one
 /// --export-icon out.ico                      write the app icon (used for the exe)
 /// --render-menu out.png [dark|light] [en|tr] [idle] [edge] [FOLDER]   draw the Explorer menu for FOLDER (default: current folder)
+/// --render-settings out.png [en|tr]          draw the settings window (in the current Windows theme)
 /// </code>
 /// </summary>
 internal static class DevTools
@@ -63,6 +64,10 @@ internal static class DevTools
 
             case ["--render-menu", var output, .. var options]:
                 RenderMenu(output, options);
+                return true;
+
+            case ["--render-settings", var output, .. var options]:
+                RenderSettings(output, options);
                 return true;
 
             default:
@@ -207,6 +212,40 @@ internal static class DevTools
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var file = File.Create(output);
         encoder.Save(file);
+        window.Close();
+    }
+
+    /// <summary>
+    /// Draws the settings window with the current settings. The host is created but not started:
+    /// no mouse hook, no tray icon, and a running Rondel is left alone.
+    /// </summary>
+    static void RenderSettings(string output, string[] options)
+    {
+        bool dark = SystemTheme.Read().IsDark; // the window takes its theme at construction
+        using var host = new AppHost();
+        Loc.SetLanguage(options.Contains("tr", StringComparer.OrdinalIgnoreCase) ? "tr" : "en");
+        var window = new SettingsWindow(host)
+        {
+            WindowStartupLocation = System.Windows.WindowStartupLocation.Manual,
+            Left = -32000,
+            Top = -32000,
+            ShowActivated = false,
+        };
+        window.Show();
+        window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+
+        var content = (System.Windows.FrameworkElement)window.Content;
+        var size = new System.Windows.Size(content.ActualWidth, content.ActualHeight);
+        var backdrop = new DrawingVisual();
+        using (var dc = backdrop.RenderOpen())
+            dc.DrawRectangle(new SolidColorBrush(dark ? Color.FromRgb(0x20, 0x20, 0x20) : Color.FromRgb(0xF3, 0xF3, 0xF3)), null, new System.Windows.Rect(size));
+        var bitmap = new RenderTargetBitmap((int)(size.Width * 2), (int)(size.Height * 2), 192, 192, PixelFormats.Pbgra32);
+        bitmap.Render(backdrop);
+        bitmap.Render(content);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using (var file = File.Create(output))
+            encoder.Save(file);
         window.Close();
     }
 

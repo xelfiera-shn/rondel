@@ -29,6 +29,7 @@ static class Strings
         ["Action.Resume"] = "Resume",
 
         ["Settings.Title"] = "Rondel Settings",
+        ["Settings.Tagline"] = "A radial launcher for AI coding agents",
         ["Settings.General"] = "General",
         ["Settings.Language"] = "Language",
         ["Settings.Language.Desc"] = "Language of menus and settings.",
@@ -137,6 +138,7 @@ static class Strings
         ["Action.Resume"] = "Oturum Seç",
 
         ["Settings.Title"] = "Rondel Ayarları",
+        ["Settings.Tagline"] = "Yapay zekâ kodlama ajanları için dairesel başlatıcı",
         ["Settings.General"] = "Genel",
         ["Settings.Language"] = "Dil",
         ["Settings.Language.Desc"] = "Menülerin ve ayarların dili.",

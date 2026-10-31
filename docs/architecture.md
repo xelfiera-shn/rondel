@@ -135,6 +135,7 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 | `--export-icon out.ico` | Writes the application icon. |
 | `--show-menu [input [text]]` | Starts normally and opens the menu at the cursor without the gesture; `input` continues into the New + Prompt card. |
 | `--render-menu out.png [dark\|light] [en\|tr] [idle] [edge] [FOLDER]` | Draws the Explorer menu for a folder (with its real session hints and recent sessions) into a PNG, the first expandable slice opened unless `idle`; `edge` places the menu against the left edge of the screen. |
+| `--render-settings out.png [en\|tr]` | Draws the settings window (current Windows theme) into a PNG; a running Rondel is not touched. |
 
 ## Fixed identifiers
 
