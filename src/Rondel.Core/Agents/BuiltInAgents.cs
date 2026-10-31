@@ -26,5 +26,6 @@ public static class BuiltInAgents
             [nameof(AgentCapability.Prompt)] = ["{prompt}"],
         },
         Sessions = ClaudeCodeSessionStore.Id,
+        FileMention = "@{file}",
     };
 }

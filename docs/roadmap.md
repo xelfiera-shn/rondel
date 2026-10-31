@@ -32,7 +32,7 @@ Verified for 0.1.0:
 
 - ~~In-menu session list (`--resume <id>`)~~ — shipped in 0.1.0 as the Resume arc.
 - **0.2.0 — Recents** (done, ships with 0.2.0): a desktop-menu slice that opens into the five most recently worked-on project folders. Clicking a project resumes its latest session; a project with two or more sessions opens further into them. The Resume slice and project items only expand when there are at least two sessions.
-- File context: "ask about this file" with an @-mention of the file.
+- **0.3.0 — Ask and files** (done): a menu for files (Ask About This File, which starts the prompt with an @-mention of the file, plus Open, Continue and Resume in its folder), and Ask slices that start a session in an existing folder with a prompt. Selecting several files is left for later.
 - New-project templates (git init, agent instruction file).
 - A modifier key for an alternate mode (for example Shift for plan mode).
 - WSL paths.

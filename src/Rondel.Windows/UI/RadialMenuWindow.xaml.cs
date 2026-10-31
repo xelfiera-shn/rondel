@@ -216,7 +216,7 @@ public partial class RadialMenuWindow : Window
         SetCenterTitle(model.Title);
         CenterSubtitle.Text = model.Subtitle ?? "";
         CenterSubtitle.Visibility = string.IsNullOrEmpty(model.Subtitle) ? Visibility.Collapsed : Visibility.Visible;
-        CenterGlyph.Text = model.Context.Kind == ContextKind.DesktopEmpty ? "" : ""; // desktop / folder
+        CenterGlyph.Text = CenterGlyphFor(model.Context.Kind);
 
         // Center on the cursor, but keep the ring and its shadow inside the monitor's work area.
         var (work, dpi) = GetMonitorWorkArea(anchor);
@@ -326,7 +326,7 @@ public partial class RadialMenuWindow : Window
         BuildSlices(model);
         SetCenterTitle(model.Title);
         CenterSubtitle.Text = model.Subtitle ?? "";
-        CenterGlyph.Text = model.Context.Kind == ContextKind.DesktopEmpty ? "" : "";
+        CenterGlyph.Text = CenterGlyphFor(model.Context.Kind);
         ApplyHints(model, hints);
         ApplyChildren(model, children, force: true);
         if (path.Count > 0)
@@ -385,6 +385,13 @@ public partial class RadialMenuWindow : Window
         }
         CenterTitle.FontSize = 12.5; // too long anyway: wrap and trim
     }
+
+    static string CenterGlyphFor(ContextKind kind) => kind switch
+    {
+        ContextKind.DesktopEmpty => "\uE7F4", // TVMonitor
+        ContextKind.FileItem => "\uE7C3",     // Page
+        _ => "\uE8B7",                        // Folder
+    };
 
     /// <summary>Inserts zero-width spaces where a long name may wrap without breaking a word.</summary>
     static string BreakableName(string name)
@@ -814,7 +821,7 @@ public partial class RadialMenuWindow : Window
 
     /// <summary>
     /// Replaces the ring with a card in the menu center that asks for a folder name and, for
-    /// "New + Prompt", then a prompt. Validation is shown inline as the user types.
+    /// "New + Prompt", then a prompt; or, for Ask, only a prompt. Validation is shown inline as the user types.
     /// </summary>
     internal void StartInput(InputSpec spec)
     {
@@ -841,7 +848,10 @@ public partial class RadialMenuWindow : Window
         InputScale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
 
         TakeFocus();
-        ShowNameStage();
+        if (spec.AskName)
+            ShowNameStage();
+        else
+            ShowPromptStage(name: null);
     }
 
     void ResetInputMode()
@@ -867,16 +877,18 @@ public partial class RadialMenuWindow : Window
         NameBox.SelectAll();
     }
 
-    void ShowPromptStage(string name)
+    /// <param name="name">The accepted folder name, or null when only a prompt is asked for.</param>
+    void ShowPromptStage(string? name)
     {
+        var input = _input!;
         _promptStage = true;
-        _acceptedName = name;
-        InputTitle.Text = $"{_input!.Title} · {name}";
-        InputLocation.Text = System.IO.Path.Combine(_input.ParentDir, name);
+        _acceptedName = name ?? "";
+        InputTitle.Text = name is null ? input.Title : $"{input.Title} · {name}";
+        InputLocation.Text = name is null ? input.Location ?? input.ParentDir : System.IO.Path.Combine(input.ParentDir, name);
         NameBox.Visibility = Visibility.Collapsed;
         PromptBox.Visibility = Visibility.Visible;
         AlignPlaceholder(PromptBox);
-        SetMessage(Loc.Get("Input.HintPrompt"), isError: false);
+        SetMessage(Loc.Get(input.AskName ? "Input.HintPrompt" : "Input.HintPromptOnly"), isError: false);
         Keyboard.Focus(PromptBox);
         PromptBox.CaretIndex = PromptBox.Text.Length;
     }
@@ -920,7 +932,7 @@ public partial class RadialMenuWindow : Window
         if (e.Key == Key.Escape)
         {
             e.Handled = true;
-            if (_promptStage)
+            if (_promptStage && input.AskName)
                 ShowNameStage();
             else
                 CloseMenu(restoreFocus: true);

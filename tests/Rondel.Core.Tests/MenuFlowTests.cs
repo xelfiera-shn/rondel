@@ -66,6 +66,42 @@ public class MenuFlowTests
         }
     }
 
+    [Fact]
+    public void AskingAboutAFileStartsInItsFolderWithTheFileMentioned()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "work");
+        string file = Path.Combine(folder, "Proje Notları.md");
+        var model = _flow.Build(new TriggerContext(ContextKind.FileItem, folder, "Proje Notları.md", "test") { FilePath = file })!;
+
+        _flow.Invoke(model, model.Items.Single(i => i.Action.Id == "ask-file"));
+        var input = Assert.IsType<InputSpec>(_host.Input);
+        Assert.False(input.AskName);
+        Assert.Equal(file, input.Location);
+
+        Assert.Null(input.Submit("", "summarize this"));
+        var plan = Assert.Single(_launcher.Plans);
+        Assert.Equal(folder, plan.Directory);
+        Assert.Equal(["@\"Proje Notları.md\" summarize this"], plan.Arguments);
+    }
+
+    [Fact]
+    public void AskingAboutAFileNeedsAFile()
+    {
+        var model = _flow.Build(new TriggerContext(ContextKind.ExplorerEmpty, Path.GetTempPath(), null, "test"))!;
+
+        Assert.DoesNotContain(model.Items, i => i.Action.MentionFile);
+    }
+
+    [Theory]
+    [InlineData("Program.cs", "@Program.cs")]
+    [InlineData("Çizelge_v2 (1).txt", "@\"Çizelge_v2 (1).txt\"")]
+    [InlineData("rapor(1).md", "@rapor(1).md")]
+    [InlineData("a&b.txt", "@\"a&b.txt\"")]
+    public void FileMentionQuotesNamesThatWouldEndEarly(string name, string expected)
+    {
+        Assert.Equal(expected, FileMention.Format("@{file}", name));
+    }
+
     sealed class FakeHost : IMenuHost
     {
         public List<string> Calls { get; } = [];
