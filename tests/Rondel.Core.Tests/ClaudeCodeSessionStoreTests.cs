@@ -77,6 +77,44 @@ public class ClaudeCodeSessionStoreTests
     }
 
     [Fact]
+    public void RecentFoldersListsTheNewestProjectsAndSkipsIgnoredAndDeletedFolders()
+    {
+        var root = Directory.CreateTempSubdirectory("rondel-tests-");
+        try
+        {
+            string projects = Path.Combine(root.FullName, "projects");
+            string ignored = Directory.CreateDirectory(Path.Combine(root.FullName, "scratch")).FullName;
+            string alpha = Directory.CreateDirectory(Path.Combine(root.FullName, "work", "alpha")).FullName;
+            string beta = Directory.CreateDirectory(Path.Combine(root.FullName, "work", "beta")).FullName;
+            string tool = Directory.CreateDirectory(Path.Combine(ignored, "tool-run")).FullName;
+            string deleted = Path.Combine(root.FullName, "work", "deleted");
+
+            void Session(string cwd, string id, TimeSpan age)
+            {
+                string folder = Directory.CreateDirectory(Path.Combine(projects, ClaudeCodeSessionStore.Encode(cwd))).FullName;
+                string file = Path.Combine(folder, id + ".jsonl");
+                File.WriteAllText(file, $"{{\"type\":\"user\",\"cwd\":{JsonSerializer.Serialize(cwd)}}}\n");
+                File.SetLastWriteTimeUtc(file, DateTime.UtcNow - age);
+            }
+            Session(alpha, "alpha-old", TimeSpan.FromDays(2));
+            Session(alpha, "alpha-new", TimeSpan.FromHours(1));
+            Session(beta, "beta-only", TimeSpan.FromHours(2));
+            Session(tool, "tool", TimeSpan.FromMinutes(5));      // under an ignored root
+            Session(deleted, "gone", TimeSpan.FromMinutes(10));  // folder no longer exists
+
+            var recent = new ClaudeCodeSessionStore(projects, ignoredRoots: [ignored]).RecentFolders(5);
+
+            Assert.Equal([alpha, beta], recent.Select(f => f.Directory));
+            Assert.Equal([2, 1], recent.Select(f => f.SessionCount));
+            Assert.Equal("alpha-new", recent[0].LatestSessionId);
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public void LookupIsUnknownWhenTheStoreDoesNotExist()
     {
         string missing = Path.Combine(Path.GetTempPath(), "rondel-tests-" + Guid.NewGuid().ToString("N"));
