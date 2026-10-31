@@ -90,7 +90,7 @@ public sealed class SettingsStore : IDisposable
                 Log.Warn($"Backed up unreadable settings to {backup}");
                 LoadError = null;
             }
-            string json = JsonSerializer.Serialize(_current, SettingsJson.Options);
+            string json = SettingsJson.Serialize(_current);
             _lastWrittenJson = json;
             string temp = FilePath + ".tmp";
             File.WriteAllText(temp, json);
@@ -109,7 +109,7 @@ public sealed class SettingsStore : IDisposable
         try
         {
             json = File.ReadAllText(FilePath);
-            settings = JsonSerializer.Deserialize<AppSettings>(json, SettingsJson.Options)
+            settings = SettingsJson.Deserialize(json)
                 ?? throw new JsonException("The file is empty.");
             settings.Normalize();
             error = null;

@@ -116,6 +116,8 @@ Claude Code keeps each session as `~/.claude/projects/<encoded folder>/<session 
 
 - `%APPDATA%\Rondel\settings.json` (macOS: `~/Library/Application Support/Rondel/settings.json`). The file is watched, so edits apply without a restart; saves are atomic, and an unreadable file is backed up before it is overwritten.
 - Comments and trailing commas are accepted. Non-ASCII characters are written as they are, so Turkish paths stay readable. Icons are Segoe Fluent Icons code points in hex (`"E8F4"`).
+- Enum values are written as names. A value this version does not know (written by a newer Rondel) reads as the default, with a warning in the log, instead of making the whole file unreadable.
+- The serializer is generated at build time (`SettingsJsonContext`), without reflection, so the core works in a NativeAOT build; `IsAotCompatible` makes the build warn about anything that would break that.
 - The schema is versioned and is at **4**. **Changing a default requires a migration**, applied only where the user still has the old default: version 2 added Recent Projects to the desktop menu, version 3 added Ask to the folder and Explorer menus, and version 4 removed New + Prompt from them once the New Project card took it over (and gave built-in agents their `Plan` arguments), each only where that menu was still the previous default. A menu for a new context (`FileItem` in version 3) needs no migration: a missing menu gets its default.
 
 Shape of version 4 (abridged):

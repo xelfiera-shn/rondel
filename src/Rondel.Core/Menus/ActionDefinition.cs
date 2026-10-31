@@ -76,6 +76,8 @@ public sealed class ActionDefinition
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool MentionFile { get; set; }
 
+    /// <summary>The icon as a character; computed from <see cref="Icon"/>, so not written to settings.json.</summary>
+    [JsonIgnore]
     public char Glyph =>
         int.TryParse(Icon, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int code) && code is > 0 and <= 0xFFFF
             ? (char)code

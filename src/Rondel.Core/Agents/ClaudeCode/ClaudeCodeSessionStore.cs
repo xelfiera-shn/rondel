@@ -206,11 +206,25 @@ public sealed partial class ClaudeCodeSessionStore : ISessionStore
             var match = CwdPattern().Match(line);
             if (!match.Success)
                 continue;
-            string cwd = JsonSerializer.Deserialize<string>($"\"{match.Groups[1].Value}\"") ?? "";
+            string cwd = UnescapeJsonString(match.Groups[1].Value) ?? "";
             _cwdByFile[file.FullName] = cwd;
             return cwd;
         }
         return null; // not written yet (brand-new session) - don't cache
+    }
+
+    /// <summary>The value of a JSON string literal, given its text between the quotes; null when it is not valid JSON.</summary>
+    internal static string? UnescapeJsonString(string escaped)
+    {
+        var reader = new Utf8JsonReader(Encoding.UTF8.GetBytes($"\"{escaped}\""));
+        try
+        {
+            return reader.Read() ? reader.GetString() : null;
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException) // a bad escape, a lone surrogate
+        {
+            return null;
+        }
     }
 
     /// <summary>
