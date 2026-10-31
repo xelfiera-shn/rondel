@@ -45,9 +45,13 @@ Verified for 0.1.0:
 - Update notification.
 - First-run hint that explains the gesture.
 
-## Later — Linux and macOS
+## macOS (in progress)
 
-Started only after Windows is complete, with small experiments first:
+The macOS app is built on the shared core, step by step, following [macos.md](macos.md): a spike first, then the core additions, the app itself and distribution. Its builds ship in the same releases as Windows.
+
+## Later — Linux
+
+Started with small experiments first:
 
 - Wayland has no global mouse hook and no window positioning, so triggers there are file-manager entries (Nautilus, Dolphin) and a global shortcut through the desktop portal.
 - On X11 the gesture can work with `XGrabButton` and `ReplayPointer`.
