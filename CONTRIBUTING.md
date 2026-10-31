@@ -18,6 +18,10 @@ docs/<short-name>   ci/<short-name>    chore/<short-name>
 
 An urgent fix for a released version goes on `hotfix/<short-name>`, created from `prod` and merged back into `prod`. Afterwards `prod` is merged into `dev` so the fix is not lost.
 
+## Taking a task
+
+[TODO.md](TODO.md) lists who is working on what, per platform. Before you start, take the task there: a small `chore(todo): take W-5` pull request sets its mark to 🔄 with your GitHub user name. The pull request that finishes the work marks it ✅. The marks are explained at the top of that page.
+
 ## Commit messages and pull requests
 
 Rondel follows [Conventional Commits](https://www.conventionalcommits.org/):
