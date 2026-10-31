@@ -4,6 +4,7 @@ using System.Windows.Media.Imaging;
 using Rondel.Core.Agents;
 using Rondel.Core.Agents.ClaudeCode;
 using Rondel.Core.Context;
+using Rondel.Core.Flow;
 using Rondel.Core.Launch;
 using Rondel.Core.Localization;
 using Rondel.Core.Logging;
@@ -26,7 +27,8 @@ namespace Rondel.Windows;
 /// --launch-script FOLDER COMMAND PROMPT.txt out.ps1   the PowerShell script a launch would run
 /// --launch-now FOLDER COMMAND PROMPT.txt     launch exactly like the menu, with COMMAND instead of the configured one
 /// --export-icon out.ico                      write the app icon (used for the exe)
-/// --render-menu out.png [dark|light] [en|tr] [desktop] [idle] [deep] [edge] [transparent] [FOLDER]   draw the Explorer menu for FOLDER (default: current folder)
+/// --render-menu out.png [dark|light] [en|tr] [desktop|item] [idle] [deep] [edge] [transparent] [FOLDER|FILE]   draw the Explorer menu
+///                                            for FOLDER (default: current folder), its folder-icon menu with "item", or the menu of FILE
 /// --render-settings out.png [en|tr]          draw the settings window (in the current Windows theme)
 /// </code>
 /// </summary>
@@ -179,32 +181,26 @@ internal static class DevTools
     }
 
     /// <summary>
-    /// Draws the Explorer menu for a folder with its real session hints and recent sessions: the first
-    /// expandable slice hovered and opened, or nothing hovered with "idle".
+    /// Draws the Explorer menu for a folder (or the menu of a file) with its real session hints and recent sessions:
+    /// the first expandable slice hovered and opened, or nothing hovered with "idle".
     /// </summary>
     static void RenderMenu(string output, string[] options)
     {
         bool dark = !options.Contains("light", StringComparer.OrdinalIgnoreCase);
         Loc.SetLanguage(options.Contains("tr", StringComparer.OrdinalIgnoreCase) ? "tr" : "en");
-        string folder = options.FirstOrDefault(o => o.Contains('\\') || o.Contains('/')) ?? Environment.CurrentDirectory;
+        string target = options.FirstOrDefault(o => o.Contains('\\') || o.Contains('/')) ?? Environment.CurrentDirectory;
         var settings = new AppSettings();
         settings.Normalize();
-        var kind = options.Contains("desktop", StringComparer.OrdinalIgnoreCase) ? ContextKind.DesktopEmpty : ContextKind.ExplorerEmpty;
-        var context = new TriggerContext(kind, folder, Path.GetFileName(folder), "render-menu");
+        var kind = options.Contains("desktop", StringComparer.OrdinalIgnoreCase) ? ContextKind.DesktopEmpty
+            : options.Contains("item", StringComparer.OrdinalIgnoreCase) ? ContextKind.FolderItem
+            : ContextKind.ExplorerEmpty;
+        var context = File.Exists(target)
+            ? new TriggerContext(ContextKind.FileItem, Path.GetDirectoryName(target), Path.GetFileName(target), "render-menu") { FilePath = target }
+            : new TriggerContext(kind, target, Path.GetFileName(target), "render-menu");
         var model = MenuBuilder.Build(context, settings);
+        var details = MenuDetails.Load(model);
+        var children = details.Children.ToList();
 
-        var hints = new List<(string?, bool)>();
-        var children = new List<IReadOnlyList<MenuItemModel>>();
-        foreach (var item in model.Items)
-        {
-            var store = SessionStores.Get(item.Agent.Sessions);
-            hints.Add(SessionHints.Describe(item.Action.Hint, store?.Lookup(folder)));
-            children.Add(store is null ? []
-                : MenuBuilder.CanExpand(item) ? MenuBuilder.SessionItems(item, store.Recent(folder, MenuBuilder.MaxSessionItems))
-                : MenuBuilder.ListsRecentProjects(item) ? MenuBuilder.ProjectItems(item, store.RecentFolders(MenuBuilder.MaxRecentProjects),
-                    project => store.Recent(project, MenuBuilder.MaxSessionItems))
-                : []);
-        }
         // Hover the first slice that opens and its newest item; with "deep", also open the first item that opens further.
         var path = new List<int>();
         int hover = children.FindIndex(c => c.Count > 0);
@@ -220,7 +216,7 @@ internal static class DevTools
         var background = options.Contains("transparent", StringComparer.OrdinalIgnoreCase) ? Colors.Transparent
             : dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6);
         bool edge = options.Contains("edge", StringComparer.OrdinalIgnoreCase);
-        var bitmap = window.RenderPreview(model, new ThemeColors(dark), hints, children, path, background, edge);
+        var bitmap = window.RenderPreview(model, new ThemeColors(dark), details.Hints, children, path, background, edge);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var file = File.Create(output);

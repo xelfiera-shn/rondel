@@ -19,13 +19,15 @@ public sealed class AppSettings
 {
     public const int MinHoldMs = 150;
     public const int MaxHoldMs = 2000;
-    public const string DefaultProjectsRoot = @"%USERPROFILE%\Projects";
+
+    /// <summary>%USERPROFILE%\Projects on Windows, ~/Projects elsewhere.</summary>
+    public static string DefaultProjectsRoot { get; } = OperatingSystem.IsWindows() ? @"%USERPROFILE%\Projects" : "~/Projects";
 
     /// <summary>
     /// Bumped whenever a default changes, so <see cref="Normalize"/> can migrate saved files.
     /// A migration only touches values that are still at the old default.
     /// </summary>
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     /// <summary>0 for a file written by hand without the field.</summary>
     public int SchemaVersion { get; set; }
@@ -33,7 +35,7 @@ public sealed class AppSettings
     /// <summary>"auto", "en" or "tr".</summary>
     public string Language { get; set; } = "auto";
 
-    /// <summary>Target of the desktop actions. Environment variables are expanded.</summary>
+    /// <summary>Target of the desktop actions. Environment variables (%NAME%) and a leading ~ are expanded.</summary>
     public string ProjectsRoot { get; set; } = DefaultProjectsRoot;
 
     public int HoldMs { get; set; } = 300;
@@ -66,9 +68,12 @@ public sealed class AppSettings
     public string ResolveProjectsRoot()
     {
         string raw = string.IsNullOrWhiteSpace(ProjectsRoot) ? DefaultProjectsRoot : ProjectsRoot.Trim();
+        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (raw == "~" || raw.StartsWith("~/", StringComparison.Ordinal) || raw.StartsWith("~" + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            raw = home + raw[1..];
         string expanded = Environment.ExpandEnvironmentVariables(raw);
         if (!Path.IsPathRooted(expanded))
-            expanded = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), expanded);
+            expanded = Path.Combine(home, expanded);
         try
         {
             return Path.TrimEndingDirectorySeparator(Path.GetFullPath(expanded));
@@ -129,6 +134,8 @@ public sealed class AppSettings
             agent.Capabilities = new Dictionary<string, List<string>>(
                 (agent.Capabilities ?? builtIn?.Capabilities ?? new Dictionary<string, List<string>>()).Where(c => c.Value is not null),
                 StringComparer.OrdinalIgnoreCase);
+            // Missing in files written before file mentions existed; an empty string turns them off.
+            agent.FileMention = (agent.FileMention ?? builtIn?.FileMention)?.Trim();
         }
         foreach (var builtIn in BuiltInAgents.Create())
         {
@@ -165,15 +172,30 @@ public sealed class AppSettings
         // the action itself was added by NormalizeActions like any new built-in action.
         if (SchemaVersion < 2 && Menus[nameof(ContextKind.DesktopEmpty)].SequenceEqual(["new-project", "new-prompt"], StringComparer.OrdinalIgnoreCase))
             Menus[nameof(ContextKind.DesktopEmpty)].Add("recents");
+        // 3: Ask joined the folder and Explorer menus, next to Open. The file menu is new, so it comes with its default.
+        if (SchemaVersion < 3)
+        {
+            InsertIfDefault(nameof(ContextKind.FolderItem), ["open", "continue", "resume"], "ask", after: "open");
+            InsertIfDefault(nameof(ContextKind.ExplorerEmpty), ["new-project", "new-prompt", "open-here", "continue-here", "resume-here"],
+                "ask-here", after: "open-here");
+        }
         SchemaVersion = CurrentSchemaVersion;
         WasMigrated = true;
+    }
+
+    void InsertIfDefault(string context, string[] oldDefault, string id, string after)
+    {
+        var menu = Menus[context];
+        if (menu.SequenceEqual(oldDefault, StringComparer.OrdinalIgnoreCase))
+            menu.Insert(menu.FindIndex(i => string.Equals(i, after, StringComparison.OrdinalIgnoreCase)) + 1, id);
     }
 
     public static Dictionary<string, List<string>> DefaultMenus() => new(StringComparer.OrdinalIgnoreCase)
     {
         [nameof(ContextKind.DesktopEmpty)] = ["new-project", "new-prompt", "recents"],
-        [nameof(ContextKind.ExplorerEmpty)] = ["new-project", "new-prompt", "open-here", "continue-here", "resume-here"],
-        [nameof(ContextKind.FolderItem)] = ["open", "continue", "resume"],
+        [nameof(ContextKind.ExplorerEmpty)] = ["new-project", "new-prompt", "open-here", "ask-here", "continue-here", "resume-here"],
+        [nameof(ContextKind.FolderItem)] = ["open", "ask", "continue", "resume"],
+        [nameof(ContextKind.FileItem)] = ["ask-file", "open-here", "continue-here", "resume-here"],
     };
 
     public static List<ActionDefinition> DefaultActions() =>
@@ -181,11 +203,14 @@ public sealed class AppSettings
         new() { Id = "new-project", Label = "@Action.NewProject", Icon = "E8F4", Input = ActionInput.FolderName, Capability = AgentCapability.Open },
         new() { Id = "new-prompt", Label = "@Action.NewWithPrompt", Icon = "E8BD", Input = ActionInput.FolderNameAndPrompt, Capability = AgentCapability.Prompt },
         new() { Id = "open-here", Label = "@Action.OpenHere", Icon = "E756", Capability = AgentCapability.Open },
+        new() { Id = "ask-here", Label = "@Action.AskHere", Icon = "E8F2", Input = ActionInput.Prompt, Capability = AgentCapability.Prompt },
         new() { Id = "continue-here", Label = "@Action.ContinueHere", Icon = "E768", Capability = AgentCapability.Continue, Hint = SessionHint.LastSession },
         new() { Id = "resume-here", Label = "@Action.ResumeHere", Icon = "E81C", Capability = AgentCapability.Resume, Hint = SessionHint.SessionCount },
         new() { Id = "open", Label = "@Action.Open", Icon = "E756", Capability = AgentCapability.Open },
+        new() { Id = "ask", Label = "@Action.Ask", Icon = "E8F2", Input = ActionInput.Prompt, Capability = AgentCapability.Prompt },
         new() { Id = "continue", Label = "@Action.Continue", Icon = "E768", Capability = AgentCapability.Continue, Hint = SessionHint.LastSession },
         new() { Id = "resume", Label = "@Action.Resume", Icon = "E81C", Capability = AgentCapability.Resume, Hint = SessionHint.SessionCount },
         new() { Id = "recents", Label = "@Action.Recents", Icon = "E823", Capability = AgentCapability.ResumeById, Source = ActionSource.RecentProjects },
+        new() { Id = "ask-file", Label = "@Action.AskFile", Icon = "E8F2", Input = ActionInput.Prompt, Capability = AgentCapability.Prompt, MentionFile = true },
     ];
 }

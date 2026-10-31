@@ -24,10 +24,12 @@ There is no installer and Rondel needs no admin rights. Windows 10 and 11 are su
 | Where you hold | Actions | Folder |
 |---|---|---|
 | Empty desktop | New Project, New + Prompt, Recent Projects | Your projects folder (default `%USERPROFILE%\Projects`), or the project you pick |
-| Empty area of a folder in File Explorer | New Project, New + Prompt, Open Here, Continue Here, Resume Here | The folder that is open |
-| A folder (on the desktop or in File Explorer) | Open, Continue, Resume | That folder |
+| Empty area of a folder in File Explorer | New Project, New + Prompt, Open Here, Ask Here, Continue Here, Resume Here | The folder that is open |
+| A folder (on the desktop or in File Explorer) | Open, Ask, Continue, Resume | That folder |
+| A file (on the desktop or in File Explorer) | Ask About This File, Open Here, Continue Here, Resume Here | The folder the file is in |
 
 - **Open** starts a new session, **Continue** the most recent one, **Resume** lets you pick (`claude`, `claude --continue`, `claude --resume`).
+- **Ask** and **Ask Here** ask only for a prompt and start a new session with it. **Ask About This File** does the same in the file's folder and puts the file first in the prompt (`@Program.cs`, or `@"My Notes.md"` for a name with spaces), so Claude Code reads it right away.
 - **Resume opens outward** when the folder has two or more sessions: the five newest appear on an arc around it, the newest right outside the slice. Pick one to resume it directly.
 - **Recent Projects** (desktop menu) opens into the five folders you worked in most recently. Pick one to resume its latest session; a project with two or more sessions opens further into them, the same way.
 
@@ -36,9 +38,9 @@ There is no installer and Rondel needs no admin rights. Windows 10 and 11 are su
 </p>
 
 - Continue and Resume show when the last session was and how many there are, and are dimmed when there are none.
-- **New + Prompt** asks for a folder name (**Enter**), then a prompt (**Ctrl+Enter** starts, **Esc** goes back).
+- **New + Prompt** asks for a folder name (**Enter**), then a prompt (**Ctrl+Enter** starts, **Esc** goes back). The Ask slices go straight to the prompt (**Esc** cancels).
 - Click a slice, press **1–N**, or use the arrow keys and **Enter**; **Tab** steps into the items of the selected slice or project (newest first), **Esc** steps back out and finally closes. You can also keep holding, move onto a slice and release.
-- Ordinary Ctrl+click and Ctrl+drag keep working everywhere. Files, the navigation pane, the address bar, virtual locations such as This PC, and File Explorer windows running as administrator don't open the menu.
+- Ordinary Ctrl+click and Ctrl+drag keep working everywhere. The navigation pane, the address bar, virtual locations such as This PC, and File Explorer windows running as administrator don't open the menu.
 - An optional keyboard shortcut (Settings) opens the menu at the mouse cursor.
 
 ## Settings and customization
@@ -53,7 +55,7 @@ Menus, actions and agents live in `%APPDATA%\Rondel\settings.json` and apply as 
   { "Id": "plan", "Label": "Plan", "Icon": "E8FD", "Capability": "Open", "ExtraArgs": ["--permission-mode", "plan"] }
 ],
 "Menus": {
-  "FolderItem": ["open", "continue", "resume", "plan"]
+  "FolderItem": ["open", "ask", "continue", "resume", "plan"]
 }
 ```
 

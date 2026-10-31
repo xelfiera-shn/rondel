@@ -11,6 +11,9 @@
     <AssemblyName>Rondel</AssemblyName>
     <!-- WPF0001: Window.ThemeMode (Fluent theme) is marked experimental; used only for the settings window. -->
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <!-- Lets `dotnet build` compile this project on macOS and Linux too, so core changes are checked against it.
+         Rondel.exe itself only runs on Windows. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
   <ItemGroup>

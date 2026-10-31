@@ -42,12 +42,13 @@ Re-injected events are tagged with `dwExtraInfo = 0x524E444C` and the hook ignor
 
 Windows 11 Home's start page has no `UIItemsView`, so it does not trigger.
 
-**Folder resolution.**
+**Item resolution.**
 
 - The Explorer window is found in `Shell.Application.Windows()` by its top-level HWND. Windows 11 tabs share that HWND, so the active tab is matched through `IServiceProvider → IShellBrowser → GetWindow` against the `ShellTabWindowClass` ancestor of the window that was hit.
 - An item is resolved with `ParseName` first; otherwise `Items()` is scanned by display name (up to 2000 items), so localized names such as "Belgeler" work. Items with the same name are told apart by comparing the UIA `ItemType` with the shell `Type`; if it is still ambiguous, the result is `None`.
-- ZIP files report `IsFolder`, so a folder must also satisfy `Directory.Exists`. Shortcuts resolve through `GetLink.Path`, and drives in This PC count as folders.
-- Virtual containers (`::{GUID}` paths), the Recycle Bin and search results get no empty-area menu. Items inside them that resolve to real folders still work.
+- An item becomes a folder or a file only through the file system: ZIP files report `IsFolder` but are files, so a folder must satisfy `Directory.Exists` and a file `File.Exists`. Shortcuts resolve through `GetLink.Path` to what they point to, and drives in This PC count as folders.
+- A file opens the file menu for the folder it is in; the menu center shows its full name, with the extension even where File Explorer hides it.
+- Virtual containers (`::{GUID}` paths), the Recycle Bin and search results get no empty-area menu. Items inside them that resolve to real folders or files still work.
 
 **Shell COM through `dynamic`.** Cast results to `object` or a concrete type early (for example `Convert.ToInt64((object)w.HWND)`); mixing `dynamic` with `nint` comparisons throws at run time.
 
@@ -70,7 +71,7 @@ Windows 11 Home's start page has no `UIItemsView`, so it does not trigger.
 - Placement is computed in physical pixels on the cursor's monitor and clamped so the ring (not the whole stage) stays in the work area. `SetWindowPos` is applied again after `Show`, because WPF rescales the window when the DPI changes.
 - Fully transparent pixels of a layered window let the mouse through. Areas that must keep the pointer without being visible (the bridge between the ring and an expanded slice's items) are painted with alpha 1.
 - **Bands that open outward**: the menu is a stack of bands — the ring, an arc opened from a slice, and an arc opened from an item of that arc (Recent Projects → a project → its sessions; Resume → sessions). A tile that opens further gets an arrow just outside its band once its items are known. Hovering it opens its items on the next band, an arc centered on it: the newest right outside it, the next ones alternating clockwise and counterclockwise. Near a monitor edge an arc turns towards the free side just as far as needed, and the newest item takes the end next to its parent. Leaving the menu keeps everything open; hovering a tile keeps only the arc it opened itself and closes everything further out (back on Recent Projects, a project's sessions close). The Recent Projects slice launches nothing itself. Keyboard: Tab steps into the items (newest first), arrows move within a band, digits pick by recency, Esc/Backspace steps back out.
-- Labels are measured and narrowed until every corner stays inside the tile and its wedge, but never below the width of the longest word (expanded items may shrink their font a little instead). Long single-word folder names in the hub break at camel-case and separator boundaries. The hint line under a label is reserved in the layout, so hints arriving later do not move anything.
+- Labels are measured and narrowed until every corner stays inside the tile and its wedge, but never below the width of the longest word (expanded items may shrink their font a little instead). Long single-word folder names in the hub break at camel-case and separator boundaries. A recent project's name is shown whole if any font size allows it — unbroken if possible, else wrapped at those boundaries — and is otherwise shortened in the middle (`Contoso…CCTV`, start and end being what tells names apart) before its end is trimmed; its label and hint are checked row by row, since a short hint leaves the block's lower corners empty. The hint line under a label is reserved in the layout, so hints arriving later do not move anything.
 - `--render-menu` draws the menu for a folder into a PNG without showing it, for checking the design (`edge` simulates a menu clamped to the left edge of the screen).
 - The text box placeholder is aligned with `GetRectFromCharacterIndex(0)`; fixed padding was off by one or two pixels.
 - "Animation effects" turned off in Windows (`SystemParameters.ClientAreaAnimation`) disables Rondel's animations, and so does running on battery (`SystemParameters.PowerLineStatus`): there an instant menu feels faster than a slow animation.

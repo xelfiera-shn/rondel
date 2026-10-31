@@ -11,9 +11,10 @@ namespace Rondel.Windows.Detection;
 /// <list type="bullet">
 /// <item>UIA decides item vs. empty area vs. anything else (headers, panes, bars → None).</item>
 /// <item>Shell.Application turns that into a folder: the active Explorer tab's folder for empty
-/// space, or the item matched by display name (Belgeler/Documents both work).</item>
+/// space, or the item matched by display name (Belgeler/Documents both work), a folder or a file.</item>
 /// </list>
-/// Virtual locations and non-folder items give None, so the click is passed through.
+/// A file gives its folder plus the file. Virtual locations and items that are neither folders nor files give
+/// None, so the click is passed through.
 /// Runs on the STA detection thread.
 /// </summary>
 internal sealed class ShellContextDetector(Func<AppSettings> settings) : IContextDetector
@@ -90,10 +91,17 @@ internal sealed class ShellContextDetector(Func<AppSettings> settings) : IContex
         }
 
         // The desktop is a merged namespace (user + Public Desktop), so it is always scanned by display name.
-        var folder = _shell.ResolveFolderItem(container, hitInfo.ItemName!, hitInfo.ItemType, tryParseName: !desktop, trace, out string reason);
-        return folder is { } f
-            ? new TriggerContext(ContextKind.FolderItem, f.Path, f.Name, reason)
-            : TriggerContext.None(reason);
+        var target = _shell.ResolveItem(container, hitInfo.ItemName!, hitInfo.ItemType, tryParseName: !desktop, trace, out string reason);
+        return target switch
+        {
+            { IsDirectory: true } folder => new TriggerContext(ContextKind.FolderItem, folder.Path, folder.Name, reason),
+            // The file's own name, with its extension even where Explorer hides it.
+            { } file => new TriggerContext(ContextKind.FileItem, Path.GetDirectoryName(file.Path), Path.GetFileName(file.Path), reason)
+            {
+                FilePath = file.Path,
+            },
+            null => TriggerContext.None(reason),
+        };
     }
 
     static string DisplayNameOf(string path) =>

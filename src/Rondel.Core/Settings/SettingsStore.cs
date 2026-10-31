@@ -17,11 +17,11 @@ public sealed class SettingsStore : IDisposable
     string? _lastWrittenJson;
 
     /// <param name="context">Where <see cref="Changed"/> and <see cref="LoadFailed"/> are raised (the UI thread).</param>
-    /// <param name="directory">Folder of settings.json; <see cref="AppInfo.RoamingDirectory"/> by default.</param>
+    /// <param name="directory">Folder of settings.json; <see cref="AppInfo.SettingsDirectory"/> by default.</param>
     public SettingsStore(SynchronizationContext context, string? directory = null)
     {
         _context = context;
-        DirectoryPath = directory ?? AppInfo.RoamingDirectory;
+        DirectoryPath = directory ?? AppInfo.SettingsDirectory;
         FilePath = Path.Combine(DirectoryPath, "settings.json");
         _debounce = new Timer(_ => _context.Post(_ => ReloadFromDisk(), null));
     }

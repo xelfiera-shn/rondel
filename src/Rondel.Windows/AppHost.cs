@@ -2,14 +2,12 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Threading;
 using Rondel.Core;
-using Rondel.Core.Agents;
 using Rondel.Core.Context;
-using Rondel.Core.Launch;
+using Rondel.Core.Flow;
 using Rondel.Core.Localization;
 using Rondel.Core.Logging;
 using Rondel.Core.Menus;
 using Rondel.Core.Platform;
-using Rondel.Core.Sessions;
 using Rondel.Core.Settings;
 using Rondel.Windows.Detection;
 using Rondel.Windows.Hook;
@@ -21,10 +19,11 @@ using Autostart = Rondel.Windows.Settings.Autostart;
 namespace Rondel.Windows;
 
 /// <summary>
-/// Composition root: wires the hook thread, the detection thread and the UI thread together.
-/// IGestureSink callbacks arrive on the hook thread and are only forwarded from here.
+/// Composition root: wires the hook thread, the detection thread and the UI thread together, and connects
+/// them to the shared <see cref="MenuFlow"/>. IGestureSink callbacks arrive on the hook thread and are only
+/// forwarded from here.
 /// </summary>
-internal sealed class AppHost : IGestureSink, IDisposable
+internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
 {
     readonly Dispatcher _ui = Dispatcher.CurrentDispatcher;
     readonly TrayHost _tray;
@@ -32,7 +31,7 @@ internal sealed class AppHost : IGestureSink, IDisposable
     readonly DetectionWorker _worker;
     readonly IContextDetector _detector;
     readonly MouseHook _hook;
-    readonly ITerminalLauncher _launcher = new WindowsTerminalLauncher();
+    readonly MenuFlow _flow;
     SettingsWindow? _settingsWindow;
 
     public AppHost()
@@ -48,6 +47,7 @@ internal sealed class AppHost : IGestureSink, IDisposable
         _worker = new DetectionWorker();
         _detector = new ShellContextDetector(() => Store.Current);
         _hook = new MouseHook(this, settings.HoldMs, settings.Paused);
+        _flow = new MenuFlow(this, new WindowsTerminalLauncher(), new FolderNameValidator(), () => Store.Current);
     }
 
     public SettingsStore Store { get; }
@@ -67,7 +67,7 @@ internal sealed class AppHost : IGestureSink, IDisposable
         };
         Store.LoadFailed += _ => _tray.ShowBalloon(AppInfo.Name, Loc.Get("Tray.SettingsInvalid"), warning: true);
 
-        _menu.ItemInvoked += OnItemInvoked;
+        _menu.ItemInvoked += _flow.Invoke;
         _menu.MenuClosed += _hook.NotifyMenuClosed;
         _menu.Prepare();
 
@@ -101,13 +101,12 @@ internal sealed class AppHost : IGestureSink, IDisposable
     /// </summary>
     public void ShowMenuAtCursor(bool input, string? text)
     {
-        string root = Store.Current.ResolveProjectsRoot();
-        var context = new TriggerContext(ContextKind.ExplorerEmpty, root, Path.GetFileName(root), "show-menu");
+        var context = _flow.ProjectsContext(ContextKind.ExplorerEmpty, "show-menu");
         ShowMenu(context, Native.GetCursorPosition());
-        if (input && MenuBuilder.Build(context, Store.Current) is { } model
+        if (input && _flow.Build(context) is { } model
             && model.Items.FirstOrDefault(i => i.Action.Input == ActionInput.FolderNameAndPrompt) is { } item)
         {
-            OnItemInvoked(model, item);
+            _flow.Invoke(model, item);
             if (!string.IsNullOrEmpty(text))
                 _menu.NameBox.Text = text;
         }
@@ -187,16 +186,14 @@ internal sealed class AppHost : IGestureSink, IDisposable
     {
         try
         {
-            var model = MenuBuilder.Build(context, Store.Current);
-            if (model.Items.Count == 0)
+            if (_flow.Build(context) is not { } model)
             {
-                Log.Warn($"No actions configured for {context.Kind}; check Menus in settings.json");
                 _hook.NotifyMenuClosed();
                 return;
             }
             _menu.ShowMenu(model, anchor);
             _hook.NotifyMenuOpened(_menu.Handle);
-            RequestSessionHints(model);
+            RequestDetails(model);
         }
         catch (Exception ex)
         {
@@ -205,63 +202,19 @@ internal sealed class AppHost : IGestureSink, IDisposable
         }
     }
 
-    /// <summary>What one session store knows: about the menu's folder, and about the recent projects.</summary>
-    sealed record SessionDetails(SessionInfo? Info, IReadOnlyList<SessionEntry> Recent,
-        IReadOnlyList<FolderActivity> Folders, IReadOnlyDictionary<string, IReadOnlyList<SessionEntry>> FolderSessions);
-
-    /// <summary>
-    /// Session hints, the recent sessions of a Resume slice and the recent projects never delay the menu:
-    /// they are looked up afterwards (one pass per session store) and filled in.
-    /// </summary>
-    void RequestSessionHints(MenuModel model)
+    /// <summary>Session hints, a Resume slice's sessions and the recent projects are filled in when they arrive.</summary>
+    void RequestDetails(MenuModel model)
     {
-        string? directory = model.Context.TargetDir;
-        var stores = model.Items
-            .Where(i => i.Action.Hint != SessionHint.None || MenuBuilder.CanExpand(i) || MenuBuilder.ListsRecentProjects(i))
-            .GroupBy(i => i.Agent.Sessions ?? "", StringComparer.OrdinalIgnoreCase)
-            .Select(g => (Id: g.Key, Store: SessionStores.Get(g.Key),
-                Expands: g.Any(MenuBuilder.CanExpand), ListsProjects: g.Any(MenuBuilder.ListsRecentProjects)))
-            .Where(s => s.Store is not null)
-            .ToList();
-        if (stores.Count == 0)
+        if (!MenuDetails.Needed(model))
             return;
-        Task.Run(() => stores.ToDictionary(s => s.Id, s => LookUp(s.Store!, directory, s.Expands, s.ListsProjects), StringComparer.OrdinalIgnoreCase))
+        Task.Run(() => MenuDetails.Load(model))
             .ContinueWith(
-                lookup => _ui.BeginInvoke(() => ApplySessionDetails(model, lookup.Result)),
+                lookup => _ui.BeginInvoke(() =>
+                {
+                    _menu.ApplyHints(model, lookup.Result.Hints);
+                    _menu.ApplyChildren(model, lookup.Result.Children);
+                }),
                 TaskContinuationOptions.OnlyOnRanToCompletion);
-    }
-
-    /// <summary>Runs off the UI thread.</summary>
-    static SessionDetails LookUp(ISessionStore store, string? directory, bool recentSessions, bool recentProjects)
-    {
-        var folders = recentProjects ? store.RecentFolders(MenuBuilder.MaxRecentProjects) : [];
-        // Only projects that will open further need their session list.
-        var folderSessions = folders
-            .Where(f => f.SessionCount >= MenuBuilder.MinSessionsToExpand)
-            .ToDictionary(f => f.Directory, f => store.Recent(f.Directory, MenuBuilder.MaxSessionItems), StringComparer.OrdinalIgnoreCase);
-        return new SessionDetails(
-            directory is null ? null : store.Lookup(directory),
-            directory is not null && recentSessions ? store.Recent(directory, MenuBuilder.MaxSessionItems) : [],
-            folders,
-            folderSessions);
-    }
-
-    void ApplySessionDetails(MenuModel model, Dictionary<string, SessionDetails> detailsByStore)
-    {
-        SessionDetails? DetailsFor(MenuItemModel item) =>
-            detailsByStore.TryGetValue(item.Agent.Sessions ?? "", out var details) ? details : null;
-
-        var hints = model.Items.Select(item => SessionHints.Describe(item.Action.Hint, DetailsFor(item)?.Info)).ToList();
-        _menu.ApplyHints(model, hints);
-
-        var children = model.Items
-            .Select(item => DetailsFor(item) is not { } details ? []
-                : MenuBuilder.CanExpand(item) ? MenuBuilder.SessionItems(item, details.Recent)
-                : MenuBuilder.ListsRecentProjects(item) ? MenuBuilder.ProjectItems(item, details.Folders,
-                    folder => details.FolderSessions.TryGetValue(folder, out var sessions) ? sessions : [])
-                : [])
-            .ToList();
-        _menu.ApplyChildren(model, children);
     }
 
     void OnHotkey()
@@ -279,85 +232,20 @@ internal sealed class AppHost : IGestureSink, IDisposable
         _worker.Post(() =>
         {
             var context = Detect(point, root, "hotkey");
+            // Nothing useful under the cursor: offer the desktop actions for the projects folder.
             if (context.Kind == ContextKind.None)
-            {
-                // Nothing useful under the cursor: offer the desktop actions for the projects folder.
-                string projects = Store.Current.ResolveProjectsRoot();
-                context = new TriggerContext(ContextKind.DesktopEmpty, projects, Path.GetFileName(projects), "hotkey fallback");
-            }
+                context = _flow.ProjectsContext(ContextKind.DesktopEmpty, "hotkey fallback");
             _ui.BeginInvoke(() => ShowMenu(context, point));
         });
     }
 
-    void OnItemInvoked(MenuModel model, MenuItemModel item)
-    {
-        var action = item.Action;
-        // Recent projects and their sessions carry their own folder.
-        string? directory = item.Directory ?? model.Context.TargetDir;
-        if (action.Source == ActionSource.RecentProjects && item.Directory is null)
-            return; // the Recent Projects slice itself only opens its items
-        Log.Info($"Action '{action.Id}' ({item.Agent.Id}) for {model.Context.Kind} '{directory}'");
-        if (directory is null)
-        {
-            _menu.CloseMenu(restoreFocus: true);
-            return;
-        }
+    // ---- IMenuHost (UI thread) ----
 
-        if (action.Input == ActionInput.None)
-        {
-            _menu.CloseMenu(restoreFocus: false);
-            StartAgent(item.Agent, action, directory, prompt: null, item.SessionId);
-            return;
-        }
+    void IMenuHost.CloseMenu(bool restoreFocus) => _menu.CloseMenu(restoreFocus);
 
-        _menu.StartInput(new InputSpec(
-            item.Label,
-            item.Glyph,
-            directory,
-            item.Agent.Name,
-            AskPrompt: action.Input == ActionInput.FolderNameAndPrompt,
-            ValidateName: name => FolderNameValidator.Validate(directory, name),
-            Submit: (name, prompt) => CreateFolderAndStart(item.Agent, action, directory, name, prompt)));
-    }
+    void IMenuHost.StartInput(InputSpec spec) => _menu.StartInput(spec);
 
-    /// <returns>An inline error message, or null when the folder exists and the agent was started.</returns>
-    string? CreateFolderAndStart(AgentProfile agent, ActionDefinition action, string parent, string name, string? prompt)
-    {
-        if (FolderNameValidator.Validate(parent, name) is { } error)
-            return error;
-        string path = Path.Combine(parent, name);
-        try
-        {
-            Directory.CreateDirectory(path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-        {
-            Log.Warn($"Creating '{path}' failed", ex);
-            return Loc.Format("Input.CreateFailed", ex.Message);
-        }
-        Log.Info($"Created '{path}'");
-        _menu.CloseMenu(restoreFocus: false);
-        StartAgent(agent, action, path, prompt);
-        return null;
-    }
-
-    void StartAgent(AgentProfile agent, ActionDefinition action, string directory, string? prompt, string? sessionId = null)
-    {
-        if (LaunchPlanner.Create(agent, action, directory, prompt, sessionId) is not { } plan)
-        {
-            Log.Warn($"Agent '{agent.Id}' does not support {action.Capability}");
-            return;
-        }
-        try
-        {
-            _launcher.Launch(plan, Store.Current);
-        }
-        catch (Exception ex) when (ex is LaunchException or System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
-        {
-            Log.Error($"Launching {agent.Name} in '{directory}' failed", ex);
-            _tray.ShowBalloon(AppInfo.Name, Loc.Format("Launch.Failed", agent.Name, ex.Message), warning: true);
-        }
-    }
+    void IMenuHost.ShowWarning(string message) => _tray.ShowBalloon(AppInfo.Name, message, warning: true);
 
     // ---- tray / settings ----
 

@@ -18,7 +18,7 @@ public static class Log
 
     static Task? s_writer;
 
-    public static string Directory { get; } = Path.Combine(AppInfo.LocalDirectory, "logs");
+    public static string Directory => AppInfo.LogDirectory;
 
     /// <summary>Debug mode: per-trigger UI Automation chain, detected context and resolved folder.</summary>
     public static bool DebugEnabled { get; set; }

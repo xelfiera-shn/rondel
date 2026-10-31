@@ -28,6 +28,9 @@ static class Strings
         ["Action.Continue"] = "Continue",
         ["Action.Resume"] = "Resume",
         ["Action.Recents"] = "Recent Projects",
+        ["Action.Ask"] = "Ask",
+        ["Action.AskHere"] = "Ask Here",
+        ["Action.AskFile"] = "Ask About This File",
 
         ["Settings.Title"] = "Rondel Settings",
         ["Settings.Tagline"] = "A radial launcher for AI coding agents",
@@ -81,7 +84,8 @@ static class Strings
         ["Input.HintName"] = "Enter to create · Esc to cancel",
         ["Input.HintNameNext"] = "Enter to continue · Esc to cancel",
         ["Input.HintPrompt"] = "Ctrl+Enter to start · Esc to go back",
-        ["Input.PromptEmpty"] = "Type a prompt, or press Esc to go back.",
+        ["Input.HintPromptOnly"] = "Ctrl+Enter to start · Esc to cancel",
+        ["Input.PromptEmpty"] = "Type a prompt first.",
         ["Input.PromptTooLong"] = "The prompt is too long ({0} characters, at most {1}).",
         ["Input.CreateFailed"] = "The folder could not be created: {0}",
 
@@ -138,6 +142,9 @@ static class Strings
         ["Action.Continue"] = "Devam Et",
         ["Action.Resume"] = "Oturum Seç",
         ["Action.Recents"] = "Son Projeler",
+        ["Action.Ask"] = "Sor",
+        ["Action.AskHere"] = "Burada Sor",
+        ["Action.AskFile"] = "Bu Dosyayı Sor",
 
         ["Settings.Title"] = "Rondel Ayarları",
         ["Settings.Tagline"] = "Yapay zekâ kodlama ajanları için dairesel başlatıcı",
@@ -191,7 +198,8 @@ static class Strings
         ["Input.HintName"] = "Enter ile oluştur · Esc ile vazgeç",
         ["Input.HintNameNext"] = "Enter ile devam · Esc ile vazgeç",
         ["Input.HintPrompt"] = "Ctrl+Enter ile başlat · Esc ile geri dön",
-        ["Input.PromptEmpty"] = "Bir prompt yazın ya da Esc ile geri dönün.",
+        ["Input.HintPromptOnly"] = "Ctrl+Enter ile başlat · Esc ile vazgeç",
+        ["Input.PromptEmpty"] = "Önce bir prompt yazın.",
         ["Input.PromptTooLong"] = "Prompt çok uzun ({0} karakter, en fazla {1}).",
         ["Input.CreateFailed"] = "Klasör oluşturulamadı: {0}",
 

@@ -117,6 +117,8 @@ public static class MenuBuilder
                     break;
                 if (settings.FindAction(id) is not { } action || settings.AgentFor(action) is not { } agent)
                     continue;
+                if (action.MentionFile && (context.FilePath is null || string.IsNullOrEmpty(agent.FileMention)))
+                    continue;
                 if (agent.Supports(action.Capability))
                     items.Add(new MenuItemModel(action, agent, Loc.Resolve(action.Label), action.Glyph, null, false));
             }
@@ -135,6 +137,10 @@ public static class MenuBuilder
             // For a folder item, show where it lives.
             ContextKind.FolderItem => Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(context.TargetDir ?? "")) is { Length: > 0 } parent
                 ? Path.GetFileName(parent) is { Length: > 0 } parentName ? parentName : parent
+                : null,
+            // For a file, the folder it is in, which is where the actions run.
+            ContextKind.FileItem => context.TargetDir is { Length: > 0 } folder
+                ? Path.GetFileName(Path.TrimEndingDirectorySeparator(folder)) is { Length: > 0 } folderName ? folderName : folder
                 : null,
             _ => null,
         };
