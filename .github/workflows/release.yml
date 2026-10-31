@@ -2,15 +2,11 @@ name: Release
 
 # Every push to prod (a merge from dev or a hotfix) publishes a release when the commits since the
 # last version contain a feature, a fix, a performance change or a breaking change.
+# A manual run is always a dry run: it computes the version and builds, but publishes nothing.
 on:
   push:
     branches: [prod]
   workflow_dispatch:
-    inputs:
-      dry_run:
-        description: Compute the version and build, but publish nothing
-        type: boolean
-        default: true
 
 permissions:
   contents: read
@@ -101,7 +97,7 @@ jobs:
       attestations: write
     env:
       VERSION: ${{ needs.version.outputs.version }}
-      PUBLISH: ${{ github.event_name == 'push' || inputs.dry_run == false }}
+      PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/prod' }}
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:

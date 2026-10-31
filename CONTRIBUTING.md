@@ -39,6 +39,8 @@ How pull requests are merged:
 | `dev` → `prod` | **Create a merge commit** (never squash) | The release reads every commit since the last version. |
 | `hotfix/*` → `prod`, `prod` → `dev` | **Create a merge commit** | Keeps both branches' history connected. Hotfix commits must follow the convention, because they are kept as they are. |
 
+A pull request into `dev` needs the required checks and one maintainer approval; a new push dismisses the approval. Only maintainers can merge into `prod`, because every merge there is a release.
+
 ## Versions and releases
 
 Releases are automatic. On every push to `prod`, the next version is computed from the commits since the last version tag:
@@ -48,6 +50,8 @@ Releases are automatic. On every push to `prod`, the next version is computed fr
 - Commits of other types alone (`docs`, `chore`, …) do not produce a release.
 
 The release notes are generated from the same commits, so a clear PR title is also a clear changelog line. A release contains `Rondel-<version>-win-x64.exe`, `Rondel-<version>-win-arm64.exe`, a `SHA256SUMS.txt` and build provenance attestations.
+
+Running the Release workflow by hand is always a dry run: it shows the next version and its notes and builds the executables, but publishes nothing.
 
 Every push to `dev` also produces a test build: the CI run's **Rondel-dev.N-win-x64** artifact (kept for 14 days).
 
