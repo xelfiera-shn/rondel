@@ -39,6 +39,49 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- An option on the New Project card: a pill that is lit while it is on. Colors come from the menu palette (set from code). -->
+        <Style x:Key="Chip" TargetType="ToggleButton">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,0,6,6" />
+            <Setter Property="Padding" Value="11,4,12,5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Foreground" Value="{DynamicResource ChipText}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ChipBorder}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Grid>
+                            <Border x:Name="FocusRing" Margin="-3" CornerRadius="16" BorderThickness="1.5"
+                                    BorderBrush="{DynamicResource ChipOnBorder}" Visibility="Hidden" />
+                            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="1" CornerRadius="13" Padding="{TemplateBinding Padding}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="Check" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10" Text="&#xE73E;"
+                                               Margin="0,1,6,0" VerticalAlignment="Center" Visibility="Collapsed" />
+                                    <ContentPresenter VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource ChipOnBorder}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Check" Property="Visibility" Value="Visible" />
+                                <Setter Property="Background" Value="{DynamicResource ChipOnFill}" />
+                                <Setter Property="BorderBrush" Value="{DynamicResource ChipOnBorder}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ChipOnText}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="FocusRing" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <!-- Surface carries the open/close animation for both the ring and the input card. -->
@@ -115,6 +158,18 @@
                 </StackPanel>
                 <TextBlock x:Name="InputLocation" FontSize="11" Margin="0,3,0,10" TextTrimming="CharacterEllipsis" />
                 <TextBox x:Name="NameBox" Style="{StaticResource InputBox}" />
+                <!-- New Project only: how the project starts, and the templates copied into it. -->
+                <StackPanel x:Name="NewOptions" Margin="0,12,0,0" Visibility="Collapsed">
+                    <TextBlock x:Name="StartLabel" FontSize="11" Margin="1,0,0,6" />
+                    <WrapPanel x:Name="StartChips" />
+                    <DockPanel x:Name="TemplatesHeader" Margin="1,6,0,6">
+                        <TextBlock x:Name="OpenTemplates" DockPanel.Dock="Right" FontSize="11" Cursor="Hand" />
+                        <TextBlock x:Name="TemplatesLabel" FontSize="11" />
+                    </DockPanel>
+                    <WrapPanel x:Name="TemplateChips" />
+                    <TextBlock x:Name="NoTemplates" FontSize="11" TextWrapping="Wrap" Margin="1,0,0,4" Visibility="Collapsed" />
+                </StackPanel>
+                <TextBlock x:Name="PromptLabel" FontSize="11" Margin="1,6,0,6" Visibility="Collapsed" />
                 <TextBox x:Name="PromptBox" Style="{StaticResource InputBox}" Height="132" AcceptsReturn="True" AcceptsTab="False"
                          TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Visibility="Collapsed" />
                 <TextBlock x:Name="InputMessage" FontSize="11.5" Margin="1,8,0,0" TextWrapping="Wrap" />

@@ -23,8 +23,8 @@ There is no installer and Rondel needs no admin rights. Windows 10 and 11 are su
 
 | Where you hold | Actions | Folder |
 |---|---|---|
-| Empty desktop | New Project, New + Prompt, Recent Projects | Your projects folder (default `%USERPROFILE%\Projects`), or the project you pick |
-| Empty area of a folder in File Explorer | New Project, New + Prompt, Open Here, Ask Here, Continue Here, Resume Here | The folder that is open |
+| Empty desktop | New Project, Recent Projects | Your projects folder (default `%USERPROFILE%\Projects`), or the project you pick |
+| Empty area of a folder in File Explorer | New Project, Open Here, Ask Here, Continue Here, Resume Here | The folder that is open |
 | A folder (on the desktop or in File Explorer) | Open, Ask, Continue, Resume | That folder |
 | A file (on the desktop or in File Explorer) | Ask About This File, Open Here, Continue Here, Resume Here | The folder the file is in |
 
@@ -38,28 +38,40 @@ There is no installer and Rondel needs no admin rights. Windows 10 and 11 are su
 </p>
 
 - Continue and Resume show when the last session was and how many there are, and are dimmed when there are none.
-- **New + Prompt** asks for a folder name (**Enter**), then a prompt (**Ctrl+Enter** starts, **Esc** goes back). The Ask slices go straight to the prompt (**Esc** cancels).
+- **New Project** opens a card: the folder name, how the project starts, and the templates copied into it. Start options can be combined:
+  - **Prompt** — start the agent with a first prompt;
+  - **Git** — run `git init` before the agent starts;
+  - **Plan mode** — start the agent in plan mode;
+  - **Templates** — every folder in `%APPDATA%\Rondel\Templates` is a template (**Open the folder** on the card). Pick several, for example a language's files and your field's agent instructions; when two have the same file, the one further right wins.
+
+  The card remembers your last choice, so the usual project is a name and **Enter**. **Tab** moves through the options and **Space** turns one on or off; with Prompt on, **Enter** goes on to the prompt and **Ctrl+Enter** creates. Options you never use can be turned off in Settings.
+
+<p align="center">
+  <img src="docs/images/new-en.png" width="360" alt="The New Project card: a folder name, Prompt and Git turned on, two templates chosen, and a first prompt">
+</p>
+
+- The Ask slices go straight to the prompt (**Ctrl+Enter** starts, **Esc** cancels).
 - Click a slice, press **1–N**, or use the arrow keys and **Enter**; **Tab** steps into the items of the selected slice or project (newest first), **Esc** steps back out and finally closes. You can also keep holding, move onto a slice and release.
 - Ordinary Ctrl+click and Ctrl+drag keep working everywhere. The navigation pane, the address bar, virtual locations such as This PC, and File Explorer windows running as administrator don't open the menu.
 - An optional keyboard shortcut (Settings) opens the menu at the mouse cursor.
 
 ## Settings and customization
 
-Tray icon → **Settings…**: language (Automatic / English / Türkçe), projects folder, hold duration, keyboard shortcut, the agent's command (`claude`, or an alias such as `cc`), terminal (Windows Terminal or console window) and shell (PowerShell 7 or Windows PowerShell).
+Tray icon → **Settings…**: language (Automatic / English / Türkçe), projects folder, hold duration, keyboard shortcut, the agent's command (`claude`, or an alias such as `cc`), terminal (Windows Terminal or console window), shell (PowerShell 7 or Windows PowerShell), the options on the New Project card and the templates folder.
 
 Menus, actions and agents live in `%APPDATA%\Rondel\settings.json` and apply as soon as the file is saved. For example, to add a slice that opens Claude Code in plan mode, add an action and put its id into a menu:
 
 ```jsonc
 "Actions": [
   // ... the existing actions ...
-  { "Id": "plan", "Label": "Plan", "Icon": "E8FD", "Capability": "Open", "ExtraArgs": ["--permission-mode", "plan"] }
+  { "Id": "plan", "Label": "Plan", "Icon": "E8FD", "Capability": "Plan" }
 ],
 "Menus": {
   "FolderItem": ["open", "ask", "continue", "resume", "plan"]
 }
 ```
 
-`Label` can be plain text; labels starting with `@` are built-in translations. `Icon` is a [Segoe Fluent Icons](https://learn.microsoft.com/windows/apps/design/style/segoe-fluent-icons-font) code point. Agents are profiles with a command and arguments per capability (`Open`, `Continue`, `Resume`, `ResumeById`, `Prompt`), so another coding agent can be added the same way — see [docs/architecture.md](docs/architecture.md#agent-profiles).
+`Label` can be plain text; labels starting with `@` are built-in translations. `Icon` is a [Segoe Fluent Icons](https://learn.microsoft.com/windows/apps/design/style/segoe-fluent-icons-font) code point. Agents are profiles with a command and arguments per capability (`Open`, `Continue`, `Resume`, `ResumeById`, `Prompt`, `Plan`), so another coding agent can be added the same way — see [docs/architecture.md](docs/architecture.md#agent-profiles).
 
 ## Troubleshooting
 

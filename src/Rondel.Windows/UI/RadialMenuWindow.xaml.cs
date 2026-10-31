@@ -165,6 +165,9 @@ public partial class RadialMenuWindow : Window
         Deactivated += (_, _) => CloseMenu(restoreFocus: false);
         DpiChanged += (_, _) => { if (_isOpen) ApplyBounds(); };
         NameBox.TextChanged += (_, _) => { if (_input is not null && !_promptStage) UpdateNameFeedback(); };
+        NameBox.GotKeyboardFocus += (_, _) => { if (_newProject is not null) UpdateNewProjectHint(); };
+        PromptBox.GotKeyboardFocus += (_, _) => { if (_newProject is not null) UpdateNewProjectHint(); };
+        OpenTemplates.MouseLeftButtonUp += (_, _) => OnOpenTemplates();
     }
 
     /// <summary>A slice or an item on an arc was chosen (click, release over it, number key, Enter).</summary>
@@ -349,6 +352,12 @@ public partial class RadialMenuWindow : Window
         foreach (var band in _bands)
             band.Layer.Opacity = 1;
 
+        return RenderSurface(background);
+    }
+
+    /// <summary>Lays out the window's content at its size and draws it over <paramref name="background"/> at 192 DPI.</summary>
+    BitmapSource RenderSurface(Color background)
+    {
         var size = new Size(Width, Height);
         Surface.Measure(size);
         Surface.Arrange(new Rect(size));
@@ -857,6 +866,7 @@ public partial class RadialMenuWindow : Window
     void ResetInputMode()
     {
         _input = null;
+        ResetNewProject();
         _promptStage = false;
         InputCard.BeginAnimation(OpacityProperty, null);
         InputCard.Visibility = Visibility.Collapsed;
@@ -917,7 +927,8 @@ public partial class RadialMenuWindow : Window
         string name = NameBox.Text;
         InputLocation.Text = name.Length == 0 ? input.ParentDir : System.IO.Path.Combine(input.ParentDir, name);
         string? error = name.Length == 0 ? null : input.ValidateName(name);
-        SetMessage(error ?? Loc.Get(input.AskPrompt ? "Input.HintNameNext" : "Input.HintName"), error is not null);
+        string hint = _newProject is not null ? NewProjectNameHint() : Loc.Get(input.AskPrompt ? "Input.HintNameNext" : "Input.HintName");
+        SetMessage(error ?? hint, error is not null);
     }
 
     void SetMessage(string text, bool isError)
@@ -928,6 +939,11 @@ public partial class RadialMenuWindow : Window
 
     void OnInputKeyDown(KeyEventArgs e)
     {
+        if (_newProject is not null)
+        {
+            OnNewProjectKeyDown(e);
+            return;
+        }
         var input = _input!;
         if (e.Key == Key.Escape)
         {
@@ -1333,6 +1349,7 @@ public partial class RadialMenuWindow : Window
             box.CaretBrush = _palette.Text;
             box.SelectionBrush = _palette.Accent;
         }
+        ApplyNewProjectPalette();
     }
 
     static Point OnCircle(double radius, double degrees)

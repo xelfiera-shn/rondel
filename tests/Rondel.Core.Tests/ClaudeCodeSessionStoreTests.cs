@@ -8,7 +8,7 @@ public class ClaudeCodeSessionStoreTests
     [Fact]
     public void EncodeReplacesEverythingButAsciiLettersAndDigits()
     {
-        Assert.Equal("C--Users-Ahmet-Belgeler-Proje-----v2", ClaudeCodeSessionStore.Encode(@"C:\Users\Ahmet\Belgeler\Proje Ğüş.v2"));
+        Assert.Equal("C--Users-dev-Belgeler-Proje-----v2", ClaudeCodeSessionStore.Encode(@"C:\Users\dev\Belgeler\Proje Ğüş.v2"));
     }
 
     [Fact]

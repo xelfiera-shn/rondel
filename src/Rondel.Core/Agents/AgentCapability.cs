@@ -17,4 +17,10 @@ public enum AgentCapability
 
     /// <summary>Start a new session with an initial prompt ("{prompt}").</summary>
     Prompt,
+
+    /// <summary>
+    /// Start in plan mode: on its own a new session, and for a new project placed in front of the other
+    /// arguments (with a prompt, for example).
+    /// </summary>
+    Plan,
 }

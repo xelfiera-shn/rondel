@@ -7,6 +7,9 @@ namespace Rondel.Core.Launch;
 /// <param name="Arguments">Literal arguments appended after the command, already expanded.</param>
 public sealed record LaunchPlan(string Directory, string AgentName, string Command, IReadOnlyList<string> Arguments)
 {
+    /// <summary>Run "git init" in <see cref="Directory"/> before the agent starts (a new project); without git, say so and go on.</summary>
+    public bool InitGit { get; init; }
+
     public string Title
     {
         get

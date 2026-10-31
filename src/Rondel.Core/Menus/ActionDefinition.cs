@@ -18,6 +18,12 @@ public enum ActionInput
 
     /// <summary>A prompt only; the agent starts in the menu's folder.</summary>
     Prompt,
+
+    /// <summary>
+    /// The New Project card: a folder name and how the project starts (a prompt, git, plan mode, templates),
+    /// remembered from the last time.
+    /// </summary>
+    NewProject,
 }
 
 /// <summary>Which folder an action works on.</summary>

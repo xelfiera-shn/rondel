@@ -119,6 +119,10 @@ public partial class SettingsWindow : Window
             Select(TerminalBox, s.Terminal.ToString());
             Select(ShellBox, s.Shell.ToString());
             DebugBox.IsChecked = s.DebugLogging;
+            CardPromptBox.IsChecked = s.NewProjectCard.Prompt;
+            CardGitBox.IsChecked = s.NewProjectCard.Git;
+            CardPlanBox.IsChecked = s.NewProjectCard.Plan;
+            CardTemplatesBox.IsChecked = s.NewProjectCard.Templates;
             AutostartBox.IsChecked = _host.Autostart.IsEnabled;
             VersionText.Text = Loc.Format("Settings.Version", AppInfo.Version);
         }
@@ -294,6 +298,23 @@ public partial class SettingsWindow : Window
         if (!_loading)
             Store.Update(s => s.DebugLogging = value);
     }
+
+    void OnNewProjectCardClicked(object sender, RoutedEventArgs e)
+    {
+        if (_loading)
+            return;
+        bool prompt = CardPromptBox.IsChecked == true, git = CardGitBox.IsChecked == true;
+        bool plan = CardPlanBox.IsChecked == true, templates = CardTemplatesBox.IsChecked == true;
+        Store.Update(s =>
+        {
+            s.NewProjectCard.Prompt = prompt;
+            s.NewProjectCard.Git = git;
+            s.NewProjectCard.Plan = plan;
+            s.NewProjectCard.Templates = templates;
+        });
+    }
+
+    void OnOpenTemplates(object sender, RoutedEventArgs e) => _host.OpenTemplatesFolder();
 
     void OnEditJson(object sender, RoutedEventArgs e) => _host.OpenSettingsFile();
 
