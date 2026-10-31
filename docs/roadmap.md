@@ -20,11 +20,11 @@ To be verified before 0.1.0:
 
 - [ ] Windows 11 File Explorer with several tabs
 - [ ] Windows 10
-- [ ] PowerShell 7.3+ argument passing
+- [x] PowerShell 7.3+ argument passing (automated: launch round-trip test on CI, Windows PowerShell and pwsh)
 - [ ] Monitors with different scaling (mixed DPI)
 - [ ] Elevated File Explorer is skipped
 - [ ] Hotkey
-- [ ] ARM64 build
+- [x] ARM64 build (compiles and publishes in the release workflow; not run on ARM hardware yet)
 
 **Done when** merging `dev` into `prod` produces a Windows release automatically.
 
@@ -35,6 +35,7 @@ To be verified before 0.1.0:
 - New-project templates (git init, agent instruction file).
 - A modifier key for an alternate mode (for example Shift for plan mode).
 - WSL paths.
+- Customizable theme: user-chosen colors on top of Rondel's palette.
 
 ## Phase 3 — Trust and distribution
 
