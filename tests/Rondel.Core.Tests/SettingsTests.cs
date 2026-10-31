@@ -59,15 +59,17 @@ public class SettingsTests
             .Items.Single(i => i.Action.Id == "recents");
         var now = DateTime.UtcNow;
         IReadOnlyList<SessionEntry> two = [new("s2", "Second", now), new("s1", "First", now.AddHours(-1))];
+        string alpha = Path.Combine(Path.GetTempPath(), "work", "alpha");
+        string beta = Path.Combine(Path.GetTempPath(), "work", "beta");
 
         var projects = MenuBuilder.ProjectItems(recents,
-            [new FolderActivity(@"C:\work\alpha", now, 2, "s2"), new FolderActivity(@"C:\work\beta", now.AddHours(-2), 1, "b1")],
-            directory => directory.EndsWith("alpha", StringComparison.Ordinal) ? two : []);
+            [new FolderActivity(alpha, now, 2, "s2"), new FolderActivity(beta, now.AddHours(-2), 1, "b1")],
+            directory => directory == alpha ? two : []);
 
         Assert.Equal(["alpha", "beta"], projects.Select(p => p.Label));
         Assert.Equal(["s2", "b1"], projects.Select(p => p.SessionId));
         Assert.Equal(["s2", "s1"], projects[0].Children.Select(c => c.SessionId));
-        Assert.All(projects[0].Children, c => Assert.Equal(@"C:\work\alpha", c.Directory));
+        Assert.All(projects[0].Children, c => Assert.Equal(alpha, c.Directory));
         Assert.Empty(projects[1].Children);
         Assert.Empty(MenuBuilder.SessionItems(projects[1], [new("b1", "Only", now)]));
     }

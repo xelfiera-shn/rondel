@@ -57,20 +57,23 @@ Every push to `dev` also produces a test build: the CI run's **Rondel-dev.N-win-
 
 ## Building and checking
 
-Requirements: Windows 10 or 11 and the .NET 10 SDK. Once the solution is in place:
+Requirements: the .NET 10 SDK. The Windows app runs on Windows 10 or 11; the whole solution, including the Windows project, also builds on macOS and Linux, and the core tests run there.
 
 ```powershell
 dotnet build                                   # must finish with zero warnings
 dotnet test                                    # Core unit tests
 dotnet format --verify-no-changes              # code style (.editorconfig)
-.\build\publish.ps1                            # single-file Rondel.exe in .\dist
+.\build\publish.ps1                            # single-file Rondel.exe in .\dist (Windows)
 ```
+
+CI builds and tests on Windows and on macOS; both must pass.
 
 ## Rules for changes
 
 - **Every user-visible text in English and Turkish.** No UI text is hard-coded; both string tables are updated together.
 - **Windows 10 and 11.** Both must keep working; say in the pull request which one you tested on.
 - **Nothing machine-specific** in code, tests or docs: no personal paths, user names or local settings.
+- **The core stays platform-neutral.** No OS-specific APIs in `Rondel.Core`; what differs per OS goes behind an interface in `Core/Platform` and is implemented in the platform project. Core tests build paths with `Path.Combine` from real roots (such as the temp folder), never from literals like `C:\work`.
 - **Ordinal or invariant comparisons** for identifiers, paths and keys (the Turkish dotless/dotted i breaks culture-sensitive comparisons).
 - **Context detection decides only on non-localized identifiers** (window classes, control types), never on displayed text.
 - **Changing a settings default needs a schema migration.** People already have a saved `settings.json`; the migration updates it only where the old default is still in place.
