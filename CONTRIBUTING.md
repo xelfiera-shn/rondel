@@ -47,7 +47,9 @@ Releases are automatic. On every push to `prod`, the next version is computed fr
 - A breaking change raises the minor version while Rondel is below 1.0, and the major version from 1.0 on.
 - Commits of other types alone (`docs`, `chore`, …) do not produce a release.
 
-The release notes are generated from the same commits, so a clear PR title is also a clear changelog line.
+The release notes are generated from the same commits, so a clear PR title is also a clear changelog line. A release contains `Rondel-<version>-win-x64.exe`, `Rondel-<version>-win-arm64.exe`, a `SHA256SUMS.txt` and build provenance attestations.
+
+Every push to `dev` also produces a test build: the CI run's **Rondel-dev.N-win-x64** artifact (kept for 14 days).
 
 ## Building and checking
 

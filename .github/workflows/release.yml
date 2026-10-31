@@ -1,0 +1,133 @@
+name: Release
+
+# Every push to prod (a merge from dev or a hotfix) publishes a release when the commits since the
+# last version contain a feature, a fix, a performance change or a breaking change.
+on:
+  push:
+    branches: [prod]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Compute the version and build, but publish nothing
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  GIT_CLIFF_VERSION: 2.14.2
+  GIT_CLIFF_SHA512: 26d1f7c8ea2400f2ccb0b2e7f321635f600b583bf4cd1f7afaa5e8c24068ad1088a2504e0a4d9f4333d4bb20a80329327d9462634343ee3af91e1a7fbdc6f18a
+
+jobs:
+  version:
+    name: Compute version
+    runs-on: ubuntu-latest
+    outputs:
+      releasable: ${{ steps.version.outputs.releasable }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install git-cliff
+        run: |
+          archive="git-cliff-${GIT_CLIFF_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -sSfL -o "$archive" "https://github.com/orhun/git-cliff/releases/download/v${GIT_CLIFF_VERSION}/${archive}"
+          echo "${GIT_CLIFF_SHA512}  ${archive}" | sha512sum -c -
+          tar -xzf "$archive"
+          echo "$PWD/git-cliff-${GIT_CLIFF_VERSION}" >> "$GITHUB_PATH"
+
+      - name: Decide the version
+        id: version
+        run: |
+          last=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)
+          range="${last:+$last..}HEAD"
+          if git log --format='%s%n%b' "$range" | grep -qE '^(feat|fix|perf)(\([a-z0-9-]+\))?!?: |^[a-z]+(\([a-z0-9-]+\))?!: |^BREAKING[ -]CHANGE: '; then
+            tag=$(git-cliff --bumped-version)
+            git-cliff --unreleased --tag "$tag" --strip all > notes.md
+            echo "releasable=true" >> "$GITHUB_OUTPUT"
+            echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+            echo "Next version: ${tag} (previous: ${last:-none})" >> "$GITHUB_STEP_SUMMARY"
+            cat notes.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "releasable=false" >> "$GITHUB_OUTPUT"
+            echo "No feature, fix or breaking change since ${last:-the beginning}: nothing to release." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.version.outputs.releasable == 'true'
+        with:
+          name: release-notes
+          path: notes.md
+
+  build:
+    name: Build ${{ matrix.runtime }}
+    needs: version
+    if: needs.version.outputs.releasable == 'true'
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        runtime: [win-x64, win-arm64]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish
+        shell: pwsh
+        run: ./build/publish.ps1 -Runtime ${{ matrix.runtime }} -Version ${{ needs.version.outputs.version }}
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rondel-${{ matrix.runtime }}
+          path: dist/${{ matrix.runtime }}/Rondel.exe
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      PUBLISH: ${{ github.event_name == 'push' || inputs.dry_run == false }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: artifacts
+
+      - name: Prepare the files
+        run: |
+          mkdir release
+          for runtime in win-x64 win-arm64; do
+            cp "artifacts/rondel-${runtime}/Rondel.exe" "release/Rondel-${VERSION}-${runtime}.exe"
+          done
+          (cd release && sha256sum *.exe > SHA256SUMS.txt)
+          cat release/SHA256SUMS.txt
+
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        if: env.PUBLISH == 'true'
+        with:
+          subject-path: release/*.exe
+
+      - name: Create the GitHub release
+        if: env.PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${VERSION}" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Rondel ${VERSION}" \
+            --notes-file artifacts/release-notes/notes.md
