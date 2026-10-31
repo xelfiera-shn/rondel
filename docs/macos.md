@@ -36,11 +36,12 @@ Settings (`~/Library/Application Support/Rondel`), logs (`~/Library/Logs/Rondel`
 The spike is a throwaway window, not merged, and reports back here:
 
 1. Fully transparent pixels let the mouse through, so only the ring and its arcs catch the pointer (Windows relies on this).
-2. The menu opens above full-screen apps and on every Space, without taking focus from Finder until it is needed for the name and prompt card. This needs the window level and `collectionBehavior` of the underlying `NSWindow`, set through its native handle.
+2. The menu opens above full-screen apps and on every Space, and takes the keyboard (Esc, Tab, arrow keys and digits, as on Windows) without activating Rondel or taking Finder's active state: a non-activating panel that can become the key window, as Spotlight does. This needs the window level, `collectionBehavior` and style of the underlying `NSWindow`/`NSPanel`, set through its native handle.
 3. A menu bar extra works with `LSUIElement` (no Dock icon, no app menu).
 4. The menu opens without visible delay from a warm start, on Retina and non-Retina monitors; idle memory is measured.
+5. With the language on Automatic, a Turkish macOS shows Turkish when Rondel is started from Finder or at login, where no `LANG` variable is set.
 
-If any of these fails, the fallback is AppKit through .NET for macOS (`net10.0-macos`): the core stays shared, only the window and its drawing are written natively. Windows stays on WPF either way.
+If any of these fails, the fallback is AppKit through .NET for macOS (`net10.0-macos`): the core stays shared, only the window and its drawing are written natively. Windows stays on WPF either way. `net10.0-macos` needs the macOS workload, which does not build on Windows, so the solution and CI would then build that project on macOS only; Avalonia on `net10.0` builds everywhere.
 
 **Icons:** actions name Segoe Fluent Icons code points, a font that is not on macOS. The Mac app maps the built-in code points to its own vector icons (for example Fluent UI System Icons, MIT); an unknown code point gets the default icon.
 
@@ -50,7 +51,7 @@ Detection runs on its own thread, like the Windows STA thread: Accessibility cal
 
 - `AXUIElementCopyElementAtPosition` returns the element under the pointer, and its ancestor chain decides the context. As on Windows, only non-localized identifiers decide (`AXRole`, `AXSubrole`), never titles or descriptions. The spike records the roles for icon, list, column and gallery views and for the desktop, the way [windows-notes.md](windows-notes.md#context-detection) lists the UI Automation ones.
 - **Folder item:** the item's file URL from its accessibility attributes. A folder must satisfy `Directory.Exists`; packages (`.app`, `.bundle`) and files are not folders; aliases and symbolic links are resolved.
-- **Empty area of a Finder window:** the folder the window shows. If Accessibility does not expose it, the fallback asks Finder with Apple Events (`target` of the Finder window whose bounds contain the point), which needs the Automation permission.
+- **Empty area of a Finder window:** the folder the window shows, from the window's `AXDocument` (a file URL). If Accessibility does not expose it, the fallback asks Finder with Apple Events (`target` of the Finder window whose bounds contain the point), which needs the Automation permission. That permission is never asked in the middle of a gesture, where its prompt would hold the press until it times out: it is asked at first start or from Settings, and until it is granted the fallback is skipped.
 - **Desktop:** an empty spot opens the desktop menu for the projects folder; a folder on the desktop is a folder item.
 - Recents, AirDrop, Network, the Trash, iCloud search results and other virtual locations give `None`.
 - The context kinds stay as they are. `ExplorerEmpty` is the key in everyone's `settings.json`, so on macOS it means "empty area of a Finder window".
@@ -62,10 +63,10 @@ Detection runs on its own thread, like the Windows STA thread: Accessibility cal
 The core already turns an action into a `LaunchPlan`; the Mac launcher runs it.
 
 - **Script:** a POSIX counterpart of `PowerShellScript` in the core, unit-tested and round-trip tested on the macOS CI runner. Every value is a single-quoted literal (`'` becomes `'\''`), so quotes, `$`, backticks, `;`, line breaks and Turkish characters arrive unchanged. The script changes to the folder (`cd --`), sets the window title, checks the command with `command -v`, prints "command not found" in the user's language, and starts the agent.
-- **Shell:** the user's login shell (zsh by default), started as a login and interactive shell, so `PATH` from `~/.zprofile` and aliases such as `cc` from `~/.zshrc` work. Apps started from Finder do not inherit the terminal's `PATH`; running inside the shell avoids that. The shell stays open when the agent exits, like `-NoExit` on Windows.
+- **Shell:** the user's login shell (from the user database, zsh by default). The agent runs inside it as a login and interactive shell (`"$SHELL" -l -i -c …`), so `PATH` from `~/.zprofile` and aliases such as `cc` from `~/.zshrc` work; a script on its own would not see the aliases. Apps started from Finder do not inherit the terminal's `PATH`; running inside the shell avoids that. When the agent exits, the script replaces itself with a login shell (`exec "$SHELL" -l`), so the window stays usable, like `-NoExit` on Windows. The round-trip test also starts the command through an alias.
 - **Terminal.app** (default): the script is written to a private temporary `.command` file (mode `0700`) that deletes itself when it starts, and opened with `open -a Terminal`. No Automation permission is needed and nothing has to be quoted for AppleScript.
-- **iTerm2** (when chosen): a new window through its AppleScript interface, which needs the Automation permission for iTerm2.
-- **Settings:** `Terminal` gains `TerminalApp` and `ITerm`; `Auto` means Terminal.app on macOS. The Settings window lists only the current platform's choices. No default changes, so no schema migration. `Shell` keeps `Auto` on macOS.
+- **iTerm2** (when chosen): the same `.command` file opened with `open -a iTerm`, if the spike confirms that iTerm2 runs it; that needs no AppleScript, no quoting and no Automation permission. Otherwise a new window through its AppleScript interface, which needs the Automation permission for iTerm2.
+- **Settings:** `Terminal` gains `TerminalApp` and `ITerm`; `Auto` means Terminal.app on macOS. The Settings window lists only the current platform's choices, and each launcher treats the other platform's values as `Auto`. No default changes, so no schema migration. `Shell` keeps `Auto` on macOS.
 
 **Open:** other terminals (Ghostty, WezTerm, kitty) through their command-line options, later.
 
@@ -85,14 +86,13 @@ The core already turns an action into a `LaunchPlan`; the Mac launcher runs it.
 | Permission | Why | When it is asked |
 |---|---|---|
 | Accessibility | The event tap that swallows presses, and reading elements under the pointer | First start; the trigger stays off until it is granted, and the menu bar icon says so |
-| Automation (Finder) | Only for the Apple Events fallback in detection | The first time the fallback is used |
-| Automation (iTerm2) | Only when iTerm2 is the chosen terminal | The first launch in iTerm2 |
+| Automation (Finder) | Only for the Apple Events fallback in detection | At first start or from Settings, never during a gesture |
+| Automation (iTerm2) | Only if iTerm2 cannot run the `.command` file directly | The first launch in iTerm2 |
 
-- **Permission and signature:** macOS ties a granted permission to the app's code signature and bundle identifier. An unsigned or ad-hoc signed build loses its permissions on every rebuild, so development builds are signed with a fixed local certificate, and the bundle identifier is fixed from the first build on.
-- **Distribution:** Developer ID signing with the hardened runtime, notarization and stapling. This needs an Apple Developer Program membership. .NET needs the `allow-jit` entitlement under the hardened runtime unless it is built with NativeAOT.
-- **No App Sandbox:** the sandbox does not allow a global event tap or starting other apps' shells, so Rondel is not a Mac App Store app. It ships as a zipped `.app` on the GitHub release (later perhaps a Homebrew cask).
-- **Without signing**, macOS blocks the first start; it can be allowed in System Settings → Privacy & Security → Open Anyway. The README would explain this the way it explains SmartScreen.
-- **Release:** `release.yml` gains a macOS job that builds `osx-arm64` and `osx-x64`, signs and notarizes when the secrets are present, and adds the archives to `SHA256SUMS.txt` and the build provenance attestations.
+- **Permission and signature:** macOS ties a granted permission to the app's bundle identifier (`io.github.xelfiera-shn.rondel`, fixed from the first build on) and its code signature. An ad-hoc signed build gets a new signature with every build, so users would have to grant Accessibility again after every update. Every build is therefore signed with a fixed self-signed certificate, which costs nothing: release builds with one certificate kept in the repository secrets (the macOS release job fails without it), development builds with each developer's own local certificate. **Open:** the spike confirms that a permission granted to one build survives an update signed with the same certificate.
+- **Not notarized:** releases are signed but not notarized, so macOS blocks the first start of a downloaded copy, and again after downloading an update; the user allows it in System Settings → Privacy & Security → Open Anyway. The README explains this the way it explains SmartScreen.
+- **No App Sandbox:** the sandbox does not allow a global event tap or starting other apps' shells, so Rondel is not a Mac App Store app. It ships as a zipped `.app` on the GitHub release.
+- **Release:** `release.yml` gains a macOS job that builds `osx-arm64` and `osx-x64`, signs them with the certificate from the repository secrets, and adds the zipped apps to the same release as the Windows executables, to `SHA256SUMS.txt` and to the build provenance attestations.
 
 ## Strings
 
@@ -103,14 +103,17 @@ All new text is added in English and Turkish. Some current strings name Windows 
 Each step is its own pull request into `dev`:
 
 1. This plan.
-2. Spike: Avalonia window, event tap and Accessibility probe; results recorded here, nothing merged.
+2. Spike: Avalonia window, event tap and Accessibility probe, a permission surviving a re-signed build, iTerm2 opening a `.command` file; results recorded here, nothing merged.
 3. Core: the POSIX script, `MacFolderNameRules`, the new `Terminal` values and strings, with tests. Nothing changes on Windows.
-4. `Rondel.MacOS`: menu bar icon, trigger, detection, menu, launching, settings window; built and tested in the macOS CI job.
-5. Distribution: signing, notarization, the release job and the macOS part of the README.
+4. `Rondel.MacOS`, in three pull requests, each built and tested in the macOS CI job:
+   1. Menu bar icon, trigger and Finder detection, with a `--probe X Y out.txt` diagnostic like the Windows one.
+   2. The menu window, with a `--render-menu` diagnostic for checking the design without screenshots.
+   3. Launching and the settings window.
+5. Distribution: signing with the release certificate, the release job and the macOS part of the README.
 
-## Decisions needed from the maintainer
+## Decisions
 
-- Who holds the Apple Developer Program membership and the signing certificate.
-- The bundle identifier (it cannot change later without everyone granting permissions again).
-- The oldest macOS version to support (at least what .NET 10 supports; `SMAppService` needs macOS 13).
-- Whether Option is the final modifier, or Option is only the default and the modifier becomes a setting.
+- **Bundle identifier:** `io.github.xelfiera-shn.rondel`. It never changes: macOS keeps permissions and preferences under it, and a new one would make everyone grant them again.
+- **Oldest macOS:** 15, the oldest version .NET 10 supports; Apple Silicon and Intel. `SMAppService` (macOS 13) is available on all of them.
+- **Modifier:** Option is fixed in the first version, as Ctrl is on Windows. If people ask for a different one, the modifier becomes a setting on both platforms together.
+- **Distribution:** signed with the fixed certificate, not notarized (see [Permissions and signing](#permissions-and-signing)); macOS builds ship in the same releases as Windows.
