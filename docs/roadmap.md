@@ -16,21 +16,22 @@ License, README, contribution guide, issue and pull request templates, code styl
 - `ci.yml`: build with zero warnings, format check and tests on every pull request and on `dev`; a test build of `Rondel.exe` from every push to `dev`.
 - `release.yml`: on every push to `prod`, compute the version from the commits, build single-file x64 and ARM64 executables, attach checksums and build provenance, tag and publish a GitHub release.
 
-To be verified before 0.1.0:
+Verified for 0.1.0:
 
-- [ ] Windows 11 File Explorer with several tabs
-- [ ] Windows 10
+- [x] Windows 11 File Explorer with several tabs
+- [x] Windows 10
 - [x] PowerShell 7.3+ argument passing (automated: launch round-trip test on CI, Windows PowerShell and pwsh)
-- [ ] Monitors with different scaling (mixed DPI)
-- [ ] Elevated File Explorer is skipped
-- [ ] Hotkey
+- [x] Monitors with different scaling (mixed DPI)
+- [x] Elevated File Explorer is skipped
+- [x] Hotkey
 - [x] ARM64 build (compiles and publishes in the release workflow; not run on ARM hardware yet)
 
 **Done when** merging `dev` into `prod` produces a Windows release automatically.
 
 ## Phase 2 — Features (Windows)
 
-- Recent projects ring and an in-menu session list (`--resume <id>`).
+- ~~In-menu session list (`--resume <id>`)~~ — shipped in 0.1.0 as the Resume arc.
+- **0.2.0 — Recents**: a desktop-menu slice that opens into the five most recently worked-on project folders. Clicking a project resumes its latest session; a project with two or more sessions opens further into them. The Resume slice and project items only expand when there are at least two sessions.
 - File context: "ask about this file" with an @-mention of the file.
 - New-project templates (git init, agent instruction file).
 - A modifier key for an alternate mode (for example Shift for plan mode).
