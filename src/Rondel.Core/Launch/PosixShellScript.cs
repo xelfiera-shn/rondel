@@ -39,8 +39,9 @@ public static class PosixShellScript
         var agent = new StringBuilder();
         if (plan.InitGit)
         {
-            // A new project gets its repository before the agent starts; without git it starts anyway.
-            agent.Append($"if command -v git >/dev/null 2>&1; then git init; else {Print(Loc.Get("Launch.NoGit"), Yellow)}; fi; ");
+            // A new project gets its repository before the agent starts; without git it starts anyway. "git --version"
+            // rather than "command -v git": without the Command Line Tools, /usr/bin/git is a stub that only offers to install them.
+            agent.Append($"if git --version >/dev/null 2>&1; then git init; else {Print(Loc.Get("Launch.NoGit"), Yellow)}; fi; ");
         }
         // Left unquoted when it is a plain word, so an alias of that name is expanded (zsh does not expand a
         // quoted word). Anything after the name is the user's own shell text from settings ("--model opus").
