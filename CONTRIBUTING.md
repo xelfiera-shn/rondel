@@ -112,6 +112,7 @@ CI builds and tests on Windows and on macOS; both must pass.
 
 - **Every user-visible text in English and Turkish.** No UI text is hard-coded; both string tables are updated together.
 - **Supported systems:** Windows 10 and 11, and macOS 15 and later for the macOS app. A change must keep working on every system it touches; say in the pull request which ones you tested on.
+- **A feature that reaches a platform is marked in [docs/features.md](docs/features.md) and [docs/features.tr.md](docs/features.tr.md)**, with the version it ships in, so users can see what each platform has.
 - **Nothing machine-specific** in code, tests or docs: no personal paths, user names or local settings.
 - **The core stays platform-neutral.** No OS-specific APIs in `Rondel.Core`; what differs per OS goes behind an interface in `Core/Platform` and is implemented in the platform project. Core tests build paths with `Path.Combine` from real roots (such as the temp folder), never from literals like `C:\work`.
 - **Ordinal or invariant comparisons** for identifiers, paths and keys (the Turkish dotless/dotted i breaks culture-sensitive comparisons).
