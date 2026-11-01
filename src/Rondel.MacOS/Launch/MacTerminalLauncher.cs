@@ -15,8 +15,15 @@ namespace Rondel.MacOS.Launch;
 /// (<see cref="PosixShellScript"/>) written to a .command file that deletes itself when it starts; the terminal is
 /// asked to open it with open(1), so no AppleScript, no quoting for it and no Automation permission are needed.
 /// </summary>
-internal sealed partial class MacTerminalLauncher : ITerminalLauncher
+/// <param name="failed">
+/// Where a terminal that did not open is reported, from a background thread. open(1) waits for a cold terminal to
+/// start, so it runs in the background and the menu never waits for it. Null: wait for open(1), and throw
+/// <see cref="LaunchException"/> when it fails (the diagnostics).
+/// </param>
+internal sealed partial class MacTerminalLauncher(Action<string>? failed = null) : ITerminalLauncher
 {
+    const int OpenTimeoutMs = 10_000;
+
     const string ITermId = "com.googlecode.iterm2";
 
     /// <summary>
@@ -36,19 +43,47 @@ internal sealed partial class MacTerminalLauncher : ITerminalLauncher
         File.WriteAllText(file, PosixShellScript.Build(plan, shell), new UTF8Encoding(false));
         File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 
+        string what = $"{terminal} + {Path.GetFileName(shell)} in '{plan.Directory}' with {plan.Arguments.Count} argument(s)";
+        if (failed is null)
+        {
+            Open(terminal, file, what);
+            return;
+        }
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                Open(terminal, file, what);
+            }
+            catch (LaunchException ex)
+            {
+                failed(ex.Message);
+            }
+        });
+    }
+
+    /// <summary>Asks <paramref name="terminal"/> to open the script.</summary>
+    /// <exception cref="LaunchException">open(1) failed, or did not finish in 10 seconds.</exception>
+    static void Open(string terminal, string file, string what)
+    {
         var start = new ProcessStartInfo("/usr/bin/open") { UseShellExecute = false, RedirectStandardError = true };
         foreach (string argument in new[] { "-a", terminal, file })
             start.ArgumentList.Add(argument);
         using var process = Process.Start(start) ?? throw new LaunchException(Loc.Format("Launch.TerminalFailed", terminal));
-        string error = process.StandardError.ReadToEnd();
-        process.WaitForExit(10_000);
+        var error = process.StandardError.ReadToEndAsync();
+        if (!process.WaitForExit(OpenTimeoutMs))
+        {
+            // The terminal may still open it later; if not, the next launch removes it (RemoveLeftovers).
+            Log.Warn($"open -a {terminal} did not finish in {OpenTimeoutMs / 1000} s");
+            throw new LaunchException(Loc.Format("Launch.TerminalFailed", terminal));
+        }
         if (process.ExitCode != 0)
         {
             File.Delete(file); // the script never ran, so it could not delete itself
-            Log.Warn($"open -a {terminal} failed ({process.ExitCode}): {error.Trim()}");
+            Log.Warn($"open -a {terminal} failed ({process.ExitCode}): {error.Result.Trim()}");
             throw new LaunchException(Loc.Format("Launch.TerminalFailed", terminal));
         }
-        Log.Info($"Launched {terminal} + {Path.GetFileName(shell)} in '{plan.Directory}' with {plan.Arguments.Count} argument(s)");
+        Log.Info($"Launched {what}");
     }
 
     /// <summary>

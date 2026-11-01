@@ -40,7 +40,8 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         Store.Load();
         _detector = new FinderDetector(() => Store.Current);
         _tap = new EventTap(this);
-        _flow = new MenuFlow(this, new MacTerminalLauncher(), new MacFolderNameValidator(), () => Store.Current, change => Store.Update(change));
+        var launcher = new MacTerminalLauncher(message => Dispatcher.UIThread.Post(() => Warn(message)));
+        _flow = new MenuFlow(this, launcher, new MacFolderNameValidator(), () => Store.Current, change => Store.Update(change));
         ApplySettings(Store.Current);
     }
 
