@@ -31,6 +31,17 @@ internal static class Workspace
         return id;
     }
 
+    /// <summary>An app with this bundle identifier is installed (Launch Services knows where it is).</summary>
+    public static bool IsInstalled(string bundleId)
+    {
+        using var pool = new AutoreleasePool();
+        nint workspace = Send(Class("NSWorkspace"), Sel("sharedWorkspace"));
+        nint id = CFString(bundleId);
+        nint url = Send(workspace, Sel("URLForApplicationWithBundleIdentifier:"), id);
+        CFRelease(id);
+        return url != 0;
+    }
+
     /// <summary>A folder that Finder shows as a single item (an .app, a .photoslibrary…).</summary>
     public static bool IsPackage(string path)
     {
@@ -54,17 +65,22 @@ internal static class Workspace
     }
 
     /// <summary>Opens a URL, file or folder the way Finder would (open(1)).</summary>
-    public static void Open(string target, string? application = null)
+    public static void Open(string target, string? application = null) =>
+        Run(application is null ? [target] : ["-a", application, target], target);
+
+    /// <summary>
+    /// Opens a text file in the user's default text editor (open -t). Not TextEdit by name: its Smart Quotes, on by
+    /// default, turn a typed " into curly quotes and break JSON.
+    /// </summary>
+    public static void OpenText(string file) => Run(["-t", file], file);
+
+    static void Run(string[] arguments, string target)
     {
         try
         {
             var start = new ProcessStartInfo("/usr/bin/open") { UseShellExecute = false };
-            if (application is not null)
-            {
-                start.ArgumentList.Add("-a");
-                start.ArgumentList.Add(application);
-            }
-            start.ArgumentList.Add(target);
+            foreach (string argument in arguments)
+                start.ArgumentList.Add(argument);
             Process.Start(start)?.Dispose();
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)

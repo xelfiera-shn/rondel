@@ -1,13 +1,21 @@
 using System.Diagnostics;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Platform;
 using Avalonia.Threading;
 using Rondel.Core;
 using Rondel.Core.Context;
+using Rondel.Core.Flow;
 using Rondel.Core.Localization;
 using Rondel.Core.Logging;
 using Rondel.Core.Menus;
+using Rondel.Core.Platform;
 using Rondel.Core.Settings;
 using Rondel.MacOS.Detection;
 using Rondel.MacOS.Interop;
+using Rondel.MacOS.Launch;
+using Rondel.MacOS.Settings;
 using Rondel.MacOS.Trigger;
 using Rondel.MacOS.UI;
 
@@ -17,50 +25,79 @@ namespace Rondel.MacOS;
 /// Composition root: wires the tap thread, the detection thread and the main thread together. IGestureSink
 /// callbacks arrive on the tap thread or a timer thread and are only forwarded from here.
 /// </summary>
-/// <remarks>
-/// The menu window comes with the next step (M-5 in the task list); until then a gesture that reaches the hold
-/// time over Finder logs the context and the menu it would open, and shows it in the menu bar menu.
-/// </remarks>
-internal sealed class AppHost : IGestureSink, IDisposable
+internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
 {
     readonly MenuBar _menuBar = new();
     readonly DetectionWorker _worker = new();
     readonly FinderDetector _detector;
     readonly EventTap _tap;
+    readonly MenuFlow _flow;
     IDisposable? _accessibilityPoll;
     nint _activity;
+    RadialMenuWindow? _menu;
+    SettingsWindow? _settingsWindow;
+    string? _look;
 
-    public AppHost()
+    /// <param name="settingsDirectory">Where settings.json is; the settings folder unless a diagnostic passes a copy.</param>
+    public AppHost(string? settingsDirectory = null)
     {
-        Store = new SettingsStore(new AvaloniaSynchronizationContext());
+        Store = new SettingsStore(new AvaloniaSynchronizationContext(), settingsDirectory);
         Store.Load();
         _detector = new FinderDetector(() => Store.Current);
         _tap = new EventTap(this);
+        var launcher = new MacTerminalLauncher(message => Dispatcher.UIThread.Post(() => Warn(message)));
+        _flow = new MenuFlow(this, launcher, new MacFolderNameValidator(), () => Store.Current, change => Store.Update(change));
         ApplySettings(Store.Current);
     }
 
     public SettingsStore Store { get; }
+
+    public Autostart Autostart { get; } = new();
+
+    /// <summary>Whether Rondel may ask Finder for a window's folder; null until it was checked.</summary>
+    public bool? HasFinderAccess { get; private set; }
+
+    /// <summary>A permission was granted or taken back (on the main thread).</summary>
+    public event Action? PermissionsChanged;
 
     /// <summary>"Quit Rondel" was chosen in the menu bar menu.</summary>
     public event Action? QuitRequested;
 
     public void Start()
     {
-        Store.Changed += (settings, _) => ApplySettings(settings);
+        Store.Changed += (settings, external) =>
+        {
+            ApplySettings(settings);
+            if (external)
+                _settingsWindow?.LoadValues();
+        };
         Store.LoadFailed += _ => Warn(Loc.Get("Tray.SettingsInvalid"));
 
-        _menuBar.AccessibilityClicked += () =>
-        {
-            Native.RequestAccessibility();
-            Workspace.Open(Workspace.AccessibilitySettings);
-        };
-        _menuBar.FinderAccessClicked += () => AskForFinderAccess(fromMenu: true);
+        _menuBar.AccessibilityClicked += AllowAccessibility;
+        _menuBar.FinderAccessClicked += AllowFinderAccess;
+        _menuBar.SettingsClicked += OpenSettings;
         _menuBar.PauseClicked += () => Store.Update(s => s.Paused = !s.Paused);
-        _menuBar.EditSettingsClicked += () => Workspace.Open(Store.FilePath, "TextEdit");
-        _menuBar.OpenLogsClicked += () => Workspace.Open(Log.Directory);
+        _menuBar.OpenLogsClicked += OpenLogFolder;
         _menuBar.QuitClicked += () => QuitRequested?.Invoke();
         _menuBar.Show(new MenuBarState(Store.Current.Paused, !Native.AXIsProcessTrusted(), true,
-            Store.LoadError is null ? null : Loc.Get("Tray.SettingsInvalid"), null));
+            Store.LoadError is null ? null : Loc.Get("Tray.SettingsInvalid")));
+
+        _menu = new RadialMenuWindow(Palette(Store.Current));
+        _menu.ItemInvoked += _flow.Invoke;
+        _menu.MenuClosed += _tap.NotifyMenuClosed;
+        _menu.FrameChanged += _tap.NotifyMenuOpened;
+        _menu.Prepare();
+        if (Application.Current?.PlatformSettings is { } platform)
+            platform.ColorValuesChanged += (_, _) => ApplyLook(Store.Current, force: true);
+        // Opening Rondel again (from Finder, Spotlight or Launchpad) while it runs opens its settings.
+        if (Application.Current?.TryGetFeature<IActivatableLifetime>() is { } activatable)
+        {
+            activatable.Activated += (_, e) =>
+            {
+                if (e.Kind == ActivationKind.Reopen)
+                    OpenSettings();
+            };
+        }
 
         // The event tap must answer within a fraction of a second, also after hours in the background.
         _activity = Native.BeginLatencyCriticalActivity("Rondel watches for Option + hold");
@@ -76,6 +113,55 @@ internal sealed class AppHost : IGestureSink, IDisposable
         Loc.SetLanguage(settings.Language);
         _tap.Configure(settings.HoldMs, settings.Paused);
         _menuBar.Update(s => s with { Paused = settings.Paused });
+        ApplyLook(settings);
+    }
+
+    /// <summary>The menu's theme, mode and accent; redrawn only when one of them changed (or macOS switched modes).</summary>
+    void ApplyLook(AppSettings settings, bool force = false)
+    {
+        var appearance = settings.Appearance;
+        string look = $"{appearance.Theme}|{appearance.Mode}|{appearance.AccentFrom}|{appearance.AccentTo}|{SystemIsDark}";
+        if (_menu is null || (!force && look == _look))
+            return;
+        _look = look;
+        _menu.ApplyLook(Palette(settings));
+    }
+
+    static MenuPalette Palette(AppSettings settings) => MenuPalette.For(settings.Appearance, SystemIsDark);
+
+    static bool SystemIsDark => Application.Current?.PlatformSettings?.GetColorValues().ThemeVariant == PlatformThemeVariant.Dark;
+
+    public void OpenSettings()
+    {
+        if (_settingsWindow is null)
+        {
+            _settingsWindow = new SettingsWindow(this);
+            _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+            _settingsWindow.Show();
+        }
+        if (_settingsWindow.WindowState == WindowState.Minimized)
+            _settingsWindow.WindowState = WindowState.Normal;
+        _settingsWindow.Activate();
+    }
+
+    public void OpenSettingsFile() => Workspace.OpenText(Store.FilePath);
+
+    public void OpenLogFolder() => Workspace.Open(Log.Directory);
+
+    /// <summary>Opens the folder new projects' templates come from, creating it the first time.</summary>
+    public void OpenTemplatesFolder()
+    {
+        string directory = Core.Projects.ProjectTemplates.Default.Directory;
+        try
+        {
+            Directory.CreateDirectory(directory);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Warn($"Creating the templates folder '{directory}' failed", ex);
+            return;
+        }
+        Workspace.Open(directory);
     }
 
     void Warn(string message)
@@ -105,6 +191,7 @@ internal sealed class AppHost : IGestureSink, IDisposable
                 return true;
             Log.Info("Accessibility permission granted");
             InstallTap();
+            PermissionsChanged?.Invoke();
             return false;
         }, TimeSpan.FromSeconds(1));
     }
@@ -115,6 +202,27 @@ internal sealed class AppHost : IGestureSink, IDisposable
         if (!_tap.Start())
             Warn(Loc.Get("Tray.HookFailed"));
     }
+
+    public void AllowAccessibility()
+    {
+        Native.RequestAccessibility();
+        Workspace.Open(Workspace.AccessibilitySettings);
+    }
+
+    public void AllowFinderAccess() => AskForFinderAccess(fromMenu: true);
+
+    /// <summary>Checks the Automation permission for Finder again without asking (it can be changed in System Settings).</summary>
+    public void CheckFinderAccess() => Task.Run(() => ShowFinderAccess(Native.AutomationPermission(Workspace.FinderId, ask: false)));
+
+    void ShowFinderAccess(int status) => Dispatcher.UIThread.Post(() =>
+    {
+        bool granted = status == Native.AutomationAllowed;
+        _menuBar.Update(s => s with { NeedsFinderAccess = !granted });
+        if (HasFinderAccess == granted)
+            return;
+        HasFinderAccess = granted;
+        PermissionsChanged?.Invoke();
+    });
 
     /// <summary>
     /// The Automation permission for Finder, needed for the empty area of a Finder window. Asked at start and from
@@ -130,7 +238,7 @@ internal sealed class AppHost : IGestureSink, IDisposable
             else if (status == Native.AutomationDenied && fromMenu)
                 Workspace.Open(Workspace.AutomationSettings); // macOS asks only once; after a no, only the setting changes it
             Log.Info($"Automation permission for Finder: {(status == Native.AutomationAllowed ? "granted" : status.ToString(System.Globalization.CultureInfo.InvariantCulture))}");
-            Dispatcher.UIThread.Post(() => _menuBar.Update(s => s with { NeedsFinderAccess = status != Native.AutomationAllowed }));
+            ShowFinderAccess(status);
         });
     }
 
@@ -143,19 +251,16 @@ internal sealed class AppHost : IGestureSink, IDisposable
     }
 
     void IGestureSink.OnShowMenu(Gesture gesture, TriggerContext context) =>
-        Dispatcher.UIThread.Post(() => ShowMenu(context));
+        Dispatcher.UIThread.Post(() => ShowMenu(context, gesture.Point));
 
-    void IGestureSink.OnHeldMove(CGPoint point)
-    {
-    }
+    void IGestureSink.OnHeldMove(CGPoint point) =>
+        Dispatcher.UIThread.Post(() => _menu?.OnHeldMove(point));
 
-    void IGestureSink.OnHeldRelease(CGPoint point)
-    {
-    }
+    void IGestureSink.OnHeldRelease(CGPoint point) =>
+        Dispatcher.UIThread.Post(() => _menu?.OnHeldRelease(point));
 
-    void IGestureSink.OnOutsideClick()
-    {
-    }
+    void IGestureSink.OnOutsideClick() =>
+        Dispatcher.UIThread.Post(() => _menu?.CloseMenu(restoreFocus: true));
 
     void IGestureSink.OnGestureCancelled(Gesture gesture, string reason) =>
         Log.Debug($"Gesture #{gesture.Id}: given back ({reason})");
@@ -173,13 +278,59 @@ internal sealed class AppHost : IGestureSink, IDisposable
         return context;
     }
 
-    /// <summary>Until the menu window exists: the menu that would open, in the log and the menu bar menu.</summary>
-    void ShowMenu(TriggerContext context)
+    void ShowMenu(TriggerContext context, CGPoint anchor)
     {
-        var model = MenuBuilder.Build(context, Store.Current);
-        Log.Info($"Menu for {context.Kind} '{context.TargetDir}': {string.Join(", ", model.Items.Select(i => i.Action.Id))}");
-        _menuBar.Update(s => s with { LastTrigger = $"{context.Kind} · {context.DisplayName}" });
+        if (_menu is null)
+            return;
+        if (_flow.Build(context) is not { } built || WithoutActiveAgents(built) is not { Items.Count: > 0 } model)
+            return;
+        try
+        {
+            _tap.NotifyMenuOpened(_menu.ShowMenu(model, anchor));
+            RequestDetails(model);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
+        {
+            Log.Error("Showing the menu failed", ex);
+            _tap.NotifyMenuClosed();
+        }
     }
+
+    /// <summary>
+    /// Rondel does not follow agents on macOS yet (C-24), so an Active Agents slice could only ever say there are none:
+    /// it is left out.
+    /// </summary>
+    static MenuModel WithoutActiveAgents(MenuModel model) =>
+        model.Items.Any(MenuBuilder.ListsActiveAgents)
+            ? model with { Items = [.. model.Items.Where(item => !MenuBuilder.ListsActiveAgents(item))] }
+            : model;
+
+    /// <summary>Session hints, a Resume slice's sessions and the recent projects are filled in when they arrive.</summary>
+    void RequestDetails(MenuModel model)
+    {
+        if (!MenuDetails.Needed(model))
+            return;
+        Task.Run(() => MenuDetails.Load(model)).ContinueWith(
+            lookup => Dispatcher.UIThread.Post(() =>
+            {
+                _menu?.ApplyHints(model, lookup.Result.Hints);
+                _menu?.ApplyChildren(model, lookup.Result.Children);
+            }),
+            TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
+    // ---- IMenuHost (main thread) ----
+
+    void IMenuHost.CloseMenu(bool restoreFocus) => _menu?.CloseMenu(restoreFocus);
+
+    void IMenuHost.StartInput(InputSpec spec) => _menu?.StartInput(spec);
+
+    void IMenuHost.StartNewProject(NewProjectSpec spec) => _menu?.StartNewProject(spec);
+
+    void IMenuHost.ShowWarning(string message) => Warn(message);
+
+    /// <summary>Never called: the Active Agents slice is left out on macOS (<see cref="WithoutActiveAgents"/>).</summary>
+    void IMenuHost.FocusAgent(string id) => Log.Warn($"Bringing agent {id} to the front is not supported on macOS yet");
 
     public void Dispose()
     {

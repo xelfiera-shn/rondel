@@ -1,11 +1,23 @@
 using System.Globalization;
 using System.Text;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using Rondel.Core;
+using Rondel.Core.Agents;
+using Rondel.Core.Context;
+using Rondel.Core.Flow;
+using Rondel.Core.Launch;
+using Rondel.Core.Localization;
 using Rondel.Core.Logging;
 using Rondel.Core.Menus;
 using Rondel.Core.Settings;
 using Rondel.MacOS.Detection;
 using Rondel.MacOS.Interop;
+using Rondel.MacOS.Launch;
+using Rondel.MacOS.UI;
 
 namespace Rondel.MacOS;
 
@@ -22,6 +34,26 @@ internal static class DevTools
         {
             case ["--probe", var x, var y, var output]:
                 Probe(new CGPoint(double.Parse(x, CultureInfo.InvariantCulture), double.Parse(y, CultureInfo.InvariantCulture)), output);
+                return true;
+            case ["--launch-script", var directory, var command, var promptFile, var output]:
+                File.WriteAllText(output, PosixShellScript.Build(PromptPlan(directory, command, promptFile), PosixShellScript.ChooseShell(null)));
+                return true;
+            case ["--launch-now", var directory, var command, var promptFile]:
+                new MacTerminalLauncher().Launch(PromptPlan(directory, command, promptFile), ReadSettings());
+                return true;
+            case ["--render-new", var output, .. var options]:
+                RenderNewProject(output, options);
+                return true;
+            case ["--render-menu", var output, .. var options]:
+                RenderMenu(output, options);
+                return true;
+            case ["--export-icon", var output, .. var options]:
+                AppBuilder.Configure<App>().UsePlatformDetect().SetupWithoutStarting();
+                using (var file = File.Create(output))
+                    MenuBar.RenderIcon(paused: options.Contains("paused")).Save(file);
+                return true;
+            case ["--render-settings", var output, .. var options]:
+                RenderSettings(output, options);
                 return true;
             default:
                 return false;
@@ -54,6 +86,134 @@ internal static class DevTools
         foreach (string line in context.Trace)
             report.AppendLine("  " + line);
         File.WriteAllText(output, report.ToString());
+    }
+
+    /// <summary>A Prompt launch of <paramref name="command"/> in <paramref name="directory"/>, with the prompt read from a file.</summary>
+    static LaunchPlan PromptPlan(string directory, string command, string promptFile)
+    {
+        var agent = BuiltInAgents.ClaudeCode();
+        agent.Command = command;
+        var action = new ActionDefinition { Capability = AgentCapability.Prompt };
+        return LaunchPlanner.Create(agent, action, directory, File.ReadAllText(promptFile))!;
+    }
+
+    /// <summary>
+    /// Draws the menu into a PNG without showing it, for checking the design:
+    /// <c>--render-menu out.png [dark|light] [en|tr] [desktop|item] [theme=ID] [hover=N] [open|deep] [edge] [FOLDER|FILE]</c>.
+    /// The Finder-window menu for a folder by default (the desktop menu with <c>desktop</c>, the folder's own menu with
+    /// <c>item</c>, a file's menu when given a file), with its real session hints and items. <c>open</c> hovers the first
+    /// slice that opens and its newest item, <c>deep</c> also the first of its items that opens further; <c>edge</c> draws
+    /// it as if opened at the left edge of the screen.
+    /// </summary>
+    static void RenderMenu(string output, string[] options)
+    {
+        var settings = ReadSettings();
+        bool? dark = options.Contains("dark") ? true : options.Contains("light") ? false : null;
+        Loc.SetLanguage(options.FirstOrDefault(o => o is "en" or "tr") ?? settings.Language);
+        if (options.FirstOrDefault(o => o.StartsWith("theme=", StringComparison.Ordinal)) is { } theme)
+            settings.Appearance.Theme = theme["theme=".Length..];
+        int hover = options.FirstOrDefault(o => o.StartsWith("hover=", StringComparison.Ordinal)) is { } h
+            ? int.Parse(h["hover=".Length..], CultureInfo.InvariantCulture) : -1;
+        string path = options.LastOrDefault(o => o.StartsWith('/')) ?? settings.ResolveProjectsRoot();
+        string name = Path.GetFileName(Path.TrimEndingDirectorySeparator(path));
+        var context = options.Contains("desktop") ? new TriggerContext(ContextKind.DesktopEmpty, settings.ResolveProjectsRoot(), name, "render")
+            : File.Exists(path) ? new TriggerContext(ContextKind.FileItem, Path.GetDirectoryName(path), name, "render") { FilePath = path }
+            : new TriggerContext(options.Contains("item") ? ContextKind.FolderItem : ContextKind.ExplorerEmpty, path, name, "render");
+
+        AppBuilder.Configure<App>().UsePlatformDetect()
+            .With(new FontManagerOptions { DefaultFamilyName = ".AppleSystemUIFont" })
+            .SetupWithoutStarting();
+        bool isDark = dark ?? Application.Current?.PlatformSettings?.GetColorValues().ThemeVariant == Avalonia.Platform.PlatformThemeVariant.Dark;
+        var model = MenuBuilder.Build(context, settings);
+        var details = MenuDetails.Needed(model) ? MenuDetails.Load(model) : null;
+        var hints = details?.Hints ?? [];
+        var children = details?.Children ?? [.. model.Items.Select(_ => (IReadOnlyList<MenuItemModel>)[])];
+        var hoverPath = new List<int>();
+        if (hover >= 0)
+        {
+            hoverPath.Add(hover);
+        }
+        else if (options.Contains("open") || options.Contains("deep"))
+        {
+            int slice = children.ToList().FindIndex(c => c.Count > 0);
+            int deep = slice < 0 ? -1 : children[slice].ToList().FindIndex(c => c.Children.Count > 0);
+            hoverPath = slice < 0 ? [] : options.Contains("deep") && deep >= 0 ? [slice, deep, 0] : [slice, 0];
+        }
+        var window = new RadialMenuWindow(MenuPalette.For(settings.Appearance, isDark));
+        var bitmap = window.RenderPreview(model, hints, children, hoverPath, isDark ? Color.FromRgb(0x1E, 0x1E, 0x1E) : Color.FromRgb(0xEC, 0xEC, 0xEC),
+            atLeftEdge: options.Contains("edge"));
+        bitmap.Save(output, new PngBitmapEncoderOptions());
+    }
+
+    /// <summary>
+    /// Draws the New Project card with made-up templates into a PNG: <c>--render-new out.png [dark|light] [en|tr] [prompt] [empty]</c>
+    /// (<c>prompt</c>: with Prompt on and a prompt typed; <c>empty</c>: without templates).
+    /// </summary>
+    static void RenderNewProject(string output, string[] options)
+    {
+        var settings = ReadSettings();
+        Loc.SetLanguage(options.FirstOrDefault(o => o is "en" or "tr") ?? settings.Language);
+        AppBuilder.Configure<App>().UsePlatformDetect()
+            .With(new FontManagerOptions { DefaultFamilyName = ".AppleSystemUIFont" })
+            .SetupWithoutStarting();
+        bool isDark = options.Contains("dark") || (!options.Contains("light")
+            && Application.Current?.PlatformSettings?.GetColorValues().ThemeVariant == Avalonia.Platform.PlatformThemeVariant.Dark);
+        bool prompt = options.Contains("prompt");
+        string parent = settings.ResolveProjectsRoot();
+        var spec = new NewProjectSpec(Loc.Get("Action.NewProject"), '\uE8F4', parent, "Claude Code",
+            options.Contains("empty") ? [] : ["dotnet-api", "react-app", "docs"],
+            new NewProjectOptions { Prompt = prompt, Git = true, Templates = ["react-app"] },
+            CanPrompt: true, CanPlan: true, ValidateName: name => MacFolderNameRules.Validate(parent, name), Submit: _ => null)
+        {
+            TemplatesDirectory = Path.Combine(AppInfo.SettingsDirectory, "Templates"),
+        };
+        var window = new RadialMenuWindow(MenuPalette.For(settings.Appearance, isDark));
+        var bitmap = window.RenderNewProjectPreview(spec, "hava-durumu-api", prompt ? "Bir hava durumu API'si kur: şehir adıyla sorgulansın." : null,
+            isDark ? Color.FromRgb(0x1E, 0x1E, 0x1E) : Color.FromRgb(0xEC, 0xEC, 0xEC));
+        bitmap.Save(output, new PngBitmapEncoderOptions());
+    }
+
+    /// <summary>
+    /// Draws the whole settings page, without scrolling, into a PNG at 2x: <c>--render-settings out.png [dark|light] [en|tr]</c>.
+    /// It works on a copy of settings.json, so a running Rondel and the real file are not touched.
+    /// </summary>
+    static void RenderSettings(string output, string[] options)
+    {
+        AppBuilder.Configure<App>().UsePlatformDetect()
+            .With(new FontManagerOptions { DefaultFamilyName = ".AppleSystemUIFont" })
+            .SetupWithoutStarting();
+        string copy = Directory.CreateTempSubdirectory("rondel-settings-").FullName;
+        string file = Path.Combine(AppInfo.SettingsDirectory, "settings.json");
+        if (File.Exists(file))
+            File.Copy(file, Path.Combine(copy, "settings.json"));
+        var host = new AppHost(copy);
+        if (options.FirstOrDefault(o => o is "en" or "tr") is { } language)
+            Loc.SetLanguage(language);
+        var window = new SettingsWindow(host)
+        {
+            RequestedThemeVariant = options.Contains("light") ? Avalonia.Styling.ThemeVariant.Light : Avalonia.Styling.ThemeVariant.Dark,
+        };
+        const double Width = 680, Height = 2000;
+        // The page is drawn from a panel inside the window, so its controls get their templates.
+        var page = (Control)window.Content!;
+        window.Content = null;
+        var root = new Avalonia.Controls.Panel { Width = Width, Height = Height, Background = window.Background, Children = { page } };
+        window.Content = root;
+        // Theme pictures are drawn while the window is idle, and text boxes settle over several layout passes.
+        for (int pass = 0; pass < 4; pass++)
+        {
+            window.Width = Width;
+            window.Height = Height;
+            Dispatcher.UIThread.RunJobs();
+            window.Measure(new Size(Width, Height));
+            window.Arrange(new Rect(0, 0, Width, Height));
+        }
+        var bitmap = new RenderTargetBitmap(new PixelSize((int)(Width * 2), (int)(Height * 2)), new Vector(192, 192));
+        bitmap.Render(root);
+        bitmap.Save(output, new PngBitmapEncoderOptions());
+        window.Close();
+        host.Dispose();
+        Directory.Delete(copy, recursive: true);
     }
 
     /// <summary>The saved settings, read without watching or writing the file; the defaults when there are none.</summary>

@@ -14,7 +14,7 @@ The platform-neutral parts (what the menu contains, how an agent is started, set
 |---|---|---|
 | `src/Rondel.Core` | `net10.0` | The shared menu flow, agent profiles, menu model, launch planning, folder-name rules, session stores, settings schema and migrations, localization, logging, platform interfaces. No Win32 or WPF. |
 | `src/Rondel.Windows` | `net10.0-windows` (WPF) | `Rondel.exe`: mouse hook, input re-injection, UI Automation and Shell detection, terminal launching, tray icon, radial menu and settings windows, autostart. |
-| `src/Rondel.MacOS` | `net10.0` (Avalonia, NativeAOT) | `Rondel.app`, in progress ([macos.md](macos.md)): event tap, Finder detection (window list, Accessibility, Apple Events), menu bar extra. The menu window, launching and settings follow. |
+| `src/Rondel.MacOS` | `net10.0` (Avalonia, NativeAOT) | `Rondel.app` ([macos.md](macos.md)): event tap, Finder detection (window list, Accessibility, Apple Events), menu bar extra, the radial menu with its arcs and input cards, launching in Terminal.app or iTerm2, and the settings window. |
 | `tests/Rondel.Core.Tests` | `net10.0` | Unit tests for core logic that can break silently. |
 
 ```
@@ -48,12 +48,12 @@ Each platform app owns the trigger, context detection and the menu window; every
 3. `MenuDetails.Load` reads the session stores off the UI thread; the platform fills in the hints and the items that open further when they arrive. `MenuDetails.Needed` says whether there is anything to look up.
 4. The platform reports the chosen item to `MenuFlow.Invoke`, which starts the agent or asks for a folder name (and a prompt) first, creates the folder and launches.
 
-| Interface | What the platform provides | Windows |
-|---|---|---|
-| `IMenuHost` | Closing the menu, the inline name/prompt card, the New Project card, warnings outside the menu | `AppHost` (radial menu window, tray balloon) |
-| `ITerminalLauncher` | Running a `LaunchPlan` in a terminal | `WindowsTerminalLauncher` |
-| `IFolderNameValidator` | The file system's rules for a new folder name | `FolderNameValidator` (`FolderNameRules`, long paths, write permission) |
-| `IAutostart` | Starting with the user's session | `Autostart` (Run key) |
+| Interface | What the platform provides | Windows | macOS |
+|---|---|---|---|
+| `IMenuHost` | Closing the menu, the inline name/prompt card, the New Project card, warnings outside the menu | `AppHost` (radial menu window, tray balloon) | `AppHost` (radial menu window, a warning in the menu bar menu) |
+| `ITerminalLauncher` | Running a `LaunchPlan` in a terminal | `WindowsTerminalLauncher` | `MacTerminalLauncher` (a `.command` file opened in Terminal.app or iTerm2) |
+| `IFolderNameValidator` | The file system's rules for a new folder name | `FolderNameValidator` (`FolderNameRules`, long paths, write permission) | `MacFolderNameValidator` (`MacFolderNameRules`, write permission) |
+| `IAutostart` | Starting with the user's session | `Autostart` (Run key) | `Autostart` (`SMAppService`, open at login) |
 
 Some core parts carry one platform's rules because they are pure and worth testing in the core: `FolderNameRules` and `PowerShellScript` for Windows, `MacFolderNameRules` and `PosixShellScript` for macOS. The `Terminal` setting has values for both platforms (`WindowsTerminal`, `Console`; `TerminalApp`, `ITerm`), and each platform treats the other's as `Auto`; the `Shell` setting lists Windows choices.
 
@@ -199,7 +199,7 @@ Rondel follows the agents it starts, so it can say when one asks for something o
 
 ## Updates
 
-- **Checking.** `UpdateService` asks GitHub's API for the latest release about a minute after Rondel starts, then once a day, and soon after the connection comes back when a check is due; a failed check is tried again at the next hourly tick. The request carries only Rondel's version, in its User-Agent. Local and CI test builds (0.0.0) never check. What the last check found, the version the user skipped and the last announcement are kept in `%LOCALAPPDATA%\Rondel\updates\state.json`, not in settings.json. A newer release is announced once a day until the user skips it; **Check now** in Settings always offers it.
+- **Checking.** `UpdateService` asks GitHub's API for the latest release about a minute after Rondel starts, then once a day, and soon after the connection comes back when a check is due; a failed check is tried again at the next hourly tick. The request carries only Rondel's version, in its User-Agent. Local and CI test builds (0.0.0) never check. What the last check found, the version the user skipped and the last announcement are kept in `%LOCALAPPDATA%\Rondel\updates\state.json`, not in settings.json. A newer release is announced once a day until the user skips it; **Check now** in Settings always offers it. A release whose notes have only a macOS section (the release workflow puts `macos`-scoped features and fixes there) does not concern Windows: it is neither announced nor offered in the tray, only shown by **Check now**.
 - **Trust.** The release workflow signs `SHA256SUMS.txt` with Rondel's release key (ECDSA P-256 with SHA-256) into `SHA256SUMS.txt.sig`. The private key is the `RELEASE_SIGNING_KEY` secret of the `release` environment, which only the `prod` branch may use; its public half is `src/Rondel.Core/Updates/release-key.pem`, built into the app. `UpdateDownloader` takes a file only when that signature is valid and the file matches its checksum (hashed while it arrives); anything else is deleted. A file the app downloads carries no mark of the web, so SmartScreen never looks at it: this check takes its place.
 - **Replacing the exe (Windows).** `SelfUpdate` renames the running exe to `Rondel.exe.old` (a running exe can be renamed, but not overwritten), moves the new one to its path and starts it with `--after-update <process id> <old version>`. The new version signals `Local\Rondel.UpdateStarted`, waits for the old one to exit, starts as usual and deletes the `.old` file; the old one exits as soon as it hears the signal, or puts itself back when the new one does not start within 30 seconds. The path stays the same, so the Start-with-Windows entry and shortcuts keep working. When Rondel's folder is not writable, the update window offers the release page instead.
 - **Testing.** `RONDEL_UPDATE_FEED` names another "latest release" address, such as a local test feed (http is allowed on the loopback address only). What it offers is still taken only with the release key's signature.

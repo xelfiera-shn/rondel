@@ -34,8 +34,9 @@ internal sealed class FinderDetector(Func<AppSettings> settings)
         {
             result = DetectCore(point, trace);
         }
-        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or InvalidOperationException)
+        catch (Exception ex)
         {
+            // Whatever went wrong, the gesture gets its answer now, and the press is given back at once.
             Log.Warn("Detection failed", ex);
             result = TriggerContext.None($"detection error: {ex.Message}");
         }

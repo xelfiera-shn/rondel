@@ -105,6 +105,18 @@ public sealed class UpdateTests : IDisposable
     }
 
     [Fact]
+    public void NotesTellAReleaseThatChangesOnlyTheMacApp()
+    {
+        const string mac = "### macOS\n\n- **macos:** Open the radial menu on Option + hold (#45)\n";
+        const string both = "### Features\n\n- **windows:** Announce only what changes Windows (#54)\n\n" + mac;
+
+        Assert.True(ReleaseNotes.OnlyAbout(mac, ReleaseNotes.MacHeading));
+        Assert.False(ReleaseNotes.OnlyAbout(both, ReleaseNotes.MacHeading));
+        Assert.False(ReleaseNotes.OnlyAbout("", ReleaseNotes.MacHeading)); // says nothing either way
+        Assert.Equal(["macOS"], ReleaseNotes.Parse(mac).Select(s => s.Heading)); // shown as written
+    }
+
+    [Fact]
     public void ChecksumLinesAreReadAsSha256sumWritesThem()
     {
         string hash = new('a', 64);
@@ -222,6 +234,20 @@ public sealed class UpdateTests : IDisposable
         _time.Now = _time.Now.AddHours(3);
         Assert.Equal(UpdateStatus.Failed, await service.CheckAsync(manual: true));
         Assert.Equal(_time.Now.AddHours(-3).UtcDateTime, service.LastCheckUtc);
+    }
+
+    [Fact]
+    public async Task AReleaseThatDoesNotChangeThisAppIsNotAnnouncedButStillFound()
+    {
+        _web.Files[Base + "latest"] = Encoding.UTF8.GetBytes(LatestJson("v0.7.0", notes: "### macOS\n\n- **macos:** Settings (#52)\n"));
+        var announced = new List<AppVersion>();
+        using var service = new UpdateService(_http, new AppVersion(0, 6, 0), () => true, Path.Combine(_folder.FullName, "state.json"),
+            new Uri(Base + "latest"), _time, concerns: release => !ReleaseNotes.OnlyAbout(release.Notes, ReleaseNotes.MacHeading));
+        service.Found += release => announced.Add(release.Version);
+
+        Assert.Equal(UpdateStatus.Available, await service.CheckAsync(manual: false));
+        Assert.Empty(announced);
+        Assert.False(service.Concerns(service.Latest!));
     }
 
     [Fact]
