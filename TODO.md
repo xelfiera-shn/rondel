@@ -82,7 +82,7 @@ Kept by the macOS side. The first rows are the steps of [macos.md](https://githu
 | M-4 | Menu bar icon, trigger and Finder detection, `--probe` | ✅ #41 | |
 | M-5 | Menu window, `--render-menu` | ✅ #45, #50, #51 | A fallback when the non-activating panel API is missing (review of #32) |
 | M-6 | Launching and the settings window | ✅ #49, #52 | |
-| M-7 | Distribution: signing with the release certificate, the release job, the macOS part of the README | 🔄 burakseyitkara1 | |
+| M-7 | Distribution: signing with the release certificate, the release job, the macOS part of the README | ✅ #53 | |
 
 ## Ideas
 
