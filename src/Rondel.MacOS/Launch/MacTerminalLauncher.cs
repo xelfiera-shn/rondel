@@ -31,6 +31,7 @@ internal sealed partial class MacTerminalLauncher : ITerminalLauncher
         string terminal = TerminalFor(settings.Terminal);
         Directory.CreateDirectory(Folder);
         File.SetUnixFileMode(Folder, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        RemoveLeftovers();
         string file = Path.Combine(Folder, $"rondel-{Guid.NewGuid():N}"[..15] + ".command");
         File.WriteAllText(file, PosixShellScript.Build(plan, shell), new UTF8Encoding(false));
         File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
@@ -48,6 +49,28 @@ internal sealed partial class MacTerminalLauncher : ITerminalLauncher
             throw new LaunchException(Loc.Format("Launch.TerminalFailed", terminal));
         }
         Log.Info($"Launched {terminal} + {Path.GetFileName(shell)} in '{plan.Directory}' with {plan.Arguments.Count} argument(s)");
+    }
+
+    /// <summary>
+    /// A script deletes itself when it starts; one that is still there an hour later was never run (a terminal
+    /// that did not open it, seen once with iTerm2), so it goes.
+    /// </summary>
+    static void RemoveLeftovers()
+    {
+        foreach (var file in new DirectoryInfo(Folder).EnumerateFiles("rondel-*.command"))
+        {
+            if (DateTime.UtcNow - file.LastWriteTimeUtc < TimeSpan.FromHours(1))
+                continue;
+            try
+            {
+                file.Delete();
+                Log.Warn($"Removed {file.Name}, a launch script that never ran");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Log.Warn($"Removing {file.Name} failed", ex);
+            }
+        }
     }
 
     /// <summary>Terminal.app unless iTerm2 is chosen and installed; the Windows choices count as Automatic.</summary>
