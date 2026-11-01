@@ -22,10 +22,6 @@ namespace Rondel.MacOS;
 /// Composition root: wires the tap thread, the detection thread and the main thread together. IGestureSink
 /// callbacks arrive on the tap thread or a timer thread and are only forwarded from here.
 /// </summary>
-/// <remarks>
-/// The input cards (a folder name, a prompt, the New Project card) come with the next step: until then an action
-/// that needs one is logged and the menu closes.
-/// </remarks>
 internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
 {
     readonly MenuBar _menuBar = new();
@@ -74,6 +70,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         _menu = new RadialMenuWindow(Palette(Store.Current));
         _menu.ItemInvoked += _flow.Invoke;
         _menu.MenuClosed += _tap.NotifyMenuClosed;
+        _menu.FrameChanged += _tap.NotifyMenuOpened;
         _menu.Prepare();
         if (Application.Current?.PlatformSettings is { } platform)
             platform.ColorValuesChanged += (_, _) => ApplyLook(Store.Current, force: true);
@@ -243,17 +240,9 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
 
     void IMenuHost.CloseMenu(bool restoreFocus) => _menu?.CloseMenu(restoreFocus);
 
-    void IMenuHost.StartInput(InputSpec spec)
-    {
-        Log.Info($"'{spec.Title}' asks for a folder name: the input card comes with the next step");
-        _menu?.CloseMenu(restoreFocus: true);
-    }
+    void IMenuHost.StartInput(InputSpec spec) => _menu?.StartInput(spec);
 
-    void IMenuHost.StartNewProject(NewProjectSpec spec)
-    {
-        Log.Info($"'{spec.Title}' opens the New Project card: it comes with the next step");
-        _menu?.CloseMenu(restoreFocus: true);
-    }
+    void IMenuHost.StartNewProject(NewProjectSpec spec) => _menu?.StartNewProject(spec);
 
     void IMenuHost.ShowWarning(string message) => Warn(message);
 

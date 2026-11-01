@@ -10,7 +10,12 @@ internal sealed class App : Application
     AppHost? _host;
 
     // macOS shows this name for the app (otherwise "Avalonia Application").
-    public override void Initialize() => Name = Core.AppInfo.Name;
+    public override void Initialize()
+    {
+        Name = Core.AppInfo.Name;
+        // Templates for the few standard controls Rondel uses (the text boxes of the input cards); colors come from the menu palette.
+        Styles.Add(new Avalonia.Themes.Fluent.FluentTheme());
+    }
 
     public override void OnFrameworkInitializationCompleted()
     {

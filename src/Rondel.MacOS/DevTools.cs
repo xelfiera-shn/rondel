@@ -38,6 +38,9 @@ internal static class DevTools
             case ["--launch-now", var directory, var command, var promptFile]:
                 new MacTerminalLauncher().Launch(PromptPlan(directory, command, promptFile), ReadSettings());
                 return true;
+            case ["--render-new", var output, .. var options]:
+                RenderNewProject(output, options);
+                return true;
             case ["--render-menu", var output, .. var options]:
                 RenderMenu(output, options);
                 return true;
@@ -112,6 +115,34 @@ internal static class DevTools
         var hints = MenuDetails.Needed(model) ? MenuDetails.Load(model).Hints : [];
         var window = new RadialMenuWindow(MenuPalette.For(settings.Appearance, isDark));
         var bitmap = window.RenderPreview(model, hints, hover, isDark ? Color.FromRgb(0x1E, 0x1E, 0x1E) : Color.FromRgb(0xEC, 0xEC, 0xEC));
+        bitmap.Save(output, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+    }
+
+    /// <summary>
+    /// Draws the New Project card with made-up templates into a PNG: <c>--render-new out.png [dark|light] [en|tr] [prompt] [empty]</c>
+    /// (<c>prompt</c>: with Prompt on and a prompt typed; <c>empty</c>: without templates).
+    /// </summary>
+    static void RenderNewProject(string output, string[] options)
+    {
+        var settings = ReadSettings();
+        Loc.SetLanguage(options.FirstOrDefault(o => o is "en" or "tr") ?? settings.Language);
+        AppBuilder.Configure<App>().UsePlatformDetect()
+            .With(new FontManagerOptions { DefaultFamilyName = ".AppleSystemUIFont" })
+            .SetupWithoutStarting();
+        bool isDark = options.Contains("dark") || (!options.Contains("light")
+            && Application.Current?.PlatformSettings?.GetColorValues().ThemeVariant == Avalonia.Platform.PlatformThemeVariant.Dark);
+        bool prompt = options.Contains("prompt");
+        string parent = settings.ResolveProjectsRoot();
+        var spec = new NewProjectSpec(Loc.Get("Action.NewProject"), '\uE8F4', parent, "Claude Code",
+            options.Contains("empty") ? [] : ["dotnet-api", "react-app", "docs"],
+            new NewProjectOptions { Prompt = prompt, Git = true, Templates = ["react-app"] },
+            CanPrompt: true, CanPlan: true, ValidateName: name => MacFolderNameRules.Validate(parent, name), Submit: _ => null)
+        {
+            TemplatesDirectory = Path.Combine(AppInfo.SettingsDirectory, "Templates"),
+        };
+        var window = new RadialMenuWindow(MenuPalette.For(settings.Appearance, isDark));
+        var bitmap = window.RenderNewProjectPreview(spec, "hava-durumu-api", prompt ? "Bir hava durumu API'si kur: şehir adıyla sorgulansın." : null,
+            isDark ? Color.FromRgb(0x1E, 0x1E, 0x1E) : Color.FromRgb(0xEC, 0xEC, 0xEC));
         bitmap.Save(output, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
     }
 
