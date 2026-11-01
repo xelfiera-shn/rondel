@@ -52,7 +52,7 @@ What every platform gets, with a mark per platform. A Linux column is added when
 | C-18 | Diagnostics: debug log, `--probe`, `--render-menu` | ✅ 0.1.0 | ⬜ | |
 | C-19 | A modifier key for an alternate mode (for example Shift for plan mode) | ⬜ | ⬜ | |
 | C-20 | Ask about several selected files | ⬜ | ⬜ | |
-| C-21 | Updates: a daily check (on by default, also when the connection comes back), asking before updating, and the update itself from within the app, verified with Rondel's release key | ✅ #46, #47 | ⬜ | Windows: the exe replaces itself and restarts. macOS picks its own way with M-7 |
+| C-21 | Updates: a daily check (on by default, also when the connection comes back), asking before updating, and the update itself from within the app, verified with Rondel's release key | ✅ 0.7.0 | ⬜ | Windows: the exe replaces itself and restarts. macOS picks its own way with M-7 |
 | C-22 | First-run hint that explains the gesture | ⬜ | ⬜ | |
 | C-23 | Pick up where you left off: a desktop slice that resumes the latest project's last session | ⏸️ | ⏸️ | Parked; to be decided later |
 | C-24 | Active agents: a notification when an agent asks something or finishes, and clicking it brings that session's terminal to the front; an Active Agents arc on the desktop with a status dot per session (working, waiting for you, done) and a shortcut that opens it anywhere | ✅ 0.6.0 | ⬜ | Sessions started from Rondel, through Claude Code's hooks. Spike first: hooks reaching Rondel, bringing the right terminal window to the front |
