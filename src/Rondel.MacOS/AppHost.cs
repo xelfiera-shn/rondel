@@ -8,9 +8,11 @@ using Rondel.Core.Flow;
 using Rondel.Core.Localization;
 using Rondel.Core.Logging;
 using Rondel.Core.Menus;
+using Rondel.Core.Platform;
 using Rondel.Core.Settings;
 using Rondel.MacOS.Detection;
 using Rondel.MacOS.Interop;
+using Rondel.MacOS.Launch;
 using Rondel.MacOS.Trigger;
 using Rondel.MacOS.UI;
 
@@ -21,14 +23,16 @@ namespace Rondel.MacOS;
 /// callbacks arrive on the tap thread or a timer thread and are only forwarded from here.
 /// </summary>
 /// <remarks>
-/// Launching comes with the next step: until then a chosen item is logged and the menu closes.
+/// The input cards (a folder name, a prompt, the New Project card) come with the next step: until then an action
+/// that needs one is logged and the menu closes.
 /// </remarks>
-internal sealed class AppHost : IGestureSink, IDisposable
+internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
 {
     readonly MenuBar _menuBar = new();
     readonly DetectionWorker _worker = new();
     readonly FinderDetector _detector;
     readonly EventTap _tap;
+    readonly MenuFlow _flow;
     IDisposable? _accessibilityPoll;
     nint _activity;
     RadialMenuWindow? _menu;
@@ -40,6 +44,7 @@ internal sealed class AppHost : IGestureSink, IDisposable
         Store.Load();
         _detector = new FinderDetector(() => Store.Current);
         _tap = new EventTap(this);
+        _flow = new MenuFlow(this, new MacTerminalLauncher(), new MacFolderNameValidator(), () => Store.Current, change => Store.Update(change));
         ApplySettings(Store.Current);
     }
 
@@ -67,7 +72,7 @@ internal sealed class AppHost : IGestureSink, IDisposable
             Store.LoadError is null ? null : Loc.Get("Tray.SettingsInvalid")));
 
         _menu = new RadialMenuWindow(Palette(Store.Current));
-        _menu.ItemInvoked += OnItemInvoked;
+        _menu.ItemInvoked += _flow.Invoke;
         _menu.MenuClosed += _tap.NotifyMenuClosed;
         _menu.Prepare();
         if (Application.Current?.PlatformSettings is { } platform)
@@ -201,12 +206,8 @@ internal sealed class AppHost : IGestureSink, IDisposable
     {
         if (_menu is null)
             return;
-        var model = WithoutActiveAgents(MenuBuilder.Build(context, Store.Current));
-        if (model.Items.Count == 0)
-        {
-            Log.Warn($"No actions configured for {context.Kind}; check Menus in settings.json");
+        if (_flow.Build(context) is not { } built || WithoutActiveAgents(built) is not { Items.Count: > 0 } model)
             return;
-        }
         try
         {
             _tap.NotifyMenuOpened(_menu.ShowMenu(model, anchor));
@@ -238,12 +239,26 @@ internal sealed class AppHost : IGestureSink, IDisposable
             TaskContinuationOptions.OnlyOnRanToCompletion);
     }
 
-    /// <summary>Until launching comes: what would start, in the log.</summary>
-    void OnItemInvoked(MenuModel model, MenuItemModel item)
+    // ---- IMenuHost (main thread) ----
+
+    void IMenuHost.CloseMenu(bool restoreFocus) => _menu?.CloseMenu(restoreFocus);
+
+    void IMenuHost.StartInput(InputSpec spec)
     {
-        Log.Info($"Action '{item.Action.Id}' ({item.Agent.Id}) for {model.Context.Kind} '{item.Directory ?? model.Context.TargetDir}'; launching comes next");
+        Log.Info($"'{spec.Title}' asks for a folder name: the input card comes with the next step");
         _menu?.CloseMenu(restoreFocus: true);
     }
+
+    void IMenuHost.StartNewProject(NewProjectSpec spec)
+    {
+        Log.Info($"'{spec.Title}' opens the New Project card: it comes with the next step");
+        _menu?.CloseMenu(restoreFocus: true);
+    }
+
+    void IMenuHost.ShowWarning(string message) => Warn(message);
+
+    /// <summary>Never called: the Active Agents slice is left out on macOS (<see cref="WithoutActiveAgents"/>).</summary>
+    void IMenuHost.FocusAgent(string id) => Log.Warn($"Bringing agent {id} to the front is not supported on macOS yet");
 
     public void Dispose()
     {

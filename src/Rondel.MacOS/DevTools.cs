@@ -3,14 +3,17 @@ using System.Text;
 using Avalonia;
 using Avalonia.Media;
 using Rondel.Core;
+using Rondel.Core.Agents;
 using Rondel.Core.Context;
 using Rondel.Core.Flow;
+using Rondel.Core.Launch;
 using Rondel.Core.Localization;
 using Rondel.Core.Logging;
 using Rondel.Core.Menus;
 using Rondel.Core.Settings;
 using Rondel.MacOS.Detection;
 using Rondel.MacOS.Interop;
+using Rondel.MacOS.Launch;
 using Rondel.MacOS.UI;
 
 namespace Rondel.MacOS;
@@ -28,6 +31,12 @@ internal static class DevTools
         {
             case ["--probe", var x, var y, var output]:
                 Probe(new CGPoint(double.Parse(x, CultureInfo.InvariantCulture), double.Parse(y, CultureInfo.InvariantCulture)), output);
+                return true;
+            case ["--launch-script", var directory, var command, var promptFile, var output]:
+                File.WriteAllText(output, PosixShellScript.Build(PromptPlan(directory, command, promptFile), PosixShellScript.ChooseShell(null)));
+                return true;
+            case ["--launch-now", var directory, var command, var promptFile]:
+                new MacTerminalLauncher().Launch(PromptPlan(directory, command, promptFile), ReadSettings());
                 return true;
             case ["--render-menu", var output, .. var options]:
                 RenderMenu(output, options);
@@ -63,6 +72,15 @@ internal static class DevTools
         foreach (string line in context.Trace)
             report.AppendLine("  " + line);
         File.WriteAllText(output, report.ToString());
+    }
+
+    /// <summary>A Prompt launch of <paramref name="command"/> in <paramref name="directory"/>, with the prompt read from a file.</summary>
+    static LaunchPlan PromptPlan(string directory, string command, string promptFile)
+    {
+        var agent = BuiltInAgents.ClaudeCode();
+        agent.Command = command;
+        var action = new ActionDefinition { Capability = AgentCapability.Prompt };
+        return LaunchPlanner.Create(agent, action, directory, File.ReadAllText(promptFile))!;
     }
 
     /// <summary>

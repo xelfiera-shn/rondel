@@ -15,17 +15,17 @@ internal static class SymbolIcons
     /// <summary>Segoe Fluent Icons code point → SF Symbol name.</summary>
     static readonly Dictionary<char, string> Symbols = new()
     {
-        [''] = "folder.badge.plus",              // NewFolder: New Project
-        [''] = "text.bubble",                     // Message: New + Prompt
-        [''] = "terminal",                        // CommandPrompt: Open
-        [''] = "bubble.left.and.bubble.right",    // Chat: Ask
-        [''] = "play",                            // Play: Continue
-        [''] = "clock.arrow.circlepath",          // History: Resume
-        [''] = "clock",                           // Recent: Recent Projects
-        [''] = "folder",                          // Folder
-        [''] = "desktopcomputer",                 // TVMonitor: the desktop
-        [''] = "doc",                             // Page: a file
-        [''] = "list.bullet",                     // BulletedList: plan mode
+        ['\uE8F4'] = "folder.badge.plus",               // NewFolder: New Project
+        ['\uE8BD'] = "text.bubble",                     // Message: New + Prompt
+        ['\uE756'] = "terminal",                        // CommandPrompt: Open
+        ['\uE8F2'] = "bubble.left.and.bubble.right",    // Chat: Ask
+        ['\uE768'] = "play",                            // Play: Continue
+        ['\uE81C'] = "clock.arrow.circlepath",          // History: Resume
+        ['\uE823'] = "clock",                           // Recent: Recent Projects
+        ['\uE8B7'] = "folder",                          // Folder
+        ['\uE7F4'] = "desktopcomputer",                 // TVMonitor: the desktop
+        ['\uE7C3'] = "doc",                             // Page: a file
+        ['\uE8FD'] = "list.bullet",                     // BulletedList: plan mode
     };
 
     const string Fallback = "terminal";

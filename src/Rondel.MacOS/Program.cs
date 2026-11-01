@@ -4,6 +4,9 @@ using Avalonia.Media;
 using Rondel.Core;
 using Rondel.Core.Logging;
 
+// Rondel.app runs only on macOS; the project builds everywhere so CI checks it, and this tells the analyzers.
+[assembly: System.Runtime.Versioning.SupportedOSPlatform("macos")]
+
 namespace Rondel.MacOS;
 
 static class Program
