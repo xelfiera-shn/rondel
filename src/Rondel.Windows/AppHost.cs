@@ -79,6 +79,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 
         _tray.Activated += OpenSettings;
         _tray.HotkeyPressed += OnHotkey;
+        _tray.AgentsHotkeyPressed += OnAgentsHotkey;
         _tray.ThemeChanged += () =>
         {
             ApplyLook(Store.Current, force: true);
@@ -139,6 +140,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         _hook.Configure(settings.HoldMs, settings.Paused);
         _tray.Update(settings.Paused, TrayTooltip(settings));
         ApplyHotkey(settings.Hotkey);
+        ApplyAgentsHotkey(settings.ActiveAgents.Hotkey);
     }
 
     void ApplyHotkey(string text)
@@ -204,14 +206,20 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 
     void ShowMenu(TriggerContext context, POINT anchor)
     {
+        if (_flow.Build(context) is { } model)
+            ShowModel(model, anchor);
+        else
+            _hook.NotifyMenuClosed();
+    }
+
+    /// <param name="hover">A slice to put under the pointer, which opens as soon as its items arrive.</param>
+    void ShowModel(MenuModel model, POINT anchor, int? hover = null)
+    {
         try
         {
-            if (_flow.Build(context) is not { } model)
-            {
-                _hook.NotifyMenuClosed();
-                return;
-            }
             _menu.ShowMenu(model, anchor);
+            if (hover is { } slice)
+                _menu.HoverSlice(slice);
             _hook.NotifyMenuOpened(_menu.Handle);
             RequestDetails(model);
         }
@@ -222,16 +230,17 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         }
     }
 
-    /// <summary>Session hints, a Resume slice's sessions and the recent projects are filled in when they arrive.</summary>
+    /// <summary>Session hints, a Resume slice's sessions, the recent projects and the active agents are filled in when they arrive.</summary>
     void RequestDetails(MenuModel model)
     {
         if (!MenuDetails.Needed(model))
             return;
-        Task.Run(() => MenuDetails.Load(model))
+        var agents = _activity.Agents;
+        Task.Run(() => MenuDetails.Load(model, agents))
             .ContinueWith(
                 lookup => _ui.BeginInvoke(() =>
                 {
-                    _menu.ApplyHints(model, lookup.Result.Hints);
+                    _menu.ApplyHints(model, lookup.Result.Hints, lookup.Result.States);
                     _menu.ApplyChildren(model, lookup.Result.Children);
                 }),
                 TaskContinuationOptions.OnlyOnRanToCompletion);

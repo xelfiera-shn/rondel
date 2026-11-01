@@ -119,35 +119,38 @@ Claude Code keeps each session as `~/.claude/projects/<encoded folder>/<session 
 - Comments and trailing commas are accepted. Non-ASCII characters are written as they are, so Turkish paths stay readable. Icons are Segoe Fluent Icons code points in hex (`"E8F4"`).
 - Enum values are written as names. A value this version does not know (written by a newer Rondel) reads as the default, with a warning in the log, instead of making the whole file unreadable.
 - The serializer is generated at build time (`SettingsJsonContext`), without reflection, so the core works in a NativeAOT build; `IsAotCompatible` makes the build warn about anything that would break that.
-- The schema is versioned and is at **4**. **Changing a default requires a migration**, applied only where the user still has the old default: version 2 added Recent Projects to the desktop menu, version 3 added Ask to the folder and Explorer menus, and version 4 removed New + Prompt from them once the New Project card took it over (and gave built-in agents their `Plan` arguments), each only where that menu was still the previous default. A menu for a new context (`FileItem` in version 3) needs no migration: a missing menu gets its default.
+- The schema is versioned and is at **5**. **Changing a default requires a migration**, applied only where the user still has the old default: version 2 added Recent Projects to the desktop menu, version 3 added Ask to the folder and Explorer menus, version 4 removed New + Prompt from them once the New Project card took it over (and gave built-in agents their `Plan` arguments), and version 5 added Active Agents to the desktop menu, each only where that menu was still the previous default. A menu for a new context (`FileItem` in version 3) needs no migration: a missing menu gets its default.
 
-Shape of version 4 (abridged):
+Shape of version 5 (abridged):
 
 ```jsonc
 {
-  "SchemaVersion": 4,
+  "SchemaVersion": 5,
   "Language": "auto",                       // "auto", "en" or "tr"
   "ProjectsRoot": "%USERPROFILE%\\Projects",       // "~/Projects" on macOS and Linux; ~ and %NAME% are expanded
   "HoldMs": 300,
   "Hotkey": "",                             // e.g. "Ctrl+Alt+Space"
-  "Terminal": "Auto",                       // Auto, WindowsTerminal, Console
+  "Terminal": "Auto",                       // Auto, WindowsTerminal, Console (Windows); TerminalApp, ITerm (macOS)
   "Shell": "Auto",                          // Auto, Pwsh, WindowsPowerShell
   "DefaultAgent": "claude-code",
   "Agents": [
     { "Id": "claude-code", "Name": "Claude Code", "Command": "claude", "Sessions": "claude-code", "FileMention": "@{file}",
-      "Capabilities": { "Open": [], "Continue": ["--continue"], "Prompt": ["{prompt}"], "Plan": ["--permission-mode", "plan"], "...": [] } }
+      "Capabilities": { "Open": [], "Continue": ["--continue"], "Prompt": ["{prompt}"], "Plan": ["--permission-mode", "plan"], "...": [] },
+      "ActivityArgs": ["--settings", "{hooks}"] }   // [] turns following off for the agent
   ],
   "NewProject": { "Prompt": true, "Git": true, "Plan": false, "Templates": ["Python"] },   // the last choice
   "NewProjectCard": { "Prompt": true, "Git": true, "Plan": true, "Templates": true },     // options the card offers
   "Appearance": { "Theme": "orbit", "Mode": "Auto", "AccentFrom": "#22D3EE", "AccentTo": "#3B82F6" },  // no accent: the theme's own
+  "ActiveAgents": { "Follow": true, "NotifyAsks": true, "NotifyFinished": true, "Hotkey": "Ctrl+Alt+A" },
   "Actions": [
     { "Id": "continue", "Label": "@Action.Continue", "Icon": "E768", "Capability": "Continue", "Hint": "LastSession" },
     { "Id": "plan", "Label": "Plan", "Icon": "E8FD", "Capability": "Open", "ExtraArgs": ["--permission-mode", "plan"] },
     { "Id": "recents", "Label": "@Action.Recents", "Icon": "E823", "Capability": "ResumeById", "Source": "RecentProjects" },
+    { "Id": "agents", "Label": "@Action.ActiveAgents", "Icon": "E99A", "Capability": "Open", "Source": "ActiveAgents" },
     { "Id": "ask-file", "Label": "@Action.AskFile", "Icon": "E8F2", "Input": "Prompt", "Capability": "Prompt", "MentionFile": true }
   ],
   "Menus": {
-    "DesktopEmpty": ["new-project", "recents"],
+    "DesktopEmpty": ["new-project", "recents", "agents"],
     "ExplorerEmpty": ["new-project", "open-here", "ask-here", "continue-here", "resume-here"],
     "FolderItem": ["open", "ask", "continue", "resume"],
     "FileItem": ["ask-file", "open-here", "continue-here", "resume-here"]
@@ -179,6 +182,7 @@ Rondel follows the agents it starts, so it can say when one asks for something o
 - **Hooks.** An agent profile's `ActivityArgs` make the agent report its events; for Claude Code that is `--settings <hooks file>`. The file (`agent-hooks.json` next to `settings.json`) adds an HTTP hook for each followed event, which runs next to the user's own hooks; the user's Claude Code settings are not changed. An agent without `ActivityArgs` starts as before.
 - **Which session.** The launch script sets `RONDEL_SESSION` to the session's id, and the hooks send it back in a header (`allowedEnvVars`). The platform launcher also names the terminal window after it.
 - **The server.** `HookServer` listens on the loopback address only and accepts a request only with the token from the hooks file, in a header, so a web page can neither guess it nor send one (a custom header needs a CORS preflight, which is never allowed). It answers at once with an empty body, which leaves every decision (a permission prompt, stopping) to the agent. The port stays the same across restarts, so agents started before a restart keep reporting; a session Rondel does not know yet is followed again from its folder. While Rondel is not running, Claude Code shows a hook error under each prompt and goes on.
+- **The menu.** An action with `"Source": "ActiveAgents"` (the desktop menu's Active Agents slice) opens into the followed agents, those waiting for the user first (`MenuBuilder.AgentItems`); its line counts the waiting ones, with a dot in the most urgent state's color. Choosing an agent asks the platform to bring its terminal to the front (`IMenuHost.FocusAgent`). The Active Agents shortcut opens the desktop menu with that slice open (`MenuFlow.AgentsMenu`), adding the slice for that time if the menu has none.
 - **States.** `AgentActivity` turns events into a state per session: a prompt or a tool at work → **working**; a permission request or a question (`AskUserQuestion`) → **waiting**; the end of a turn (`Stop`) → **ready**; an error (`StopFailure`) → **failed**. A permission is announced by Claude Code's own reminder a few seconds later, so a prompt the user answers at once is not announced; a question is announced at once. `SessionEnd` ends following, except for `/clear` and `/resume`, which go on in the same window. Claude Code sends no `SessionStart` to these hooks, so Rondel follows a session from the moment it starts it.
 
 ## Localization
@@ -199,8 +203,9 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 | `--launch-now FOLDER COMMAND prompt.txt` | Launches like the menu does, with COMMAND instead of the configured one. |
 | `--export-icon out.ico` | Writes the application icon. |
 | `--show-menu [input [text]]` | Starts normally and opens the menu at the cursor without the gesture; `input` continues into the New + Prompt card. |
-| `--render-menu out.png [dark\|light] [en\|tr] [desktop\|item] [idle] [deep] [edge] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]] [hover=N] [FOLDER\|FILE]` | Draws the Explorer menu for a folder (the desktop menu with `desktop`, the folder's own menu with `item`, a file's menu when given a file) with its real session hints and recent sessions into a PNG, the first expandable slice opened unless `idle`; `edge` places the menu against the left edge of the screen, `transparent` leaves out the background; `theme`/`accent` pick a theme and accent, `hover=N` only highlights slice N. |
+| `--render-menu out.png [dark\|light] [en\|tr] [desktop\|item] [idle] [deep] [edge] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]] [hover=N] [agents] [FOLDER\|FILE]` | Draws the Explorer menu for a folder (the desktop menu with `desktop`, the folder's own menu with `item`, a file's menu when given a file) with its real session hints and recent sessions into a PNG, the first expandable slice opened unless `idle`; `edge` places the menu against the left edge of the screen, `transparent` leaves out the background; `theme`/`accent` pick a theme and accent, `hover=N` only highlights slice N, `agents` opens the Active Agents slice into made-up agents in every state. |
 | `--render-settings out.png [en\|tr] [bottom\|scroll=DIP]` | Draws the settings window (current Windows theme) into a PNG, scrolled to the end or by DIP. It works on a copy of settings.json: a running Rondel, and the real file, are not touched. |
+| `--render-notice-icons out.png` | Draws the icons of the notifications about agents at 32, 48 and 64 px, on a dark and a light notification. |
 | `--render-new out.png [dark\|light] [en\|tr] [prompt] [empty] [transparent] [theme=ID] [accent=…]` | Draws the New Project card with made-up templates (`prompt`: with Prompt on; `empty`: without templates). |
 
 ## Fixed identifiers

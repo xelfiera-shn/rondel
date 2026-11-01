@@ -175,6 +175,38 @@ public class MenuFlowTests
         Assert.Single(activity.Agents); // the one that could not start is not followed
     }
 
+    [Fact]
+    public void ChoosingAnActiveAgentBringsItsTerminalToTheFront()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "work", "weather-api");
+        var agents = new[] { new ActiveAgent("0123456789ab", folder, "Claude Code") { State = AgentState.Waiting, Tool = "Bash" } };
+        var model = _flow.Build(new TriggerContext(ContextKind.DesktopEmpty, Path.GetTempPath(), null, "test"))!;
+        var slice = model.Items.Single(MenuBuilder.ListsActiveAgents);
+        var details = MenuDetails.Load(model, agents);
+        int index = model.Items.ToList().IndexOf(slice);
+
+        _flow.Invoke(model, slice); // the slice itself only opens its agents
+        Assert.Empty(_host.Calls);
+
+        _flow.Invoke(model, details.Children[index][0]);
+        Assert.Equal(["close False", "focus 0123456789ab"], _host.Calls);
+        Assert.Empty(_launcher.Plans);
+    }
+
+    [Fact]
+    public void TheAgentsShortcutOpensTheDesktopMenuAtItsActiveAgentsSlice()
+    {
+        var (model, slice) = _flow.AgentsMenu();
+        Assert.Equal(ContextKind.DesktopEmpty, model.Context.Kind);
+        Assert.Equal("agents", model.Items[slice].Action.Id);
+
+        // A desktop menu without the slice gets it, for this time.
+        _settings.Menus[nameof(ContextKind.DesktopEmpty)] = ["new-project"];
+        (model, slice) = _flow.AgentsMenu();
+        Assert.Equal(["new-project", "agents"], model.Items.Select(i => i.Action.Id));
+        Assert.Equal(1, slice);
+    }
+
     sealed class FakeHost : IMenuHost
     {
         public List<string> Calls { get; } = [];
@@ -190,6 +222,8 @@ public class MenuFlowTests
         public void StartNewProject(NewProjectSpec spec) => NewProject = spec;
 
         public void ShowWarning(string message) => Calls.Add($"warn {message}");
+
+        public void FocusAgent(string id) => Calls.Add($"focus {id}");
     }
 
     sealed class FakeLauncher : ITerminalLauncher

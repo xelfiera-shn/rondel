@@ -14,4 +14,7 @@ public sealed class ActiveAgentsOptions
 
     /// <summary>Notify when an agent finishes its turn, or stops with an error.</summary>
     public bool NotifyFinished { get; set; } = true;
+
+    /// <summary>Opens the Active Agents arc at the mouse cursor, e.g. "Ctrl+Alt+A"; empty = none.</summary>
+    public string Hotkey { get; set; } = "";
 }

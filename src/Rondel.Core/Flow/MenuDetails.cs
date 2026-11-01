@@ -1,3 +1,4 @@
+using Rondel.Core.Activity;
 using Rondel.Core.Menus;
 using Rondel.Core.Sessions;
 
@@ -12,13 +13,18 @@ namespace Rondel.Core.Flow;
 /// <param name="Children">One per menu item, in order; empty for an item that does not open further.</param>
 public sealed record MenuDetails(IReadOnlyList<(string? Hint, bool Dimmed)> Hints, IReadOnlyList<IReadOnlyList<MenuItemModel>> Children)
 {
+    /// <summary>One per menu item, in order: the state shown beside an Active Agents slice's line, if any.</summary>
+    public IReadOnlyList<AgentState?> States { get; init; } = [];
+
     /// <summary>Whether any item of the menu has something to look up; if not, <see cref="Load"/> can be skipped.</summary>
     public static bool Needed(MenuModel model) =>
-        model.Items.Any(item => UsesSessions(item) && SessionStores.Get(item.Agent.Sessions) is not null);
+        model.Items.Any(item => MenuBuilder.ListsActiveAgents(item) || (UsesSessions(item) && SessionStores.Get(item.Agent.Sessions) is not null));
 
     /// <summary>Reads the session stores, one pass per store. Blocking file I/O: call it off the UI thread.</summary>
-    public static MenuDetails Load(MenuModel model)
+    /// <param name="agents">The agents Rondel follows (<see cref="AgentActivity.Agents"/>), for Active Agents slices.</param>
+    public static MenuDetails Load(MenuModel model, IReadOnlyList<ActiveAgent>? agents = null)
     {
+        agents ??= [];
         string? directory = model.Context.TargetDir;
         var byStore = model.Items
             .Where(UsesSessions)
@@ -31,17 +37,21 @@ public sealed record MenuDetails(IReadOnlyList<(string? Hint, bool Dimmed)> Hint
         StoreDetails? DetailsFor(MenuItemModel item) =>
             byStore.TryGetValue(item.Agent.Sessions ?? "", out var details) ? details : null;
 
+        var summary = MenuBuilder.AgentsSummary(agents);
         var hints = model.Items
-            .Select(item => SessionHints.Describe(item.Action.Hint, DetailsFor(item)?.Info))
+            .Select(item => MenuBuilder.ListsActiveAgents(item) ? (summary.Hint, summary.Dimmed)
+                : SessionHints.Describe(item.Action.Hint, DetailsFor(item)?.Info))
             .ToList();
         var children = model.Items
-            .Select(item => DetailsFor(item) is not { } details ? []
+            .Select(item => MenuBuilder.ListsActiveAgents(item) ? MenuBuilder.AgentItems(item, agents)
+                : DetailsFor(item) is not { } details ? []
                 : MenuBuilder.CanExpand(item) ? MenuBuilder.SessionItems(item, details.Recent)
                 : MenuBuilder.ListsRecentProjects(item) ? MenuBuilder.ProjectItems(item, details.Folders,
                     folder => details.FolderSessions.TryGetValue(folder, out var sessions) ? sessions : [])
                 : [])
             .ToList();
-        return new MenuDetails(hints, children);
+        var states = model.Items.Select(item => MenuBuilder.ListsActiveAgents(item) ? summary.State : null).ToList();
+        return new MenuDetails(hints, children) { States = states };
     }
 
     static bool UsesSessions(MenuItemModel item) =>
