@@ -1,5 +1,8 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Media;
+using Avalonia.Styling;
+using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
 using Rondel.Core.Logging;
 
@@ -13,8 +16,16 @@ internal sealed class App : Application
     public override void Initialize()
     {
         Name = Core.AppInfo.Name;
-        // Templates for the few standard controls Rondel uses (the text boxes of the input cards); colors come from the menu palette.
-        Styles.Add(new Avalonia.Themes.Fluent.FluentTheme());
+        // Templates for the standard controls (the input cards' text boxes, the settings page), in Rondel's teal
+        // instead of the system accent; the input cards take their colors from the menu palette.
+        Styles.Add(new FluentTheme
+        {
+            Palettes =
+            {
+                [ThemeVariant.Dark] = new ColorPaletteResources { Accent = Color.FromRgb(0x14, 0xB8, 0xA6) },
+                [ThemeVariant.Light] = new ColorPaletteResources { Accent = Color.FromRgb(0x0D, 0x94, 0x88) },
+            },
+        });
     }
 
     public override void OnFrameworkInitializationCompleted()
