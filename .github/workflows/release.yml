@@ -92,6 +92,9 @@ jobs:
     name: Publish release
     needs: [version, build]
     runs-on: ubuntu-latest
+    # The release key is a secret of the "release" environment, which only the prod branch may use. A dry run
+    # publishes nothing and signs nothing, so it runs without the environment.
+    environment: ${{ github.event_name == 'push' && github.ref == 'refs/heads/prod' && 'release' || '' }}
     permissions:
       contents: write
       id-token: write
@@ -100,6 +103,11 @@ jobs:
       VERSION: ${{ needs.version.outputs.version }}
       PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/prod' }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: src/Rondel.Core/Updates/release-key.pem
+          sparse-checkout-cone-mode: false
+
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: artifacts
@@ -112,6 +120,23 @@ jobs:
           done
           (cd release && sha256sum *.exe > SHA256SUMS.txt)
           cat release/SHA256SUMS.txt
+
+      # Rondel takes an update only when SHA256SUMS.txt carries this signature; the app holds the public half
+      # (src/Rondel.Core/Updates/release-key.pem). A release without it is not published.
+      - name: Sign the checksums
+        if: env.PUBLISH == 'true'
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: |
+          if [ -z "$RELEASE_SIGNING_KEY" ]; then
+            echo "::error::The release environment has no RELEASE_SIGNING_KEY secret"
+            exit 1
+          fi
+          key="$RUNNER_TEMP/release-key.pem"
+          (umask 077 && printf '%s\n' "$RELEASE_SIGNING_KEY" > "$key")
+          openssl dgst -sha256 -sign "$key" -out release/SHA256SUMS.txt.sig release/SHA256SUMS.txt
+          rm -f "$key"
+          openssl dgst -sha256 -verify src/Rondel.Core/Updates/release-key.pem -signature release/SHA256SUMS.txt.sig release/SHA256SUMS.txt
 
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         if: env.PUBLISH == 'true'
