@@ -56,11 +56,13 @@ jobs:
             echo "No feature, fix or breaking change since ${last:-the beginning}: nothing to release." >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      # The files the jobs hand on to the release job are needed only during this run; the release keeps its own copies.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.version.outputs.releasable == 'true'
         with:
           name: release-notes
           path: notes.md
+          retention-days: 1
 
   build:
     name: Build ${{ matrix.runtime }}
@@ -86,6 +88,7 @@ jobs:
           name: rondel-${{ matrix.runtime }}
           path: dist/${{ matrix.runtime }}/Rondel.exe
           if-no-files-found: error
+          retention-days: 1
 
   build-macos:
     name: Build ${{ matrix.runtime }}
@@ -156,6 +159,7 @@ jobs:
           name: rondel-${{ matrix.runtime }}
           path: dist/Rondel-${{ needs.version.outputs.version }}-${{ matrix.runtime }}.zip
           if-no-files-found: error
+          retention-days: 1
 
   release:
     name: Publish release
@@ -227,3 +231,63 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Rondel ${VERSION}" \
             --notes-file artifacts/release-notes/notes.md
+
+      # Until 1.0, only the two newest releases stay on GitHub: the new one, and the one before it to go back to. Their
+      # tags stay (the next version is computed from them), and CHANGELOG.md keeps the notes of every version.
+      - name: Remove older releases
+        if: env.PUBLISH == 'true' && startsWith(env.VERSION, '0.')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 200 --exclude-drafts --json tagName \
+            --jq '[.[].tagName | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))] | sort_by(ltrimstr("v") | split(".") | map(tonumber)) | reverse | .[2:] | .[]' |
+          while read -r tag; do
+            echo "Removing the release ${tag}; its tag stays"
+            gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --yes
+          done
+
+  changelog:
+    name: Prepare the changelog
+    needs: [version, release]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/prod'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install git-cliff
+        run: |
+          archive="git-cliff-${GIT_CLIFF_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -sSfL -o "$archive" "https://github.com/orhun/git-cliff/releases/download/v${GIT_CLIFF_VERSION}/${archive}"
+          echo "${GIT_CLIFF_SHA512}  ${archive}" | sha512sum -c -
+          tar -xzf "$archive"
+          echo "$PWD/git-cliff-${GIT_CLIFF_VERSION}" >> "$GITHUB_PATH"
+
+      # CHANGELOG.md is written from the version tags, so it holds every version, also those whose release is gone.
+      # It goes to dev through a pull request. GitHub Actions may not open pull requests in this repository (the same
+      # setting would let workflows approve them), so this pushes a branch and a maintainer opens the pull request.
+      - name: Write CHANGELOG.md on a branch
+        run: |
+          {
+            printf '# Changelog\n\n'
+            printf 'Every version of Rondel, newest first. Until 1.0 only the two newest [releases](https://github.com/%s/releases) are kept for download; the notes of all versions are here.\n' "$GITHUB_REPOSITORY"
+            git-cliff --body-file build/changelog-body.tera --strip all
+          } > "$RUNNER_TEMP/CHANGELOG.md"
+          git fetch origin dev
+          git switch -c "changelog/v${VERSION}" origin/dev
+          cp "$RUNNER_TEMP/CHANGELOG.md" CHANGELOG.md
+          if git diff --quiet -- CHANGELOG.md; then
+            echo "CHANGELOG.md is already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "docs: update the changelog for ${VERSION}"
+          git push origin "changelog/v${VERSION}"
+          echo "CHANGELOG.md for ${VERSION} is on the branch changelog/v${VERSION}: [open the pull request](https://github.com/${GITHUB_REPOSITORY}/compare/dev...changelog/v${VERSION}?expand=1)" >> "$GITHUB_STEP_SUMMARY"
