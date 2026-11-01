@@ -47,6 +47,11 @@ internal static class DevTools
             case ["--render-menu", var output, .. var options]:
                 RenderMenu(output, options);
                 return true;
+            case ["--export-icon", var output, .. var options]:
+                AppBuilder.Configure<App>().UsePlatformDetect().SetupWithoutStarting();
+                using (var file = File.Create(output))
+                    MenuBar.RenderIcon(paused: options.Contains("paused")).Save(file);
+                return true;
             case ["--render-settings", var output, .. var options]:
                 RenderSettings(output, options);
                 return true;

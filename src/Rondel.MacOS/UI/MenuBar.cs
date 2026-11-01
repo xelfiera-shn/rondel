@@ -26,6 +26,7 @@ internal sealed class MenuBar : IDisposable
     /// </summary>
     readonly NativeMenu _menu = [];
     MenuBarState _state = new(false, false, false, null);
+    bool? _pausedIcon;
 
     public MenuBar()
     {
@@ -35,7 +36,7 @@ internal sealed class MenuBar : IDisposable
         _pause = Item(() => PauseClicked?.Invoke());
         _openLogs = Item(() => OpenLogsClicked?.Invoke());
         _quit = Item(() => QuitClicked?.Invoke());
-        _icon = new TrayIcon { Icon = RenderIcon(), Menu = _menu };
+        _icon = new TrayIcon { Menu = _menu };
         MacOSProperties.SetIsTemplateIcon(_icon, true);
         Loc.Changed += Refresh;
     }
@@ -66,6 +67,11 @@ internal sealed class MenuBar : IDisposable
     void Refresh()
     {
         var s = _state;
+        if (_pausedIcon != s.Paused)
+        {
+            _pausedIcon = s.Paused;
+            _icon.Icon = RenderIcon(s.Paused);
+        }
         _icon.ToolTipText = Loc.Get(s.Paused ? "Tray.TooltipPaused" : "MacMenu.Tooltip");
         _warning.Header = "⚠︎ " + s.Warning;
         _accessibility.Header = Loc.Get("MacMenu.AllowAccessibility");
@@ -97,28 +103,44 @@ internal sealed class MenuBar : IDisposable
         return item;
     }
 
-    /// <summary>A ring with its top slice filled, 18 points at 2x: the radial menu in a glyph.</summary>
-    static WindowIcon RenderIcon()
+    /// <summary>
+    /// The app icon's shape as a template image: four thick ring segments around a hub, the top one lifted outward
+    /// like a selected slice; paused, the same shape faded. It fills the menu bar's 18 points (drawn at 2x).
+    /// </summary>
+    internal static WindowIcon RenderIcon(bool paused)
     {
-        var bitmap = new RenderTargetBitmap(new PixelSize(36, 36), new Vector(144, 144));
+        const int Px = 36;
+        const double C = Px / 2.0, Thickness = Px * 0.16, Radius = Px * 0.40 - Thickness / 2, Lift = Px * 0.06;
+        var bitmap = new RenderTargetBitmap(new PixelSize(Px, Px), new Vector(96, 96));
         using (var context = bitmap.CreateDrawingContext())
         {
-            var ink = Brushes.Black;
-            context.DrawEllipse(null, new Pen(ink, 1.6), new Point(9, 9), 6.6, 6.6);
-            var slice = new StreamGeometry();
-            using (var g = slice.Open())
+            byte alpha = paused ? (byte)0x70 : (byte)0xFF;
+            for (int i = 0; i < 4; i++)
             {
-                g.BeginFigure(new Point(9, 9), true);
-                g.LineTo(new Point(9 - 4.7, 9 - 4.7));
-                g.ArcTo(new Point(9 + 4.7, 9 - 4.7), new Size(6.6, 6.6), 0, false, SweepDirection.Clockwise);
-                g.EndFigure(true);
+                double mid = i * 90, r = i == 0 ? Radius + Lift : Radius;
+                // The other segments slightly lighter, as on Windows, so the lifted one reads as the selection.
+                var ink = new SolidColorBrush(Color.FromArgb(i == 0 ? alpha : (byte)(alpha * 0.78), 0, 0, 0));
+                var arc = new StreamGeometry();
+                using (var g = arc.Open())
+                {
+                    g.BeginFigure(OnCircle(C, r, mid - 27), false);
+                    g.ArcTo(OnCircle(C, r, mid + 27), new Size(r, r), 0, false, SweepDirection.Clockwise);
+                    g.EndFigure(false);
+                }
+                context.DrawGeometry(null, new Pen(ink, Thickness, lineCap: PenLineCap.Round), arc);
             }
-            context.DrawGeometry(ink, null, slice);
+            context.DrawEllipse(new SolidColorBrush(Color.FromArgb(alpha, 0, 0, 0)), null, new Point(C, C), Px * 0.11, Px * 0.11);
         }
         var stream = new MemoryStream();
         bitmap.Save(stream, new PngBitmapEncoderOptions());
         stream.Position = 0;
         return new WindowIcon(stream);
+    }
+
+    static Point OnCircle(double center, double radius, double degrees)
+    {
+        double rad = degrees * Math.PI / 180;
+        return new Point(center + radius * Math.Sin(rad), center - radius * Math.Cos(rad));
     }
 
     public void Dispose()
