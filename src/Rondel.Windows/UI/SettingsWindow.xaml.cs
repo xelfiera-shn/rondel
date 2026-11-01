@@ -116,11 +116,16 @@ public partial class SettingsWindow : Window
             HoldSlider.Value = s.HoldMs;
             HoldValue.Text = Loc.Format("Settings.Ms", s.HoldMs);
             HotkeyBox.Text = string.IsNullOrEmpty(s.Hotkey) ? Loc.Get("Settings.Hotkey.Off") : s.Hotkey;
+            AgentsHotkeyBox.Text = string.IsNullOrEmpty(s.ActiveAgents.Hotkey) ? Loc.Get("Settings.Hotkey.Off") : s.ActiveAgents.Hotkey;
             CommandLabel.Text = Loc.Format("Settings.Command", DefaultAgent(s)?.Name ?? "");
             CommandBox.Text = DefaultAgent(s)?.Command ?? "";
             Select(TerminalBox, s.Terminal.ToString());
             Select(ShellBox, s.Shell.ToString());
             DebugBox.IsChecked = s.DebugLogging;
+            FollowAgentsBox.IsChecked = s.ActiveAgents.Follow;
+            NotifyAsksBox.IsChecked = s.ActiveAgents.NotifyAsks;
+            NotifyFinishedBox.IsChecked = s.ActiveAgents.NotifyFinished;
+            AgentNotificationsPanel.IsEnabled = s.ActiveAgents.Follow;
             CardPromptBox.IsChecked = s.NewProjectCard.Prompt;
             CardGitBox.IsChecked = s.NewProjectCard.Git;
             CardPlanBox.IsChecked = s.NewProjectCard.Plan;
@@ -155,6 +160,7 @@ public partial class SettingsWindow : Window
             ? Loc.Get("Settings.Shell.PwshMissing") : null);
 
         SetStatus(HotkeyStatus, _host.HotkeyError);
+        SetStatus(AgentsHotkeyStatus, _host.AgentsHotkeyError);
     }
 
     void RefreshAutostart()
@@ -215,7 +221,16 @@ public partial class SettingsWindow : Window
             Store.Update(s => s.HoldMs = value);
     }
 
-    void OnHotkeyKeyDown(object sender, KeyEventArgs e)
+    void OnHotkeyKeyDown(object sender, KeyEventArgs e) => ReadHotkey(e, HotkeyStatus, SaveHotkey);
+
+    void OnClearHotkey(object sender, RoutedEventArgs e) => SaveHotkey("");
+
+    void OnAgentsHotkeyKeyDown(object sender, KeyEventArgs e) => ReadHotkey(e, AgentsHotkeyStatus, SaveAgentsHotkey);
+
+    void OnClearAgentsHotkey(object sender, RoutedEventArgs e) => SaveAgentsHotkey("");
+
+    /// <summary>Turns a key press in a shortcut box into a shortcut; Backspace or Delete turns it off.</summary>
+    void ReadHotkey(KeyEventArgs e, TextBlock status, Action<string> save)
     {
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
         if (key is Key.Tab or Key.Escape)
@@ -223,7 +238,7 @@ public partial class SettingsWindow : Window
         e.Handled = true;
         if (key is Key.Back or Key.Delete)
         {
-            SaveHotkey("");
+            save("");
             return;
         }
         if (key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt or Key.LeftShift or Key.RightShift
@@ -234,13 +249,19 @@ public partial class SettingsWindow : Window
         var binding = new HotkeyBinding(Keyboard.Modifiers, key);
         if (!binding.IsUsable)
         {
-            SetStatus(HotkeyStatus, Loc.Get("Settings.Hotkey.NeedsModifier"));
+            SetStatus(status, Loc.Get("Settings.Hotkey.NeedsModifier"));
             return;
         }
-        SaveHotkey(binding.ToString());
+        save(binding.ToString());
     }
 
-    void OnClearHotkey(object sender, RoutedEventArgs e) => SaveHotkey("");
+    void SaveAgentsHotkey(string value)
+    {
+        if (value != Store.Current.ActiveAgents.Hotkey)
+            Store.Update(s => s.ActiveAgents.Hotkey = value);
+        AgentsHotkeyBox.Text = string.IsNullOrEmpty(value) ? Loc.Get("Settings.Hotkey.Off") : value;
+        UpdateStatus();
+    }
 
     void SaveHotkey(string value)
     {
@@ -302,6 +323,20 @@ public partial class SettingsWindow : Window
         bool value = DebugBox.IsChecked == true;
         if (!_loading)
             Store.Update(s => s.DebugLogging = value);
+    }
+
+    void OnActiveAgentsClicked(object sender, RoutedEventArgs e)
+    {
+        if (_loading)
+            return;
+        bool follow = FollowAgentsBox.IsChecked == true, asks = NotifyAsksBox.IsChecked == true, finished = NotifyFinishedBox.IsChecked == true;
+        AgentNotificationsPanel.IsEnabled = follow;
+        Store.Update(s =>
+        {
+            s.ActiveAgents.Follow = follow;
+            s.ActiveAgents.NotifyAsks = asks;
+            s.ActiveAgents.NotifyFinished = finished;
+        });
     }
 
     void OnNewProjectCardClicked(object sender, RoutedEventArgs e)

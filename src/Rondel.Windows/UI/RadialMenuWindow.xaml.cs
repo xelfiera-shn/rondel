@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -8,6 +9,7 @@ using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using Rondel.Core.Activity;
 using Rondel.Core.Agents;
 using Rondel.Core.Context;
 using Rondel.Core.Flow;
@@ -186,6 +188,13 @@ public partial class RadialMenuWindow : Window
 
     internal bool IsMenuOpen => _isOpen;
 
+    /// <summary>Puts slice <paramref name="index"/> under the pointer, as if hovered: it opens once its items arrive.</summary>
+    internal void HoverSlice(int index)
+    {
+        if (_isOpen && index >= 0 && index < Slices.Count)
+            SetHover(0, index);
+    }
+
     List<Tile> Slices => _bands[0].Tiles;
 
     /// <summary>Creates the window handle and renders once off-screen so the first real open is instant.</summary>
@@ -323,7 +332,8 @@ public partial class RadialMenuWindow : Window
     /// </summary>
     /// <param name="path">What to hover: a slice index, then for each arc the rank of an item (0 = newest).</param>
     internal BitmapSource RenderPreview(MenuModel model, RondelPalette palette, IReadOnlyList<(string? Hint, bool Dimmed)> hints,
-        IReadOnlyList<IReadOnlyList<MenuItemModel>> children, IReadOnlyList<int> path, Color background, bool atLeftEdge = false)
+        IReadOnlyList<IReadOnlyList<MenuItemModel>> children, IReadOnlyList<int> path, Color background, bool atLeftEdge = false,
+        IReadOnlyList<AgentState?>? states = null)
     {
         // As if the menu opened at the left edge of the work area (the ring clamped against it).
         _room = atLeftEdge
@@ -339,7 +349,7 @@ public partial class RadialMenuWindow : Window
         SetCenterTitle(model.Title);
         CenterSubtitle.Text = model.Subtitle ?? "";
         CenterGlyph.Text = CenterGlyphFor(model.Context.Kind);
-        ApplyHints(model, hints);
+        ApplyHints(model, hints, states);
         ApplyChildren(model, children, force: true);
         if (path.Count > 0)
             SetHover(0, path[0]);
@@ -697,6 +707,49 @@ public partial class RadialMenuWindow : Window
         return (0, top);
     }
 
+    /// <summary>
+    /// The line under a label; for a followed agent (or an Active Agents slice) it starts with a dot in the color of
+    /// the agent's state. The dot is part of the line, so it counts when the label is fitted.
+    /// </summary>
+    void SetHint(TextBlock hint, string text, AgentState? state)
+    {
+        hint.Inlines.Clear();
+        if (state is { } value)
+            hint.Inlines.Add(new Run("\u25CF ") { Foreground = StateBrush(value) });
+        hint.Inlines.Add(new Run(text));
+    }
+
+    /// <summary>
+    /// The color of an agent's state, the same as on its notifications: amber when it waits for the user, green when
+    /// it is done, red when it failed, and the theme's accent while it works, slowly pulsing (unless animations are off).
+    /// </summary>
+    Brush StateBrush(AgentState state)
+    {
+        if (state != AgentState.Working)
+        {
+            var color = state switch
+            {
+                AgentState.Waiting => NoticeIconRenderer.Waiting,
+                AgentState.Ready => NoticeIconRenderer.Done,
+                _ => NoticeIconRenderer.Failed,
+            };
+            var solid = new SolidColorBrush(color);
+            solid.Freeze();
+            return solid;
+        }
+        var working = new SolidColorBrush(_palette.BrandFrom);
+        if (Animate)
+        {
+            working.BeginAnimation(Brush.OpacityProperty, new DoubleAnimation(1, 0.3, TimeSpan.FromSeconds(0.9))
+            {
+                AutoReverse = true,
+                RepeatBehavior = RepeatBehavior.Forever,
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+            });
+        }
+        return working;
+    }
+
     /// <summary>Signed angle from <paramref name="from"/> to <paramref name="to"/>, in (-180, 180].</summary>
     static double AngleBetween(double from, double to) => ((to - from) % 360 + 540) % 360 - 180;
 
@@ -704,7 +757,8 @@ public partial class RadialMenuWindow : Window
     /// Late session hints (computed off the UI thread after the menu opened). Ignored if the menu
     /// has moved on to another context meanwhile.
     /// </summary>
-    internal void ApplyHints(MenuModel model, IReadOnlyList<(string? Hint, bool Dimmed)> hints)
+    /// <param name="states">One per slice: the state beside an Active Agents slice's line, if any.</param>
+    internal void ApplyHints(MenuModel model, IReadOnlyList<(string? Hint, bool Dimmed)> hints, IReadOnlyList<AgentState?>? states = null)
     {
         if (!ReferenceEquals(model, _model) || hints.Count != Slices.Count)
             return;
@@ -713,7 +767,7 @@ public partial class RadialMenuWindow : Window
             var slice = Slices[i];
             if (hints[i].Hint is not { } text)
                 continue;
-            slice.Hint.Text = text;
+            SetHint(slice.Hint, text, states is not null && i < states.Count ? states[i] : null);
             slice.Hint.Visibility = Visibility.Visible;
             slice.Dimmed = hints[i].Dimmed;
             Paint(slice, IsHot(0, i), _bands[0].Opened == i);
@@ -793,7 +847,7 @@ public partial class RadialMenuWindow : Window
             byPosition[band.PositionOfRank[rank]] = tile.Children[rank];
         // Recent projects are folder names, often one long word (Contoso.Platform.Web, my_project); session titles
         // are sentences and only wrap between words.
-        bool folderNames = MenuBuilder.ListsRecentProjects(tile.Item);
+        bool folderNames = MenuBuilder.ListsRecentProjects(tile.Item) || MenuBuilder.ListsActiveAgents(tile.Item);
         for (int position = 0; position < k; position++)
         {
             double mid = band.From + (position + 0.5) * band.Span;
@@ -1074,7 +1128,7 @@ public partial class RadialMenuWindow : Window
             var item = model.Items[i];
             double mid = _offset + i * _span;
             var tile = CreateTile(item, mid, _span, TileInnerR, TileOuterR, SliceLayer, withGlyph: true);
-            bool expectsHint = item.Action.Hint != SessionHint.None;
+            bool expectsHint = item.Action.Hint != SessionHint.None || MenuBuilder.ListsActiveAgents(item);
             tile.Hint.Text = item.Hint ?? (expectsHint ? hintSample : "");
             tile.Hint.Visibility = item.Hint is not null ? Visibility.Visible
                 : expectsHint ? Visibility.Hidden
@@ -1163,12 +1217,12 @@ public partial class RadialMenuWindow : Window
         var hint = new TextBlock
         {
             FontSize = 10,
-            Text = item.Hint ?? "",
             TextAlignment = TextAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
             Margin = new Thickness(0, 2, 0, 0),
             Visibility = item.Hint is null ? Visibility.Collapsed : Visibility.Visible,
         };
+        SetHint(hint, item.Hint ?? "", item.State);
         var stack = new StackPanel();
         if (glyph is not null)
             stack.Children.Add(glyph);

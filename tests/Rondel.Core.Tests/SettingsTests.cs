@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Rondel.Core.Agents;
 using Rondel.Core.Context;
 using Rondel.Core.Menus;
@@ -21,7 +20,7 @@ public class SettingsTests
               "menus": { "FolderItem": ["open"], },
             }
             """;
-        var settings = JsonSerializer.Deserialize<AppSettings>(json, SettingsJson.Options)!;
+        var settings = SettingsJson.Deserialize(json)!;
 
         settings.Normalize();
 
@@ -36,12 +35,12 @@ public class SettingsTests
     }
 
     [Theory]
-    [InlineData("""["new-project", "new-prompt"]""", new[] { "new-project", "recents" })] // New + Prompt left with schema 4
+    [InlineData("""["new-project", "new-prompt"]""", new[] { "new-project", "recents", "agents" })] // New + Prompt left with 4, Active Agents came with 5
     [InlineData("""["new-prompt"]""", new[] { "new-prompt" })]
     public void SchemaTwoAddsRecentProjectsOnlyToAnUntouchedDesktopMenu(string savedMenu, string[] expected)
     {
         string json = $$"""{ "SchemaVersion": 1, "Menus": { "DesktopEmpty": {{savedMenu}} } }""";
-        var settings = JsonSerializer.Deserialize<AppSettings>(json, SettingsJson.Options)!;
+        var settings = SettingsJson.Deserialize(json)!;
 
         settings.Normalize();
 
@@ -56,7 +55,7 @@ public class SettingsTests
     public void SchemaThreeAddsAskOnlyToUntouchedMenus(string savedMenu, string[] expected)
     {
         string json = $$"""{ "SchemaVersion": 2, "Menus": { "FolderItem": {{savedMenu}} } }""";
-        var settings = JsonSerializer.Deserialize<AppSettings>(json, SettingsJson.Options)!;
+        var settings = SettingsJson.Deserialize(json)!;
 
         settings.Normalize();
 
@@ -76,15 +75,30 @@ public class SettingsTests
               "Menus": { "DesktopEmpty": ["new-project", "new-prompt", "recents"], "ExplorerEmpty": ["new-prompt", "open-here"] }
             }
             """;
-        var settings = JsonSerializer.Deserialize<AppSettings>(json, SettingsJson.Options)!;
+        var settings = SettingsJson.Deserialize(json)!;
 
         settings.Normalize();
 
         Assert.Equal(ActionInput.NewProject, settings.FindAction("new-project")!.Input);
-        Assert.Equal(["new-project", "recents"], settings.Menus[nameof(ContextKind.DesktopEmpty)]);
+        Assert.Equal(["new-project", "recents", "agents"], settings.Menus[nameof(ContextKind.DesktopEmpty)]); // and Active Agents with 5
         Assert.Equal(["new-prompt", "open-here"], settings.Menus[nameof(ContextKind.ExplorerEmpty)]); // changed by the user: kept
         Assert.True(settings.FindAgent(BuiltInAgents.ClaudeCodeId)!.Supports(AgentCapability.Plan));
         Assert.True(settings.NewProjectCard.Templates);
+    }
+
+    [Theory]
+    [InlineData("""["new-project", "recents"]""", new[] { "new-project", "recents", "agents" })]
+    [InlineData("""["recents", "new-project"]""", new[] { "recents", "new-project" })]
+    public void SchemaFiveAddsActiveAgentsOnlyToAnUntouchedDesktopMenu(string savedMenu, string[] expected)
+    {
+        string json = $$"""{ "SchemaVersion": 4, "Menus": { "DesktopEmpty": {{savedMenu}} } }""";
+        var settings = SettingsJson.Deserialize(json)!;
+
+        settings.Normalize();
+
+        Assert.Equal(expected, settings.Menus[nameof(ContextKind.DesktopEmpty)]);
+        Assert.Equal(ActionSource.ActiveAgents, settings.FindAction("agents")!.Source);
+        Assert.Equal("", settings.ActiveAgents.Hotkey);
     }
 
     [Fact]
@@ -133,5 +147,29 @@ public class SettingsTests
 
         Assert.Equal(["new-project", "open-here"], menu.Items.Select(i => i.Action.Id));
         Assert.All(menu.Items, i => Assert.Equal("minimal", i.Agent.Id));
+    }
+
+    [Fact]
+    public void BuiltInAgentsCanBeFollowedUnlessTurnedOff()
+    {
+        const string json = """
+            {
+              "Agents": [
+                { "Id": "claude-code", "Command": "cc" },
+                { "Id": "quiet", "Command": "claude", "ActivityArgs": [] },
+                { "Id": "other", "Command": "other" }
+              ]
+            }
+            """;
+        var settings = SettingsJson.Deserialize(json)!;
+
+        settings.Normalize();
+
+        Assert.Equal(["--settings", "{hooks}"], settings.FindAgent("claude-code")!.ActivityArgs);
+        Assert.Empty(settings.FindAgent("quiet")!.ActivityArgs!);
+        Assert.Null(settings.FindAgent("other")!.ActivityArgs);
+        Assert.True(settings.ActiveAgents.Follow);
+        Assert.True(settings.ActiveAgents.NotifyAsks);
+        Assert.True(settings.ActiveAgents.NotifyFinished);
     }
 }

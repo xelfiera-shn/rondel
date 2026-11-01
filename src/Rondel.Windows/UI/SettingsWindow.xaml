@@ -300,6 +300,48 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Active agents -->
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{l:Loc Settings.ActiveAgents}" />
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <CheckBox x:Name="FollowAgentsBox" Content="{l:Loc Settings.ActiveAgents.Follow}" Click="OnActiveAgentsClicked" />
+                        <TextBlock Style="{StaticResource Description}" Margin="28,2,0,0" Text="{l:Loc Settings.ActiveAgents.Follow.Desc}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel x:Name="AgentNotificationsPanel">
+                        <TextBlock Text="{l:Loc Settings.ActiveAgents.Notify}" />
+                        <TextBlock Style="{StaticResource Description}" Text="{l:Loc Settings.ActiveAgents.Notify.Desc}" />
+                        <WrapPanel Margin="0,10,0,0">
+                            <CheckBox x:Name="NotifyAsksBox" Margin="0,0,24,0" Content="{l:Loc Settings.ActiveAgents.NotifyAsks}" Click="OnActiveAgentsClicked" />
+                            <CheckBox x:Name="NotifyFinishedBox" Content="{l:Loc Settings.ActiveAgents.NotifyFinished}" Click="OnActiveAgentsClicked" />
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                                <TextBlock Text="{l:Loc Settings.ActiveAgents.Hotkey}" />
+                                <TextBlock Style="{StaticResource Description}" Text="{l:Loc Settings.ActiveAgents.Hotkey.Desc}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBox x:Name="AgentsHotkeyBox" Width="170" IsReadOnly="True" IsReadOnlyCaretVisible="False"
+                                         VerticalContentAlignment="Center" PreviewKeyDown="OnAgentsHotkeyKeyDown" />
+                                <Button Margin="8,0,0,0" Padding="12,5" Content="{l:Loc Settings.Hotkey.Clear}" Click="OnClearAgentsHotkey" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock x:Name="AgentsHotkeyStatus" Style="{StaticResource Status}" />
+                    </StackPanel>
+                </Border>
+
                 <!-- New project -->
                 <TextBlock Style="{StaticResource SectionHeader}" Text="{l:Loc Settings.NewProject}" />
 

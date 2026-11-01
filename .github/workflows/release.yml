@@ -44,7 +44,8 @@ jobs:
         run: |
           last=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)
           range="${last:+$last..}HEAD"
-          if git log --format='%s%n%b' "$range" | grep -qE '^(feat|fix|perf)(\([a-z0-9-]+\))?!?: |^[a-z]+(\([a-z0-9-]+\))?!: |^BREAKING[ -]CHANGE: '; then
+          # The macOS app's commits (scope macos) do not make a release of the Windows app until it ships.
+          if git log --format='%s%n%b' "$range" | grep -vE '^[a-z]+\(macos\)' | grep -qE '^(feat|fix|perf)(\([a-z0-9-]+\))?!?: |^[a-z]+(\([a-z0-9-]+\))?!: |^BREAKING[ -]CHANGE: '; then
             tag=$(git-cliff --bumped-version)
             git-cliff --unreleased --tag "$tag" --strip all > notes.md
             echo "releasable=true" >> "$GITHUB_OUTPUT"

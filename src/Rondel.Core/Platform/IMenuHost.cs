@@ -16,4 +16,7 @@ public interface IMenuHost
 
     /// <summary>Tells the user about a problem outside the menu (a notification or tray balloon).</summary>
     void ShowWarning(string message);
+
+    /// <summary>Brings the terminal of a followed agent (<see cref="Activity.ActiveAgent.Id"/>) to the front.</summary>
+    void FocusAgent(string id);
 }

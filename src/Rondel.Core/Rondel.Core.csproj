@@ -3,6 +3,8 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Rondel.Core</RootNamespace>
+    <!-- The macOS app is published with NativeAOT: the analyzers flag anything in the core that would break it. -->
+    <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>

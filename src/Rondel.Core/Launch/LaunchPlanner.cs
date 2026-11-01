@@ -20,6 +20,19 @@ public static class LaunchPlanner
         return new LaunchPlan(directory, agent.Name, agent.Command, arguments);
     }
 
+    /// <summary>
+    /// The plan of a session Rondel follows: the agent's <see cref="AgentProfile.ActivityArgs"/> (with "{hooks}" filled
+    /// in) in front of the other arguments, and <paramref name="activityId"/> for the script and the launcher.
+    /// </summary>
+    /// <returns>The plan, or null when the agent cannot be followed.</returns>
+    public static LaunchPlan? Follow(LaunchPlan plan, AgentProfile agent, string hooksFile, string activityId)
+    {
+        if (agent.ActivityArgs is not { Count: > 0 } templates)
+            return null;
+        var arguments = templates.Where(t => !string.IsNullOrEmpty(t)).Select(t => t.Replace("{hooks}", hooksFile, StringComparison.Ordinal));
+        return plan with { Arguments = [.. arguments, .. plan.Arguments], ActivityId = activityId };
+    }
+
     /// <summary>Fills in "{prompt}" and "{id}"; an argument whose value is missing is left out.</summary>
     internal static List<string> Expand(IEnumerable<string> templates, string? prompt, string? sessionId)
     {

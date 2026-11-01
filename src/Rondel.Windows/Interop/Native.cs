@@ -173,6 +173,7 @@ internal static unsafe partial class Native
     // System metrics
     public const int SM_MENUDROPALIGNMENT = 40;
     public const int SM_CXSMICON = 49;
+    public const int SM_CXICON = 11;
     public const int SM_CXDRAG = 68;
     public const int SM_CYDRAG = 69;
     public const int SM_XVIRTUALSCREEN = 76;
@@ -209,9 +210,13 @@ internal static unsafe partial class Native
     public const uint NIF_SHOWTIP = 0x80;
     public const uint NIIF_INFO = 0x1;
     public const uint NIIF_WARNING = 0x2;
+    public const uint NIIF_USER = 0x4;
+    public const uint NIIF_LARGE_ICON = 0x20;
     public const uint NOTIFYICON_VERSION_4 = 4;
     public const uint NIN_SELECT = WM_USER;
     public const uint NIN_KEYSELECT = WM_USER + 1;
+    public const uint NIN_BALLOONUSERCLICK = WM_USER + 5;
+    public const int SW_RESTORE = 9;
 
     // Menus
     public const uint MF_STRING = 0x0000;
@@ -326,6 +331,17 @@ internal static unsafe partial class Native
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool SetForegroundWindow(nint hWnd);
+
+    [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)]
+    public static partial nint FindWindowExW(nint hWndParent, nint hWndChildAfter, string? lpszClass, string? lpszWindow);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool IsIconic(nint hWnd);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool ShowWindow(nint hWnd, int nCmdShow);
 
     [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

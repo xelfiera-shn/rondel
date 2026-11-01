@@ -22,6 +22,20 @@ public class LaunchPlannerTests
     }
 
     [Fact]
+    public void FollowPutsTheHooksArgumentsFirst()
+    {
+        var plan = LaunchPlanner.Create(BuiltInAgents.ClaudeCode(), new ActionDefinition { Capability = AgentCapability.Prompt }, Work,
+            prompt: "fix the build")!;
+        string hooks = Path.Combine(Path.GetTempPath(), "Rondel Ayarları", "agent-hooks.json");
+
+        var followed = LaunchPlanner.Follow(plan, BuiltInAgents.ClaudeCode(), hooks, "0123456789ab")!;
+
+        Assert.Equal(["--settings", hooks, "fix the build"], followed.Arguments);
+        Assert.Equal("0123456789ab", followed.ActivityId);
+        Assert.Null(LaunchPlanner.Follow(plan, new AgentProfile { Id = "other", ActivityArgs = [] }, hooks, "0123456789ab"));
+    }
+
+    [Fact]
     public void CreateReturnsNullWhenTheAgentLacksTheCapability()
     {
         var agent = new AgentProfile { Id = "minimal", Name = "Minimal", Command = "m", Capabilities = { ["Open"] = [] } };

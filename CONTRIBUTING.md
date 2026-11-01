@@ -8,6 +8,7 @@ Thanks for helping. This page explains how the repository is organized and what 
 |---|---|
 | `dev` | Default branch. All work is integrated here through pull requests. |
 | `prod` | Release branch. Every push to `prod` builds Rondel and publishes a GitHub release. |
+| `tasks` | Only the task list (`TODO.md`). Edited directly, without pull requests, and never merged. |
 
 Work branches are created from `dev` and named after the kind of change:
 
@@ -18,6 +19,10 @@ docs/<short-name>   ci/<short-name>    chore/<short-name>
 
 An urgent fix for a released version goes on `hotfix/<short-name>`, created from `prod` and merged back into `prod`. Afterwards `prod` is merged into `dev` so the fix is not lost.
 
+## Taking a task
+
+The [task list](https://github.com/xelfiera-shn/rondel/blob/tasks/TODO.md) shows who is working on what, per platform. It lives on its own branch, `tasks`, so it can be edited without a pull request. Before you start, take the task there: set its mark to 🔄 with your GitHub user name and commit straight to `tasks`. Once your pull request is merged, mark the task ✅. The marks are explained at the top of the list.
+
 ## Commit messages and pull requests
 
 Rondel follows [Conventional Commits](https://www.conventionalcommits.org/):
@@ -27,7 +32,7 @@ Rondel follows [Conventional Commits](https://www.conventionalcommits.org/):
 ```
 
 - **Types:** `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`.
-- **Scopes (optional):** `core`, `windows`, `menu`, `detection`, `launch`, `sessions`, `settings`, `ui`, `l10n`, `ci`, `docs`.
+- **Scopes (optional):** `core`, `windows`, `macos`, `menu`, `detection`, `launch`, `sessions`, `settings`, `ui`, `l10n`, `ci`, `docs`. Changes to the macOS app use `macos` until it ships (see below).
 - **Summary:** imperative, lower case, no trailing period, at most 72 characters — `fix(launch): keep quotes in prompts on Windows PowerShell`.
 - **Breaking changes:** add `!` after the type (`feat(settings)!: …`) or a `BREAKING CHANGE:` footer.
 
@@ -48,6 +53,7 @@ Releases are automatic. On every push to `prod`, the next version is computed fr
 - `feat` → minor version, `fix` and `perf` → patch version.
 - A breaking change raises the minor version while Rondel is below 1.0, and the major version from 1.0 on.
 - Commits of other types alone (`docs`, `chore`, …) do not produce a release.
+- Until the macOS app ships, releases contain only the Windows app: commits with the `macos` scope neither produce a release nor appear in its notes.
 
 The release notes are generated from the same commits, so a clear PR title is also a clear changelog line. A release contains `Rondel-<version>-win-x64.exe`, `Rondel-<version>-win-arm64.exe`, a `SHA256SUMS.txt` and build provenance attestations.
 
@@ -64,7 +70,10 @@ dotnet build                                   # must finish with zero warnings
 dotnet test                                    # Core unit tests
 dotnet format --verify-no-changes              # code style (.editorconfig)
 .\build\publish.ps1                            # single-file Rondel.exe in .\dist (Windows)
+build/publish-macos.sh                         # Rondel.app in dist/osx-arm64 (macOS), see below
 ```
+
+macOS ties the Accessibility and Automation permissions to the app's signature, so `publish-macos.sh` signs every build with the same certificate, by default one named **Rondel Development**. Create it once: Keychain Access → Certificate Assistant → Create a Certificate, name `Rondel Development`, identity type *Self-Signed Root*, certificate type *Code Signing*, in the login keychain. The first build asks for your login password to use it; choose *Always Allow*. Then grant Rondel the Accessibility permission once; it survives later builds.
 
 CI builds and tests on Windows and on macOS; both must pass.
 

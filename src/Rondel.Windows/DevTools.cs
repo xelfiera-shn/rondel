@@ -2,6 +2,7 @@ using System.Text;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Rondel.Core;
+using Rondel.Core.Activity;
 using Rondel.Core.Agents;
 using Rondel.Core.Agents.ClaudeCode;
 using Rondel.Core.Context;
@@ -28,6 +29,8 @@ namespace Rondel.Windows;
 /// --launch-script FOLDER COMMAND PROMPT.txt out.ps1   the PowerShell script a launch would run
 /// --launch-now FOLDER COMMAND PROMPT.txt     launch exactly like the menu, with COMMAND instead of the configured one
 /// --export-icon out.ico                      write the app icon (used for the exe)
+/// --render-notice-icons out.png              the icons of notifications about agents, dark and light
+///    (--render-menu … agents: made-up followed agents, with the Active Agents slice open)
 /// --render-menu out.png [dark|light] [en|tr] [desktop|item] [idle] [deep] [edge] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]
 ///              [hover=N] [FOLDER|FILE]                 draw the Explorer menu
 ///                                            for FOLDER (default: current folder), its folder-icon menu with "item", or the menu of FILE
@@ -81,6 +84,10 @@ internal static class DevTools
                 RenderNewProject(output, options);
                 return true;
 
+            case ["--render-notice-icons", var output]:
+                RenderNoticeIcons(output);
+                return true;
+
             default:
                 return false;
         }
@@ -125,6 +132,54 @@ internal static class DevTools
     }
 
     /// <summary>Multi-size .ico: classic 32-bit BMP frames, plus a PNG frame for 256 px (the usual layout).</summary>
+    /// <summary>Followed agents in every state, waiting ones first (as <see cref="AgentActivity.Agents"/> orders them).</summary>
+    static List<ActiveAgent> MadeUpAgents()
+    {
+        string projects = Path.Combine(Path.GetTempPath(), "Projects");
+        var now = DateTime.UtcNow;
+        ActiveAgent Agent(string name, AgentState state, int minutes) =>
+            new(name, Path.Combine(projects, name), "Claude Code") { State = state, Since = now.AddMinutes(-minutes) };
+        return
+        [
+            Agent("weather-api", AgentState.Waiting, 1) with { Tool = "Bash" },
+            Agent("acme-dashboard", AgentState.Waiting, 3) with { Message = "Which database should I use?" },
+            Agent("mobile-app", AgentState.Failed, 6),
+            Agent("billing-service", AgentState.Ready, 4),
+            Agent("docs-site", AgentState.Working, 2),
+        ];
+    }
+
+    /// <summary>The notification icons at the sizes Windows shows them, on a dark and a light notification.</summary>
+    static void RenderNoticeIcons(string output)
+    {
+        int[] sizes = [32, 48, 64];
+        var kinds = Enum.GetValues<NoticeIcon>();
+        int cell = 80, width = cell * kinds.Length * sizes.Length, height = cell * 2;
+        var visual = new DrawingVisual();
+        using (var dc = visual.RenderOpen())
+        {
+            foreach (var (row, background) in new[] { (0, Color.FromRgb(0x2B, 0x2B, 0x2B)), (1, Color.FromRgb(0xF9, 0xF9, 0xF9)) })
+            {
+                dc.DrawRectangle(new SolidColorBrush(background), null, new System.Windows.Rect(0, row * cell, width, cell));
+                int column = 0;
+                foreach (int size in sizes)
+                {
+                    foreach (var kind in kinds)
+                    {
+                        double x = column++ * cell + (cell - size) / 2.0, y = row * cell + (cell - size) / 2.0;
+                        dc.DrawImage(NoticeIconRenderer.Render(kind, size), new System.Windows.Rect(x, y, size, size));
+                    }
+                }
+            }
+        }
+        var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var file = File.Create(output);
+        encoder.Save(file);
+    }
+
     static void ExportIcon(string output)
     {
         int[] sizes = [16, 20, 24, 32, 40, 48, 64, 256];
@@ -207,12 +262,14 @@ internal static class DevTools
             ? new TriggerContext(ContextKind.FileItem, Path.GetDirectoryName(target), Path.GetFileName(target), "render-menu") { FilePath = target }
             : new TriggerContext(kind, target, Path.GetFileName(target), "render-menu");
         var model = MenuBuilder.Build(context, settings);
-        var details = MenuDetails.Load(model);
+        // "agents": made-up followed agents, with the Active Agents slice open.
+        bool showAgents = options.Contains("agents", StringComparer.OrdinalIgnoreCase);
+        var details = MenuDetails.Load(model, showAgents ? MadeUpAgents() : []);
         var children = details.Children.ToList();
 
         // Hover the first slice that opens and its newest item; with "deep", also open the first item that opens further.
         var path = new List<int>();
-        int hover = children.FindIndex(c => c.Count > 0);
+        int hover = showAgents ? model.Items.ToList().FindIndex(MenuBuilder.ListsActiveAgents) : children.FindIndex(c => c.Count > 0);
         if (!options.Contains("idle", StringComparer.OrdinalIgnoreCase) && hover >= 0)
         {
             path.AddRange([hover, 0]);
@@ -228,7 +285,7 @@ internal static class DevTools
         var background = options.Contains("transparent", StringComparer.OrdinalIgnoreCase) ? Colors.Transparent
             : dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6);
         bool edge = options.Contains("edge", StringComparer.OrdinalIgnoreCase);
-        var bitmap = window.RenderPreview(model, PaletteFrom(options, dark), details.Hints, children, path, background, edge);
+        var bitmap = window.RenderPreview(model, PaletteFrom(options, dark), details.Hints, children, path, background, edge, details.States);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var file = File.Create(output);

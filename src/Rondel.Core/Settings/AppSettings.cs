@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using Rondel.Core.Agents;
 using Rondel.Core.Context;
@@ -8,7 +7,11 @@ using Rondel.Core.Themes;
 
 namespace Rondel.Core.Settings;
 
-public enum TerminalKind { Auto, WindowsTerminal, Console }
+/// <summary>
+/// Where the agent runs. WindowsTerminal and Console are Windows choices, TerminalApp and ITerm macOS ones; each
+/// platform treats the other's values as Auto, so one settings.json works on both.
+/// </summary>
+public enum TerminalKind { Auto, WindowsTerminal, Console, TerminalApp, ITerm }
 
 public enum ShellKind { Auto, Pwsh, WindowsPowerShell }
 
@@ -28,7 +31,7 @@ public sealed class AppSettings
     /// Bumped whenever a default changes, so <see cref="Normalize"/> can migrate saved files.
     /// A migration only touches values that are still at the old default.
     /// </summary>
-    public const int CurrentSchemaVersion = 4;
+    public const int CurrentSchemaVersion = 5;
 
     /// <summary>0 for a file written by hand without the field.</summary>
     public int SchemaVersion { get; set; }
@@ -65,6 +68,9 @@ public sealed class AppSettings
 
     /// <summary>Which options the New Project card offers (all of them unless turned off in Settings).</summary>
     public NewProjectCardOptions NewProjectCard { get; set; } = new();
+
+    /// <summary>Following the agents Rondel starts, and notifications about them.</summary>
+    public ActiveAgentsOptions ActiveAgents { get; set; } = new();
 
     /// <summary>Context name (DesktopEmpty, ExplorerEmpty, FolderItem, FileItem) → action ids, clockwise from the top.</summary>
     public Dictionary<string, List<string>> Menus { get; set; } = DefaultMenus();
@@ -104,8 +110,7 @@ public sealed class AppSettings
     public AgentProfile? AgentFor(ActionDefinition action) =>
         FindAgent(string.IsNullOrWhiteSpace(action.Agent) ? DefaultAgent : action.Agent);
 
-    public AppSettings Clone() =>
-        JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(this, SettingsJson.Options), SettingsJson.Options)!;
+    public AppSettings Clone() => SettingsJson.Deserialize(SettingsJson.Serialize(this))!;
 
     /// <summary>Repairs values a hand-edited file may get wrong and adds agents and actions introduced by newer versions.</summary>
     public void Normalize()
@@ -117,6 +122,8 @@ public sealed class AppSettings
         Hotkey = Hotkey?.Trim() ?? "";
         NewProject ??= new();
         NewProjectCard ??= new();
+        ActiveAgents ??= new();
+        ActiveAgents.Hotkey = ActiveAgents.Hotkey?.Trim() ?? "";
         Appearance ??= new();
         Appearance.Normalize();
         NewProject.Templates = (NewProject.Templates ?? []).Where(t => !string.IsNullOrWhiteSpace(t))
@@ -152,6 +159,9 @@ public sealed class AppSettings
                 StringComparer.OrdinalIgnoreCase);
             // Missing in files written before file mentions existed; an empty string turns them off.
             agent.FileMention = (agent.FileMention ?? builtIn?.FileMention)?.Trim();
+            // Missing in files written before Rondel followed agents; an empty list turns following off for the agent.
+            agent.ActivityArgs ??= builtIn?.ActivityArgs is { } args ? new List<string>(args) : null;
+            agent.ActivityArgs?.RemoveAll(a => a is null);
         }
         foreach (var builtIn in BuiltInAgents.Create())
         {
@@ -210,6 +220,9 @@ public sealed class AppSettings
                     agent.Capabilities.TryAdd(nameof(AgentCapability.Plan), [.. plan]);
             }
         }
+        // 5: Active Agents joined the desktop menu, after Recent Projects.
+        if (SchemaVersion < 5)
+            InsertIfDefault(nameof(ContextKind.DesktopEmpty), ["new-project", "recents"], "agents", after: "recents");
         SchemaVersion = CurrentSchemaVersion;
         WasMigrated = true;
     }
@@ -230,7 +243,7 @@ public sealed class AppSettings
 
     public static Dictionary<string, List<string>> DefaultMenus() => new(StringComparer.OrdinalIgnoreCase)
     {
-        [nameof(ContextKind.DesktopEmpty)] = ["new-project", "recents"],
+        [nameof(ContextKind.DesktopEmpty)] = ["new-project", "recents", "agents"],
         [nameof(ContextKind.ExplorerEmpty)] = ["new-project", "open-here", "ask-here", "continue-here", "resume-here"],
         [nameof(ContextKind.FolderItem)] = ["open", "ask", "continue", "resume"],
         [nameof(ContextKind.FileItem)] = ["ask-file", "open-here", "continue-here", "resume-here"],
@@ -250,5 +263,6 @@ public sealed class AppSettings
         new() { Id = "resume", Label = "@Action.Resume", Icon = "E81C", Capability = AgentCapability.Resume, Hint = SessionHint.SessionCount },
         new() { Id = "recents", Label = "@Action.Recents", Icon = "E823", Capability = AgentCapability.ResumeById, Source = ActionSource.RecentProjects },
         new() { Id = "ask-file", Label = "@Action.AskFile", Icon = "E8F2", Input = ActionInput.Prompt, Capability = AgentCapability.Prompt, MentionFile = true },
+        new() { Id = "agents", Label = "@Action.ActiveAgents", Icon = "E99A", Capability = AgentCapability.Open, Source = ActionSource.ActiveAgents },
     ];
 }

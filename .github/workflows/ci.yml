@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+env:
+  # Avalonia's build tasks (the macOS app) send anonymous build telemetry unless this is set.
+  AVALONIA_TELEMETRY_OPTOUT: "1"
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true

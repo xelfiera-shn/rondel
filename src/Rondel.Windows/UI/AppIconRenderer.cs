@@ -52,9 +52,13 @@ internal static class AppIconRenderer
     }
 
     /// <summary>HICON for the notification area. The caller owns it (DestroyIcon).</summary>
-    public static unsafe nint CreateIconHandle(int px, bool paused)
+    public static nint CreateIconHandle(int px, bool paused) => CreateIconHandle(Render(px, paused));
+
+    /// <summary>HICON from a square bitmap, with its alpha. The caller owns it (DestroyIcon).</summary>
+    public static unsafe nint CreateIconHandle(BitmapSource bitmap)
     {
-        var source = new FormatConvertedBitmap(Render(px, paused), PixelFormats.Bgra32, null, 0);
+        int px = bitmap.PixelWidth;
+        var source = new FormatConvertedBitmap(bitmap, PixelFormats.Bgra32, null, 0);
         int stride = px * 4;
         byte[] pixels = new byte[stride * px];
         source.CopyPixels(pixels, stride, 0);

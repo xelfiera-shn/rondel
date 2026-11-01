@@ -1,4 +1,5 @@
 using System.Text;
+using Rondel.Core.Activity;
 using Rondel.Core.Localization;
 
 namespace Rondel.Core.Launch;
@@ -19,6 +20,11 @@ public static class PowerShellScript
         s.AppendLine($"try {{ Set-Location -LiteralPath {Quote(plan.Directory)} -ErrorAction Stop }}");
         s.AppendLine($"catch {{ Write-Host ({Quote(Loc.Format("Launch.NoFolder", plan.Directory))}) -ForegroundColor Red; return }}");
         s.AppendLine($"try {{ $Host.UI.RawUI.WindowTitle = {Quote(plan.Title)} }} catch {{ }}");
+        if (plan.ActivityId is { } id)
+        {
+            // The agent's hooks send it back with every event, so Rondel knows which session reported.
+            s.AppendLine($"$env:{AgentActivity.EnvironmentVariable} = {Quote(id)}");
+        }
         if (plan.InitGit)
         {
             // A new project gets its repository before the agent starts; without git it starts anyway.
