@@ -8,6 +8,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Rondel.Core.Agents;
 using Rondel.Core.Context;
+using Rondel.Core.Flow;
 using Rondel.Core.Localization;
 using Rondel.Core.Logging;
 using Rondel.Core.Menus;
@@ -29,7 +30,8 @@ namespace Rondel.MacOS.UI;
 /// stage closes the menu, as a click outside it does.
 /// </para>
 /// <para>
-/// This is the ring. The arcs that slices open (Resume's sessions, Recent Projects) and the input cards come next.
+/// When an action needs a folder name or a prompt, the ring fades and the window shows the <see cref="InputCard"/>,
+/// growing (and moving onto the screen) as far as the card needs. The arcs that slices open come next.
 /// </para>
 /// </summary>
 internal sealed class RadialMenuWindow : Window
@@ -82,6 +84,7 @@ internal sealed class RadialMenuWindow : Window
     };
     readonly TextBlock _centerSubtitle = new() { FontSize = 10.5, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 1, 0, 0) };
     readonly List<Tile> _slices = [];
+    readonly InputCard _card;
 
     /// <summary>Label layouts already worked out while this menu is open: fitting a label takes many measurements.</summary>
     readonly Dictionary<(string Label, string Hint, double Mid, double Span), (double FontSize, Size Size)> _labelLayouts = [];
@@ -96,6 +99,7 @@ internal sealed class RadialMenuWindow : Window
     bool _isOpen, _pressedInside;
     int _version;
     CGPoint _centerOnScreen; // the ring center in screen points
+    PixelRect _work;         // the work area of the screen the menu is on
 
     public RadialMenuWindow(MenuPalette palette)
     {
@@ -128,12 +132,15 @@ internal sealed class RadialMenuWindow : Window
         Canvas.SetLeft(hubContent, StageR - HubR);
         Canvas.SetTop(hubContent, StageR - HubR);
         _stage.Children.Add(hubContent);
+        _card = new InputCard(palette);
+        _card.SizeChanged += (_, _) => FitCard();
         _surface.RenderTransform = _surfaceScale;
         _surface.Children.Add(new Canvas
         {
             Width = 2 * StageR, Height = 2 * StageR, HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center, Children = { _stage }
         });
+        _surface.Children.Add(_card);
         Content = _surface;
 
         ApplyPalette();
@@ -151,6 +158,9 @@ internal sealed class RadialMenuWindow : Window
 
     /// <summary>The menu closed; the frame it had (screen points, top-left origin) is no longer Rondel's.</summary>
     public event Action? MenuClosed;
+
+    /// <summary>The window grew or moved for the input card; presses outside the new frame close the menu.</summary>
+    public event Action<CGRect>? FrameChanged;
 
     public bool IsMenuOpen => _isOpen;
 
@@ -192,7 +202,7 @@ internal sealed class RadialMenuWindow : Window
 
         // Center on the pointer, but keep the ring and its shadow inside the screen's work area.
         var screen = Screens.ScreenFromPoint(new PixelPoint((int)anchor.X, (int)anchor.Y)) ?? Screens.Primary;
-        var work = screen?.WorkingArea ?? new PixelRect(0, 0, 10_000, 10_000);
+        var work = _work = screen?.WorkingArea ?? new PixelRect(0, 0, 10_000, 10_000);
         double half = OuterR + ShadowPad;
         double cx = Clamp(anchor.X, work.X + half, work.Right - half), cy = Clamp(anchor.Y, work.Y + half, work.Bottom - half);
         _centerOnScreen = new CGPoint(cx, cy);
@@ -200,6 +210,8 @@ internal sealed class RadialMenuWindow : Window
         Width = Height = size;
         Position = new PixelPoint((int)Math.Round(cx - size / 2), (int)Math.Round(cy - size / 2));
 
+        _card.Reset();
+        _stage.Opacity = 1;
         _surface.Opacity = 0;
         _surfaceScale.ScaleX = _surfaceScale.ScaleY = Animate ? 0.86 : 1;
         MenuPanel.BeforeShow(_nsWindow, _nonActivating);
@@ -211,17 +223,57 @@ internal sealed class RadialMenuWindow : Window
         return new CGRect { X = Position.X, Y = Position.Y, Width = size, Height = size };
     }
 
+    /// <summary>Replaces the ring with the card that asks for a folder name (and a prompt), or a prompt alone.</summary>
+    public void StartInput(InputSpec spec)
+    {
+        if (!_isOpen)
+            return;
+        SetHover(-1);
+        _stage.Opacity = 0;
+        _card.Start(spec, CloseMenu);
+    }
+
+    /// <summary>Replaces the ring with the New Project card.</summary>
+    public void StartNewProject(NewProjectSpec spec)
+    {
+        if (!_isOpen)
+            return;
+        SetHover(-1);
+        _stage.Opacity = 0;
+        _card.Start(spec, CloseMenu);
+    }
+
+    /// <summary>
+    /// The card can be taller than the ring (the New Project card with its prompt): the window grows around the
+    /// ring's center as far as the card needs, and moves just far enough to stay inside the work area.
+    /// </summary>
+    void FitCard()
+    {
+        if (!_isOpen || !_card.IsActive)
+            return;
+        double width = Math.Max(StageSize, _card.Bounds.Width + 2 * ShadowPad);
+        double height = Math.Max(StageSize, _card.Bounds.Height + 2 * ShadowPad);
+        double left = Clamp(_centerOnScreen.X - width / 2, _work.X, _work.Right - width);
+        double top = Clamp(_centerOnScreen.Y - height / 2, _work.Y, _work.Bottom - height);
+        if (width == Width && height == Height && (int)Math.Round(left) == Position.X && (int)Math.Round(top) == Position.Y)
+            return;
+        Width = width;
+        Height = height;
+        Position = new PixelPoint((int)Math.Round(left), (int)Math.Round(top));
+        FrameChanged?.Invoke(new CGRect { X = Position.X, Y = Position.Y, Width = width, Height = height });
+    }
+
     /// <summary>The pointer moved while the button that opened the menu is still down (from the event tap).</summary>
     public void OnHeldMove(CGPoint point)
     {
-        if (_isOpen)
+        if (_isOpen && !_card.IsActive)
             SetHover(HitTest(point.X - _centerOnScreen.X, point.Y - _centerOnScreen.Y));
     }
 
     /// <summary>The button that opened the menu was released at <paramref name="point"/> (from the event tap).</summary>
     public void OnHeldRelease(CGPoint point)
     {
-        if (!_isOpen)
+        if (!_isOpen || _card.IsActive)
             return;
         int index = HitTest(point.X - _centerOnScreen.X, point.Y - _centerOnScreen.Y);
         if (index >= 0)
@@ -250,7 +302,8 @@ internal sealed class RadialMenuWindow : Window
     {
         _palette = palette;
         ApplyPalette();
-        if (!_isOpen || _model is null)
+        _card.ApplyPalette(palette);
+        if (!_isOpen || _model is null || _card.IsActive)
             return;
         var hints = _slices.Select(s => (s.Hint.IsVisible ? s.Hint.Text : null, s.Dimmed)).ToList();
         BuildSlices(_model);
@@ -307,12 +360,45 @@ internal sealed class RadialMenuWindow : Window
         return bitmap;
     }
 
+    /// <summary>Developer aid (--render-new): draws the New Project card into a bitmap at 2x without showing the window.</summary>
+    public Bitmap RenderNewProjectPreview(NewProjectSpec spec, string name, string? prompt, Color background)
+    {
+        _card.Start(spec, _ => { });
+        _card.Fill(name, prompt);
+        const double Size = 540;
+        var root = new Panel { Width = Size, Height = Size, Background = new SolidColorBrush(background) };
+        _surface.Children.Remove(_card);
+        root.Children.Add(_card);
+        Content = root; // in the window's tree, so the text boxes get their templates
+        // Text boxes settle their scroll viewers over several layout passes and posted jobs.
+        for (int pass = 0; pass < 3; pass++)
+        {
+            Width = Height = Size;
+            Measure(new Size(Size, Size));
+            Arrange(new Rect(0, 0, Size, Size));
+            Dispatcher.UIThread.RunJobs();
+        }
+        var bitmap = new RenderTargetBitmap(new PixelSize((int)(Size * 2), (int)(Size * 2)), new Vector(192, 192));
+        bitmap.Render(root);
+        root.Children.Clear();
+        _surface.Children.Add(_card);
+        Content = _surface;
+        return bitmap;
+    }
+
     // ---- input ----
 
     void OnPointer(Point stagePoint, bool pressed, bool released)
     {
         if (!_isOpen)
             return;
+        if (_card.IsActive)
+        {
+            // Around the card the window is transparent but still Rondel's: a press there is a click outside.
+            if (pressed && !_card.IsPointerOver)
+                CloseMenu(restoreFocus: true);
+            return;
+        }
         double dx = stagePoint.X - StageR, dy = stagePoint.Y - StageR;
         int index = HitTest(dx, dy);
         if (pressed)
@@ -339,7 +425,7 @@ internal sealed class RadialMenuWindow : Window
 
     void OnKeyDown(object? sender, KeyEventArgs e)
     {
-        if (!_isOpen || _slices.Count == 0)
+        if (!_isOpen || _slices.Count == 0 || _card.IsActive)
             return;
         bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
         int number = e.Key switch
