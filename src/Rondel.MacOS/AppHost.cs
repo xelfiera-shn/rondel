@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using Rondel.Core;
@@ -13,6 +15,7 @@ using Rondel.Core.Settings;
 using Rondel.MacOS.Detection;
 using Rondel.MacOS.Interop;
 using Rondel.MacOS.Launch;
+using Rondel.MacOS.Settings;
 using Rondel.MacOS.Trigger;
 using Rondel.MacOS.UI;
 
@@ -32,11 +35,13 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
     IDisposable? _accessibilityPoll;
     nint _activity;
     RadialMenuWindow? _menu;
+    SettingsWindow? _settingsWindow;
     string? _look;
 
-    public AppHost()
+    /// <param name="settingsDirectory">Where settings.json is; the settings folder unless a diagnostic passes a copy.</param>
+    public AppHost(string? settingsDirectory = null)
     {
-        Store = new SettingsStore(new AvaloniaSynchronizationContext());
+        Store = new SettingsStore(new AvaloniaSynchronizationContext(), settingsDirectory);
         Store.Load();
         _detector = new FinderDetector(() => Store.Current);
         _tap = new EventTap(this);
@@ -47,23 +52,32 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
 
     public SettingsStore Store { get; }
 
+    public Autostart Autostart { get; } = new();
+
+    /// <summary>Whether Rondel may ask Finder for a window's folder; null until it was checked.</summary>
+    public bool? HasFinderAccess { get; private set; }
+
+    /// <summary>A permission was granted or taken back (on the main thread).</summary>
+    public event Action? PermissionsChanged;
+
     /// <summary>"Quit Rondel" was chosen in the menu bar menu.</summary>
     public event Action? QuitRequested;
 
     public void Start()
     {
-        Store.Changed += (settings, _) => ApplySettings(settings);
+        Store.Changed += (settings, external) =>
+        {
+            ApplySettings(settings);
+            if (external)
+                _settingsWindow?.LoadValues();
+        };
         Store.LoadFailed += _ => Warn(Loc.Get("Tray.SettingsInvalid"));
 
-        _menuBar.AccessibilityClicked += () =>
-        {
-            Native.RequestAccessibility();
-            Workspace.Open(Workspace.AccessibilitySettings);
-        };
-        _menuBar.FinderAccessClicked += () => AskForFinderAccess(fromMenu: true);
+        _menuBar.AccessibilityClicked += AllowAccessibility;
+        _menuBar.FinderAccessClicked += AllowFinderAccess;
+        _menuBar.SettingsClicked += OpenSettings;
         _menuBar.PauseClicked += () => Store.Update(s => s.Paused = !s.Paused);
-        _menuBar.EditSettingsClicked += () => Workspace.OpenText(Store.FilePath);
-        _menuBar.OpenLogsClicked += () => Workspace.Open(Log.Directory);
+        _menuBar.OpenLogsClicked += OpenLogFolder;
         _menuBar.QuitClicked += () => QuitRequested?.Invoke();
         _menuBar.Show(new MenuBarState(Store.Current.Paused, !Native.AXIsProcessTrusted(), true,
             Store.LoadError is null ? null : Loc.Get("Tray.SettingsInvalid")));
@@ -75,6 +89,15 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         _menu.Prepare();
         if (Application.Current?.PlatformSettings is { } platform)
             platform.ColorValuesChanged += (_, _) => ApplyLook(Store.Current, force: true);
+        // Opening Rondel again (from Finder, Spotlight or Launchpad) while it runs opens its settings.
+        if (Application.Current?.TryGetFeature<IActivatableLifetime>() is { } activatable)
+        {
+            activatable.Activated += (_, e) =>
+            {
+                if (e.Kind == ActivationKind.Reopen)
+                    OpenSettings();
+            };
+        }
 
         // The event tap must answer within a fraction of a second, also after hours in the background.
         _activity = Native.BeginLatencyCriticalActivity("Rondel watches for Option + hold");
@@ -108,6 +131,39 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
 
     static bool SystemIsDark => Application.Current?.PlatformSettings?.GetColorValues().ThemeVariant == PlatformThemeVariant.Dark;
 
+    public void OpenSettings()
+    {
+        if (_settingsWindow is null)
+        {
+            _settingsWindow = new SettingsWindow(this);
+            _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+            _settingsWindow.Show();
+        }
+        if (_settingsWindow.WindowState == WindowState.Minimized)
+            _settingsWindow.WindowState = WindowState.Normal;
+        _settingsWindow.Activate();
+    }
+
+    public void OpenSettingsFile() => Workspace.OpenText(Store.FilePath);
+
+    public void OpenLogFolder() => Workspace.Open(Log.Directory);
+
+    /// <summary>Opens the folder new projects' templates come from, creating it the first time.</summary>
+    public void OpenTemplatesFolder()
+    {
+        string directory = Core.Projects.ProjectTemplates.Default.Directory;
+        try
+        {
+            Directory.CreateDirectory(directory);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Warn($"Creating the templates folder '{directory}' failed", ex);
+            return;
+        }
+        Workspace.Open(directory);
+    }
+
     void Warn(string message)
     {
         Log.Warn(message);
@@ -135,6 +191,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
                 return true;
             Log.Info("Accessibility permission granted");
             InstallTap();
+            PermissionsChanged?.Invoke();
             return false;
         }, TimeSpan.FromSeconds(1));
     }
@@ -145,6 +202,27 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         if (!_tap.Start())
             Warn(Loc.Get("Tray.HookFailed"));
     }
+
+    public void AllowAccessibility()
+    {
+        Native.RequestAccessibility();
+        Workspace.Open(Workspace.AccessibilitySettings);
+    }
+
+    public void AllowFinderAccess() => AskForFinderAccess(fromMenu: true);
+
+    /// <summary>Checks the Automation permission for Finder again without asking (it can be changed in System Settings).</summary>
+    public void CheckFinderAccess() => Task.Run(() => ShowFinderAccess(Native.AutomationPermission(Workspace.FinderId, ask: false)));
+
+    void ShowFinderAccess(int status) => Dispatcher.UIThread.Post(() =>
+    {
+        bool granted = status == Native.AutomationAllowed;
+        _menuBar.Update(s => s with { NeedsFinderAccess = !granted });
+        if (HasFinderAccess == granted)
+            return;
+        HasFinderAccess = granted;
+        PermissionsChanged?.Invoke();
+    });
 
     /// <summary>
     /// The Automation permission for Finder, needed for the empty area of a Finder window. Asked at start and from
@@ -160,7 +238,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
             else if (status == Native.AutomationDenied && fromMenu)
                 Workspace.Open(Workspace.AutomationSettings); // macOS asks only once; after a no, only the setting changes it
             Log.Info($"Automation permission for Finder: {(status == Native.AutomationAllowed ? "granted" : status.ToString(System.Globalization.CultureInfo.InvariantCulture))}");
-            Dispatcher.UIThread.Post(() => _menuBar.Update(s => s with { NeedsFinderAccess = status != Native.AutomationAllowed }));
+            ShowFinderAccess(status);
         });
     }
 

@@ -24,7 +24,7 @@ internal sealed partial class MacTerminalLauncher(Action<string>? failed = null)
 {
     const int OpenTimeoutMs = 10_000;
 
-    const string ITermId = "com.googlecode.iterm2";
+    internal const string ITermId = "com.googlecode.iterm2";
 
     /// <summary>
     /// Where the .command files are written. Both terminals print the file's path as the window's first line, so it
@@ -132,7 +132,7 @@ internal sealed partial class MacTerminalLauncher(Action<string>? failed = null)
     private static partial nint getpwuid(uint uid);
 
     /// <summary>The user's login shell from the user database (what Terminal starts), or null.</summary>
-    static string? LoginShell()
+    internal static string? LoginShell()
     {
         nint entry = getpwuid(getuid());
         // struct passwd on macOS: name, passwd, uid, gid, change, class, gecos, dir, shell, expire.

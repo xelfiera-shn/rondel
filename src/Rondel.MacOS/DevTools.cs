@@ -1,7 +1,10 @@
 using System.Globalization;
 using System.Text;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using Rondel.Core;
 using Rondel.Core.Agents;
 using Rondel.Core.Context;
@@ -43,6 +46,9 @@ internal static class DevTools
                 return true;
             case ["--render-menu", var output, .. var options]:
                 RenderMenu(output, options);
+                return true;
+            case ["--render-settings", var output, .. var options]:
+                RenderSettings(output, options);
                 return true;
             default:
                 return false;
@@ -131,7 +137,7 @@ internal static class DevTools
         var window = new RadialMenuWindow(MenuPalette.For(settings.Appearance, isDark));
         var bitmap = window.RenderPreview(model, hints, children, hoverPath, isDark ? Color.FromRgb(0x1E, 0x1E, 0x1E) : Color.FromRgb(0xEC, 0xEC, 0xEC),
             atLeftEdge: options.Contains("edge"));
-        bitmap.Save(output, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+        bitmap.Save(output, new PngBitmapEncoderOptions());
     }
 
     /// <summary>
@@ -159,7 +165,50 @@ internal static class DevTools
         var window = new RadialMenuWindow(MenuPalette.For(settings.Appearance, isDark));
         var bitmap = window.RenderNewProjectPreview(spec, "hava-durumu-api", prompt ? "Bir hava durumu API'si kur: şehir adıyla sorgulansın." : null,
             isDark ? Color.FromRgb(0x1E, 0x1E, 0x1E) : Color.FromRgb(0xEC, 0xEC, 0xEC));
-        bitmap.Save(output, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+        bitmap.Save(output, new PngBitmapEncoderOptions());
+    }
+
+    /// <summary>
+    /// Draws the whole settings page, without scrolling, into a PNG at 2x: <c>--render-settings out.png [dark|light] [en|tr]</c>.
+    /// It works on a copy of settings.json, so a running Rondel and the real file are not touched.
+    /// </summary>
+    static void RenderSettings(string output, string[] options)
+    {
+        AppBuilder.Configure<App>().UsePlatformDetect()
+            .With(new FontManagerOptions { DefaultFamilyName = ".AppleSystemUIFont" })
+            .SetupWithoutStarting();
+        string copy = Directory.CreateTempSubdirectory("rondel-settings-").FullName;
+        string file = Path.Combine(AppInfo.SettingsDirectory, "settings.json");
+        if (File.Exists(file))
+            File.Copy(file, Path.Combine(copy, "settings.json"));
+        var host = new AppHost(copy);
+        if (options.FirstOrDefault(o => o is "en" or "tr") is { } language)
+            Loc.SetLanguage(language);
+        var window = new SettingsWindow(host)
+        {
+            RequestedThemeVariant = options.Contains("light") ? Avalonia.Styling.ThemeVariant.Light : Avalonia.Styling.ThemeVariant.Dark,
+        };
+        const double Width = 680, Height = 2000;
+        // The page is drawn from a panel inside the window, so its controls get their templates.
+        var page = (Control)window.Content!;
+        window.Content = null;
+        var root = new Avalonia.Controls.Panel { Width = Width, Height = Height, Background = window.Background, Children = { page } };
+        window.Content = root;
+        // Theme pictures are drawn while the window is idle, and text boxes settle over several layout passes.
+        for (int pass = 0; pass < 4; pass++)
+        {
+            window.Width = Width;
+            window.Height = Height;
+            Dispatcher.UIThread.RunJobs();
+            window.Measure(new Size(Width, Height));
+            window.Arrange(new Rect(0, 0, Width, Height));
+        }
+        var bitmap = new RenderTargetBitmap(new PixelSize((int)(Width * 2), (int)(Height * 2)), new Vector(192, 192));
+        bitmap.Render(root);
+        bitmap.Save(output, new PngBitmapEncoderOptions());
+        window.Close();
+        host.Dispose();
+        Directory.Delete(copy, recursive: true);
     }
 
     /// <summary>The saved settings, read without watching or writing the file; the defaults when there are none.</summary>
