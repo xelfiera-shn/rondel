@@ -10,6 +10,8 @@
 
 Windows masaüstünde veya Dosya Gezgini'nde **Ctrl + sol fare tuşunu** (Mac masaüstünde veya Finder'da **⌥ Option + sol fare tuşunu**) kısa bir süre basılı tutun: imlecin altında dairesel bir menü açılır. Bir dilim seçtiğinizde kodlama ajanınız, doğru klasörde açılmış bir terminalde başlar.
 
+Rondel Windows'ta ve macOS'ta çalışır. Hangi platformda hangi özelliklerin bulunduğunu ve hangi sürümle geldiğini **[Platformlara göre özellikler](docs/features.tr.md)** sayfasında görebilirsiniz.
+
 ## Kurulum
 
 ### Windows

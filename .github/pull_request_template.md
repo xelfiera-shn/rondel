@@ -15,5 +15,6 @@ Task: <!-- its ID in the task list (TODO.md on the tasks branch), for example W-
 ## Checklist
 
 - [ ] User-visible text is added in English and Turkish
+- [ ] A feature that reaches a platform is marked in docs/features.md and docs/features.tr.md
 - [ ] A changed settings default comes with a schema migration
 - [ ] No machine-specific paths or personal data
