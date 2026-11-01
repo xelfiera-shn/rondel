@@ -59,6 +59,12 @@ internal sealed partial class MacTerminalLauncher(Action<string>? failed = null)
             {
                 failed(ex.Message);
             }
+            catch (Exception ex)
+            {
+                // Anything else (open(1) itself failing to start) is reported the same way, not lost in the task.
+                Log.Warn($"Starting {terminal} failed", ex);
+                failed(Loc.Format("Launch.TerminalFailed", terminal));
+            }
         });
     }
 

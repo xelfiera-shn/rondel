@@ -227,13 +227,17 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
             ? model with { Items = [.. model.Items.Where(item => !MenuBuilder.ListsActiveAgents(item))] }
             : model;
 
-    /// <summary>Session hints are filled in when they arrive; they never delay the menu.</summary>
+    /// <summary>Session hints, a Resume slice's sessions and the recent projects are filled in when they arrive.</summary>
     void RequestDetails(MenuModel model)
     {
         if (!MenuDetails.Needed(model))
             return;
         Task.Run(() => MenuDetails.Load(model)).ContinueWith(
-            lookup => Dispatcher.UIThread.Post(() => _menu?.ApplyHints(model, lookup.Result.Hints)),
+            lookup => Dispatcher.UIThread.Post(() =>
+            {
+                _menu?.ApplyHints(model, lookup.Result.Hints);
+                _menu?.ApplyChildren(model, lookup.Result.Children);
+            }),
             TaskContinuationOptions.OnlyOnRanToCompletion);
     }
 

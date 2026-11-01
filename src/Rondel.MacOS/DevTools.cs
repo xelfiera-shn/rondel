@@ -88,9 +88,11 @@ internal static class DevTools
 
     /// <summary>
     /// Draws the menu into a PNG without showing it, for checking the design:
-    /// <c>--render-menu out.png [dark|light] [en|tr] [desktop|item] [theme=ID] [hover=N] [FOLDER|FILE]</c>. The Finder-window
-    /// menu for a folder by default (the desktop menu with <c>desktop</c>, the folder's own menu with <c>item</c>, a file's
-    /// menu when given a file), with its real session hints.
+    /// <c>--render-menu out.png [dark|light] [en|tr] [desktop|item] [theme=ID] [hover=N] [open|deep] [edge] [FOLDER|FILE]</c>.
+    /// The Finder-window menu for a folder by default (the desktop menu with <c>desktop</c>, the folder's own menu with
+    /// <c>item</c>, a file's menu when given a file), with its real session hints and items. <c>open</c> hovers the first
+    /// slice that opens and its newest item, <c>deep</c> also the first of its items that opens further; <c>edge</c> draws
+    /// it as if opened at the left edge of the screen.
     /// </summary>
     static void RenderMenu(string output, string[] options)
     {
@@ -112,9 +114,23 @@ internal static class DevTools
             .SetupWithoutStarting();
         bool isDark = dark ?? Application.Current?.PlatformSettings?.GetColorValues().ThemeVariant == Avalonia.Platform.PlatformThemeVariant.Dark;
         var model = MenuBuilder.Build(context, settings);
-        var hints = MenuDetails.Needed(model) ? MenuDetails.Load(model).Hints : [];
+        var details = MenuDetails.Needed(model) ? MenuDetails.Load(model) : null;
+        var hints = details?.Hints ?? [];
+        var children = details?.Children ?? [.. model.Items.Select(_ => (IReadOnlyList<MenuItemModel>)[])];
+        var hoverPath = new List<int>();
+        if (hover >= 0)
+        {
+            hoverPath.Add(hover);
+        }
+        else if (options.Contains("open") || options.Contains("deep"))
+        {
+            int slice = children.ToList().FindIndex(c => c.Count > 0);
+            int deep = slice < 0 ? -1 : children[slice].ToList().FindIndex(c => c.Children.Count > 0);
+            hoverPath = slice < 0 ? [] : options.Contains("deep") && deep >= 0 ? [slice, deep, 0] : [slice, 0];
+        }
         var window = new RadialMenuWindow(MenuPalette.For(settings.Appearance, isDark));
-        var bitmap = window.RenderPreview(model, hints, hover, isDark ? Color.FromRgb(0x1E, 0x1E, 0x1E) : Color.FromRgb(0xEC, 0xEC, 0xEC));
+        var bitmap = window.RenderPreview(model, hints, children, hoverPath, isDark ? Color.FromRgb(0x1E, 0x1E, 0x1E) : Color.FromRgb(0xEC, 0xEC, 0xEC),
+            atLeftEdge: options.Contains("edge"));
         bitmap.Save(output, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
     }
 
