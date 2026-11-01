@@ -23,6 +23,9 @@ filter_commits = false
 tag_pattern = "v[0-9]+\\.[0-9]+\\.[0-9]+"
 sort_commits = "oldest"
 commit_parsers = [
+  # The macOS app's features and fixes get a section of their own, so Windows users can tell them apart (the update
+  # window shows the sections, and from 0.8.0 on, Windows does not announce a release that changes only macOS).
+  { message = "^(feat|fix|perf)\\(macos\\)", group = "<!-- 3 -->macOS" },
   { message = "^feat", group = "<!-- 0 -->Features" },
   { message = "^fix", group = "<!-- 1 -->Bug fixes" },
   { message = "^perf", group = "<!-- 2 -->Performance" },

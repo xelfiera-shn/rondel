@@ -89,7 +89,7 @@ Rondel günde bir kez ve internet bağlantısı geldiğinde GitHub'a son sürüm
 
 Güncelleme yeni exe'yi indirir, doğrular, çalışan exe'nin yerine koyar ve Rondel'i yeniden başlatır; ajanlarınız çalışmaya devam eder. Rondel dosyayı yalnızca yayının özet dosyası, yalnızca yayın iş akışında bulunan Rondel yayın anahtarıyla imzalıysa ve dosya bu özetle eşleşiyorsa kullanır; eşleşmeyen dosya silinir. Rondel'in klasörüne yazılamıyorsa (örneğin Program Files altında) bunun yerine sürüm sayfası açılır.
 
-Ayarlar'daki **Güncellemeleri otomatik denetle** seçeneği günlük denetimi kapatır; **Şimdi denetle** her durumda çalışır. 0.7.0'dan önceki sürümler kendini güncelleyemez: 0.7.0'ı bir kez elle indirin. macOS uygulaması henüz kendini güncellemez: yeni zip'i sürüm sayfasından indirip Uygulamalar'daki Rondel'in yerine koyun.
+Ayarlar'daki **Güncellemeleri otomatik denetle** seçeneği günlük denetimi kapatır; **Şimdi denetle** her durumda çalışır. 0.7.0'dan önceki sürümler kendini güncelleyemez: 0.7.0'ı bir kez elle indirin. macOS uygulaması henüz kendini güncellemez: yeni zip'i sürüm sayfasından indirip Uygulamalar'daki Rondel'in yerine koyun. 0.8.0'dan itibaren Windows uygulaması, yalnızca macOS uygulamasını değiştiren bir sürümü duyurmaz (**Şimdi denetle** yine gösterir).
 
 ## Ayarlar ve özelleştirme
 

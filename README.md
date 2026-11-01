@@ -89,7 +89,7 @@ Once a day, and when the connection comes back, Rondel asks GitHub for its lates
 
 Updating downloads the new executable, checks it, puts it in place of the running one and restarts Rondel; your agents keep running. Rondel takes the file only when the release's checksums carry the signature of Rondel's release key, which only the release workflow holds, and the file matches its checksum; anything else is deleted. If Rondel's folder is not writable (for example under Program Files), it opens the release page instead.
 
-Settings → **Check for updates automatically** turns the daily check off; **Check now** works either way. Versions before 0.7.0 cannot update themselves: download 0.7.0 once by hand. The macOS app does not update itself yet: download the new zip from the release page and replace Rondel in Applications.
+Settings → **Check for updates automatically** turns the daily check off; **Check now** works either way. Versions before 0.7.0 cannot update themselves: download 0.7.0 once by hand. The macOS app does not update itself yet: download the new zip from the release page and replace Rondel in Applications. From 0.8.0 on, the Windows app does not announce a release that changes only the macOS app (**Check now** still shows it).
 
 ## Settings and customization
 

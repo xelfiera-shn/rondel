@@ -9,11 +9,28 @@ public sealed record ReleaseNoteSection(string Heading, IReadOnlyList<string> Li
 /// <summary>A release's notes for people, without the scopes and pull request numbers the changelog carries.</summary>
 public static partial class ReleaseNotes
 {
+    /// <summary>The section the release workflow puts the macOS app's features and fixes in (cliff.toml).</summary>
+    public const string MacHeading = "macOS";
+
     /// <summary>
     /// Reads the notes the release workflow writes (git-cliff): "### Features" headings over
     /// "- **scope:** Summary (#12)" lines. Known headings are shown in the UI language; the lines stay as written.
     /// </summary>
-    public static IReadOnlyList<ReleaseNoteSection> Parse(string markdown)
+    public static IReadOnlyList<ReleaseNoteSection> Parse(string markdown) =>
+        [.. Sections(markdown).Select(section => section with { Heading = Heading(section.Heading) })];
+
+    /// <summary>
+    /// Whether every section with lines in the notes is <paramref name="heading"/>: a release that changes only the
+    /// macOS app, for example. False for notes without any section, which say nothing either way.
+    /// </summary>
+    public static bool OnlyAbout(string markdown, string heading)
+    {
+        var sections = Sections(markdown);
+        return sections.Count > 0 && sections.All(section => section.Heading == heading);
+    }
+
+    /// <summary>The sections with their headings as written.</summary>
+    static List<ReleaseNoteSection> Sections(string markdown)
     {
         var sections = new List<ReleaseNoteSection>();
         string heading = "";
@@ -24,7 +41,7 @@ public static partial class ReleaseNotes
             if (line.StartsWith('#'))
             {
                 Flush();
-                heading = Heading(line.TrimStart('#').Trim());
+                heading = line.TrimStart('#').Trim();
             }
             else if ((line.StartsWith("- ", StringComparison.Ordinal) || line.StartsWith("* ", StringComparison.Ordinal)) && Clean(line[2..]) is { Length: > 0 } item)
             {
