@@ -64,6 +64,9 @@ internal static unsafe partial class Native
     public static partial nint SendInt32(nint receiver, nint selector, int arg);
 
     [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
+    public static partial nint Send(nint receiver, nint selector, ulong arg1, nint arg2);
+
+    [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
     [return: MarshalAs(UnmanagedType.U1)]
     public static partial bool SendBool(nint receiver, nint selector, nint arg);
 
@@ -79,6 +82,21 @@ internal static unsafe partial class Native
         readonly nint _pool = AutoreleasePoolPush();
 
         public void Dispose() => AutoreleasePoolPop(_pool);
+    }
+
+    /// <summary>
+    /// Keeps App Nap away for the app's lifetime: it slows down an app nobody looks at, and a napping app's event tap
+    /// is disabled by macOS for answering too slowly (seen after ten idle minutes). User-initiated work that still
+    /// lets the Mac sleep, with low latency. The returned activity is held until the app exits.
+    /// </summary>
+    public static nint BeginLatencyCriticalActivity(string reason)
+    {
+        const ulong UserInitiatedAllowingIdleSystemSleep = 0x00FFFFFFUL & ~(1UL << 20), LatencyCritical = 0xFF00000000UL;
+        nint text = CFString(reason);
+        nint activity = Send(Send(Class("NSProcessInfo"), Sel("processInfo")), Sel("beginActivityWithOptions:reason:"),
+            UserInitiatedAllowingIdleSystemSleep | LatencyCritical, text);
+        CFRelease(text);
+        return activity == 0 ? 0 : Send(activity, Sel("retain"));
     }
 
     /// <summary>An NSString's text, or null.</summary>

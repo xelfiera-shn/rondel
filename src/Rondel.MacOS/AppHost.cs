@@ -28,6 +28,7 @@ internal sealed class AppHost : IGestureSink, IDisposable
     readonly FinderDetector _detector;
     readonly EventTap _tap;
     IDisposable? _accessibilityPoll;
+    nint _activity;
 
     public AppHost()
     {
@@ -61,6 +62,8 @@ internal sealed class AppHost : IGestureSink, IDisposable
         _menuBar.Show(new MenuBarState(Store.Current.Paused, !Native.AXIsProcessTrusted(), true,
             Store.LoadError is null ? null : Loc.Get("Tray.SettingsInvalid"), null));
 
+        // The event tap must answer within a fraction of a second, also after hours in the background.
+        _activity = Native.BeginLatencyCriticalActivity("Rondel watches for Option + hold");
         StartTrigger();
         AskForFinderAccess(fromMenu: false);
 
