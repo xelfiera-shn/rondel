@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Rondel.Core/Rondel.Core.csproj" />
+    <Project Path="src/Rondel.MacOS/Rondel.MacOS.csproj" />
     <Project Path="src/Rondel.Windows/Rondel.Windows.csproj" />
   </Folder>
   <Folder Name="/tests/">

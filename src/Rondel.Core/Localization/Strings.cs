@@ -15,6 +15,12 @@ static class Strings
         ["Tray.Exit"] = "Exit",
         ["Tray.SettingsInvalid"] = "settings.json could not be read, defaults are in use. Details are in the log.",
         ["Tray.HookFailed"] = "The mouse hook could not be installed. Details are in the log.",
+        ["MacMenu.Tooltip"] = "Rondel - hold ⌥ Option + left mouse button",
+        ["MacMenu.AllowAccessibility"] = "Allow Accessibility (needed for ⌥ + hold)…",
+        ["MacMenu.AllowFinder"] = "Allow Finder access (for empty areas of folder windows)…",
+        ["MacMenu.EditSettings"] = "Edit settings.json",
+        ["MacMenu.Last"] = "Last: {0}",
+        ["MacMenu.Quit"] = "Quit Rondel",
 
         ["Context.Desktop"] = "Desktop",
         ["Context.Explorer"] = "File Explorer",
@@ -158,7 +164,7 @@ static class Strings
         ["Validation.NoWriteAccess"] = "You don't have permission to create folders in {0}",
         ["Validation.InvalidCharsMac"] = "macOS does not allow these characters in names: {0}",
         ["Validation.LeadingDot"] = "A name starting with a dot would be hidden in Finder.",
-        ["Validation.NameTooLongBytes"] = "The name is too long: macOS allows {0} bytes (Turkish letters take two).",
+        ["Validation.NameTooLongBytes"] = "The name is too long: macOS allows {0} bytes (letters such as ğ or é take two).",
 
         ["Hint.Sessions"] = "{0} sessions",
         ["Hint.OneSession"] = "1 session",
@@ -212,6 +218,12 @@ static class Strings
         ["Tray.Exit"] = "Çıkış",
         ["Tray.SettingsInvalid"] = "settings.json okunamadı, varsayılan ayarlar kullanılıyor. Ayrıntılar log dosyasında.",
         ["Tray.HookFailed"] = "Fare kancası kurulamadı. Ayrıntılar log dosyasında.",
+        ["MacMenu.Tooltip"] = "Rondel - ⌥ Option + sol tuşu basılı tutun",
+        ["MacMenu.AllowAccessibility"] = "Erişilebilirlik izni ver (⌥ + basılı tutma için)…",
+        ["MacMenu.AllowFinder"] = "Finder'a erişim izni ver (klasör pencerelerinin boş alanları için)…",
+        ["MacMenu.EditSettings"] = "settings.json'u düzenle",
+        ["MacMenu.Last"] = "Son: {0}",
+        ["MacMenu.Quit"] = "Rondel'den çık",
 
         ["Context.Desktop"] = "Masaüstü",
         ["Context.Explorer"] = "Dosya Gezgini",
@@ -355,7 +367,7 @@ static class Strings
         ["Validation.NoWriteAccess"] = "{0} içinde klasör oluşturma izniniz yok.",
         ["Validation.InvalidCharsMac"] = "macOS adlarda şu karakterlere izin vermez: {0}",
         ["Validation.LeadingDot"] = "Nokta ile başlayan bir ad Finder'da gizli olur.",
-        ["Validation.NameTooLongBytes"] = "Ad çok uzun: macOS en fazla {0} bayta izin verir (Türkçe harfler iki bayt tutar).",
+        ["Validation.NameTooLongBytes"] = "Ad çok uzun: macOS en fazla {0} bayta izin verir (ğ veya é gibi harfler iki bayt tutar).",
 
         ["Hint.Sessions"] = "{0} oturum",
         ["Hint.OneSession"] = "1 oturum",

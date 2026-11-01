@@ -1,6 +1,9 @@
 # Text files are stored with LF in the repository and checked out with CRLF.
 * text=auto eol=crlf
 
+# Shell scripts run on macOS and Linux: a CR after the #! line would break them.
+*.sh text eol=lf
+
 *.ico binary
 *.png binary
 *.jpg binary

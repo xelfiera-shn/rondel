@@ -14,6 +14,7 @@ The platform-neutral parts (what the menu contains, how an agent is started, set
 |---|---|---|
 | `src/Rondel.Core` | `net10.0` | The shared menu flow, agent profiles, menu model, launch planning, folder-name rules, session stores, settings schema and migrations, localization, logging, platform interfaces. No Win32 or WPF. |
 | `src/Rondel.Windows` | `net10.0-windows` (WPF) | `Rondel.exe`: mouse hook, input re-injection, UI Automation and Shell detection, terminal launching, tray icon, radial menu and settings windows, autostart. |
+| `src/Rondel.MacOS` | `net10.0` (Avalonia, NativeAOT) | `Rondel.app`, in progress ([macos.md](macos.md)): event tap, Finder detection (window list, Accessibility, Apple Events), menu bar extra. The menu window, launching and settings follow. |
 | `tests/Rondel.Core.Tests` | `net10.0` | Unit tests for core logic that can break silently. |
 
 ```
@@ -32,6 +33,8 @@ src/Rondel.Core/
   Platform/       IMenuHost, ITerminalLauncher, IFolderNameValidator, IAutostart
 src/Rondel.Windows/
   Hook/ Interop/ Detection/ Shell/ Launch/ Settings/ UI/
+src/Rondel.MacOS/
+  Trigger/ Interop/ Detection/ UI/
 ```
 
 The core builds and its tests run on Windows and macOS (CI checks both); the whole solution compiles on macOS and Linux too.
@@ -63,6 +66,14 @@ Some core parts carry one platform's rules because they are pure and worth testi
 | UI thread (WPF) | Radial menu, settings window, tray icon, launching. |
 
 Detection starts as soon as a Ctrl+press is swallowed, while the hold timer runs in parallel, so the menu can open the moment the hold threshold is reached. Session hints are looked up after the menu is shown and filled in when they arrive; they never delay the menu.
+
+## Threads (macOS)
+
+| Thread | Responsibility |
+|---|---|
+| Tap thread | The `CGEventTap` and its run loop. Reads only the flags and Rondel's tag, swallows or gives back; the gesture state is shared with the hold timers under a lock. |
+| Detection thread | The window list and the Accessibility requests that turn a point into a `TriggerContext`; Apple Events to Finder are sent from the main thread (`NSAppleScript` is not thread-safe). |
+| Main thread (Avalonia) | Menu bar extra, permissions, settings; later the menu window and launching. |
 
 ## Contexts
 
@@ -197,7 +208,7 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 
 | Switch | Result |
 |---|---|
-| `--probe X Y out.txt` | Classifies a screen point (physical pixels) exactly like a trigger would, with the full trace. |
+| `--probe X Y out.txt` | Classifies a screen point (physical pixels; points on macOS) exactly like a trigger would, with the full trace. On macOS start it through `open -n -W Rondel.app --args --probe …`, so that Rondel's permissions apply, not the terminal's. |
 | `--sessions FOLDER out.txt` | The session hints the menu would show for a folder. |
 | `--launch-script FOLDER COMMAND prompt.txt out.ps1` | The PowerShell script a launch would run. |
 | `--launch-now FOLDER COMMAND prompt.txt` | Launches like the menu does, with COMMAND instead of the configured one. |
@@ -218,4 +229,6 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 | Single-instance mutex | `Local\Rondel.SingleInstance` (a second start opens Settings in the running instance) |
 | Activation event | `Local\Rondel.Activate` |
 | Start with Windows | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, value `Rondel` |
-| Tag on re-injected input | `dwExtraInfo = 0x524E444C` ("RNDL") |
+| Tag on re-injected input | `dwExtraInfo = 0x524E444C` ("RNDL"); on macOS `kCGEventSourceUserData` |
+| macOS bundle identifier | `app.rondel` |
+| macOS single-instance lock | `.instance` in the settings folder |

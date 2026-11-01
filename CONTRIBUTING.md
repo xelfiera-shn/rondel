@@ -69,7 +69,10 @@ dotnet build                                   # must finish with zero warnings
 dotnet test                                    # Core unit tests
 dotnet format --verify-no-changes              # code style (.editorconfig)
 .\build\publish.ps1                            # single-file Rondel.exe in .\dist (Windows)
+build/publish-macos.sh                         # Rondel.app in dist/osx-arm64 (macOS), see below
 ```
+
+macOS ties the Accessibility and Automation permissions to the app's signature, so `publish-macos.sh` signs every build with the same certificate, by default one named **Rondel Development**. Create it once: Keychain Access → Certificate Assistant → Create a Certificate, name `Rondel Development`, identity type *Self-Signed Root*, certificate type *Code Signing*, in the login keychain. The first build asks for your login password to use it; choose *Always Allow*. Then grant Rondel the Accessibility permission once; it survives later builds.
 
 CI builds and tests on Windows and on macOS; both must pass.
 
