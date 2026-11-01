@@ -57,7 +57,9 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
             change => Store.Update(change), activity: _activity);
         // Developer aids keep the update checks' state with their copy of the settings.
         string updateState = settingsDirectory is null ? Path.Combine(UpdatesDirectory, "state.json") : Path.Combine(settingsDirectory, "update-state.json");
-        _updates = new UpdateService(_http, AppVersion.Current, () => Store.Current.Updates.Check, updateState, TestFeed);
+        // A release that changes only the macOS app is not announced here.
+        _updates = new UpdateService(_http, AppVersion.Current, () => Store.Current.Updates.Check, updateState, TestFeed,
+            concerns: release => !ReleaseNotes.OnlyAbout(release.Notes, ReleaseNotes.MacHeading));
     }
 
     public SettingsStore Store { get; }
@@ -288,7 +290,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
     IReadOnlyList<TrayMenuItem> BuildTrayMenu()
     {
         var settings = Store.Current;
-        var update = _updates.Latest is { } release && !_updates.IsSkipped(release)
+        var update = _updates.Latest is { } release && !_updates.IsSkipped(release) && _updates.Concerns(release)
             ? new TrayMenuItem(Loc.Format("Tray.Update", release.Version), () => OpenUpdateWindow(release))
             : null;
         return

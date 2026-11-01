@@ -47,6 +47,7 @@ public sealed class UpdateService : IDisposable
     readonly Uri _feed;
     readonly TimeProvider _time;
     readonly Lock _gate = new();
+    readonly Func<ReleaseInfo, bool> _concerns;
     ITimer? _timer;
     UpdateState _state;
     Task<UpdateStatus>? _check;
@@ -54,9 +55,15 @@ public sealed class UpdateService : IDisposable
     /// <param name="enabled">Whether automatic checks are on (Settings); a check asked for by the user always runs.</param>
     /// <param name="stateFile">Where the last check and the skipped version are kept.</param>
     /// <param name="feed">GitHub's "latest release" address; another one only in tests.</param>
-    public UpdateService(HttpClient http, AppVersion current, Func<bool> enabled, string stateFile, Uri? feed = null, TimeProvider? time = null)
+    /// <param name="concerns">
+    /// Whether a release changes this platform's app at all; one that does not is not announced, nor offered in the
+    /// tray (a check the user asks for still shows it). Every release does by default.
+    /// </param>
+    public UpdateService(HttpClient http, AppVersion current, Func<bool> enabled, string stateFile, Uri? feed = null, TimeProvider? time = null,
+        Func<ReleaseInfo, bool>? concerns = null)
     {
         _http = http;
+        _concerns = concerns ?? (_ => true);
         Current = current;
         _enabled = enabled;
         _stateFile = stateFile;
@@ -80,8 +87,8 @@ public sealed class UpdateService : IDisposable
     public DateTime? LastCheckUtc => _state.LastCheckUtc;
 
     /// <summary>
-    /// An automatic check found a newer release to tell the user about: not one they skipped, and not one they were
-    /// told about within the last day. Raised on a thread-pool thread.
+    /// An automatic check found a newer release to tell the user about: one that changes this platform's app, not one
+    /// they skipped, and not one they were told about within the last day. Raised on a thread-pool thread.
     /// </summary>
     public event Action<ReleaseInfo>? Found;
 
@@ -95,6 +102,9 @@ public sealed class UpdateService : IDisposable
         _timer = _time.CreateTimer(_ => OnTick(), null, FirstCheck, Tick);
         NetworkChange.NetworkAvailabilityChanged += OnNetworkChanged;
     }
+
+    /// <summary>Whether the release changes this platform's app (see the constructor); one that does not is not announced.</summary>
+    public bool Concerns(ReleaseInfo release) => _concerns(release);
 
     /// <summary>Whether the user chose to skip this release (it is still offered by a check they ask for).</summary>
     public bool IsSkipped(ReleaseInfo release) => _state.Skipped == release.Version.ToString();
@@ -172,14 +182,15 @@ public sealed class UpdateService : IDisposable
         {
             _state = _state with { LastCheckUtc = Now, Latest = release?.Version.ToString() };
             Latest = release is not null && release.Version > Current ? release : null;
-            tell = Latest is { } newer && !manual && !IsSkipped(newer)
+            tell = Latest is { } newer && !manual && !IsSkipped(newer) && Concerns(newer)
                 && !(_state.Told == newer.Version.ToString() && _state.ToldUtc is { } told && Now - told < RemindAfter);
             if (tell)
                 _state = _state with { Told = Latest!.Version.ToString(), ToldUtc = Now };
         }
         Save();
         var status = Latest is null ? UpdateStatus.UpToDate : UpdateStatus.Available;
-        Log.Info(Latest is null ? $"Update check: {Current} is the latest" : $"Update check: {Latest.Version} is available{(tell ? "" : " (not announced now)")}");
+        Log.Info(Latest is null ? $"Update check: {Current} is the latest"
+            : $"Update check: {Latest.Version} is available{(tell ? "" : Concerns(Latest) ? " (not announced now)" : " (it does not change this app: not announced)")}");
         SetStatus(status);
         if (tell)
             Found?.Invoke(Latest!);
