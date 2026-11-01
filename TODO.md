@@ -94,3 +94,5 @@ Not agreed yet. Once an idea is agreed, it moves into one of the lists above wit
 - A menu editor in Settings, instead of editing `settings.json`.
 - Ask with the clipboard or a screenshot.
 - Open the folder in an editor (VS Code).
+- Agents card: an optional floating card (on in Settings, with a shortcut) that lists the active agents with their state, how long and what they wait for; a click brings an agent's terminal to the front. It can be dragged anywhere and stays either on top of other windows or on the desktop, like Sticky Notes; it hides over full-screen apps and remembers its place per monitor. It collapses to Rondel's mark with the number of waiting agents as a badge, opens while the mouse is over it, and a pin keeps it open. It appears when the first agent starts and hides when none is left. A notification setting turns notifications off while the card is shown.
+- Answer a permission request from the agents card (Allow / Deny) through Claude Code's PermissionRequest hook: optional, and it shows exactly what would be allowed.
