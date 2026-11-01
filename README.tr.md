@@ -8,9 +8,11 @@
   <img src="docs/images/menu-tr.png" width="460" alt="Bir proje klasörü üzerinde Rondel'in dairesel menüsü; Oturum Seç dilimi son beş oturuma açılmış">
 </p>
 
-Windows masaüstünde veya Dosya Gezgini'nde **Ctrl + sol fare tuşunu** kısa bir süre basılı tutun: imlecin altında dairesel bir menü açılır. Bir dilim seçtiğinizde kodlama ajanınız, doğru klasörde açılmış bir terminalde başlar.
+Windows masaüstünde veya Dosya Gezgini'nde **Ctrl + sol fare tuşunu** (Mac masaüstünde veya Finder'da **⌥ Option + sol fare tuşunu**) kısa bir süre basılı tutun: imlecin altında dairesel bir menü açılır. Bir dilim seçtiğinizde kodlama ajanınız, doğru klasörde açılmış bir terminalde başlar.
 
 ## Kurulum
+
+### Windows
 
 1. [Claude Code](https://docs.anthropic.com/en/docs/claude-code)'u kurun ve terminalde `claude` komutunun çalıştığını görün.
 2. [Son sürümden](https://github.com/xelfiera-shn/rondel/releases/latest) `Rondel-<sürüm>-win-x64.exe` dosyasını (ARM bilgisayarlar için `-win-arm64.exe`) indirin, istediğiniz bir klasöre koyup çalıştırın. Bildirim alanında Rondel ikonu belirir.
@@ -18,6 +20,16 @@ Windows masaüstünde veya Dosya Gezgini'nde **Ctrl + sol fare tuşunu** kısa b
 3. İkona sağ tıklayıp **Windows ile başlat**'ı işaretleyin.
 
 Kurulum programı yoktur, yönetici izni gerekmez. Windows 10 ve 11 desteklenir. Rondel 0.7.0'dan itibaren kendini güncel tutar (bkz. [Güncellemeler](#güncellemeler)).
+
+### macOS
+
+1. [Claude Code](https://docs.anthropic.com/en/docs/claude-code)'u kurun ve Terminal'de `claude` komutunun çalıştığını görün.
+2. [Son sürümden](https://github.com/xelfiera-shn/rondel/releases/latest) `Rondel-<sürüm>-osx-arm64.zip` (Apple Silicon) ya da `-osx-x64.zip` (Intel) dosyasını indirin, açın ve **Rondel**'i **Uygulamalar** klasörüne taşıyın.
+3. Rondel'i açın. Rondel imzalıdır ama Apple tarafından onaylanmamıştır (notarization), bu yüzden macOS ilk açılışı engeller: **Sistem Ayarları → Gizlilik ve Güvenlik**'i açın, aşağıdaki Rondel mesajına gelin ve **Yine de Aç**'a tıklayın. macOS bunu indirdiğiniz her güncellemeden sonra bir kez daha sorar.
+4. Sorulduğunda **Erişilebilirlik** iznini verin: Rondel ⌥ + basılı tutmayı bununla fark eder. **Finder** iznini de verin: Rondel bir pencerenin hangi klasörü gösterdiğini Finder'a sorar. İki izin de güncellemelerde korunur. Menü çubuğunda Rondel ikonu belirir; menüsü henüz verilmemiş izinleri gösterir.
+5. Menü çubuğu ikonu → **Ayarlar…** → **Oturum açılınca başlat**'ı işaretleyin.
+
+Rondel macOS 15 ve sonrasında çalışır, Dock'ta ikonu yoktur. Çalışırken yeniden açarsanız ayarları açılır.
 
 ## Kullanım
 
@@ -27,6 +39,8 @@ Kurulum programı yoktur, yönetici izni gerekmez. Windows 10 ve 11 desteklenir.
 | Dosya Gezgini'nde bir klasörün boş alanı | Yeni Proje, Burada Aç, Burada Sor, Burada Devam Et, Burada Oturum Seç | Açık olan klasör |
 | Bir klasörün üzerinde (masaüstü veya Dosya Gezgini) | Aç, Sor, Devam Et, Oturum Seç | O klasör |
 | Bir dosyanın üzerinde (masaüstü veya Dosya Gezgini) | Bu Dosyayı Sor, Burada Aç, Burada Devam Et, Burada Oturum Seç | Dosyanın bulunduğu klasör |
+
+macOS'ta da aynısıdır; Ctrl yerine ⌥ Option, Dosya Gezgini yerine Finder, varsayılan proje klasörü olarak `~/Projects` kullanılır. Masaüstü menüsünde henüz Aktif Ajanlar yoktur.
 
 - **Aç** yeni bir oturum başlatır, **Devam Et** en son oturumu sürdürür, **Oturum Seç** listeden seçtirir (`claude`, `claude --continue`, `claude --resume`).
 - **Sor** ve **Burada Sor** yalnızca bir prompt sorar ve yeni oturumu onunla başlatır. **Bu Dosyayı Sor** aynısını dosyanın klasöründe yapar ve dosyayı prompt'un başına ekler (`@Program.cs`, boşluklu adlarda `@"Proje Notları.md"`); Claude Code dosyayı hemen okur.
@@ -42,22 +56,22 @@ Kurulum programı yoktur, yönetici izni gerekmez. Windows 10 ve 11 desteklenir.
   - **Prompt** — ajanı ilk prompt'la başlatır;
   - **Git** — ajan başlamadan `git init` çalıştırır;
   - **Plan modu** — ajanı plan modunda başlatır;
-  - **Şablonlar** — `%APPDATA%\Rondel\Templates` içindeki her klasör bir şablondur (kartta **Klasörü aç**). Birden fazlasını seçebilirsiniz; örneğin bir dilin dosyaları ve alanınıza uygun ajan talimatları. İki şablonda aynı dosya varsa sağdaki kazanır.
+  - **Şablonlar** — `%APPDATA%\Rondel\Templates` (macOS'ta `~/Library/Application Support/Rondel/Templates`) içindeki her klasör bir şablondur (kartta **Klasörü aç**). Birden fazlasını seçebilirsiniz; örneğin bir dilin dosyaları ve alanınıza uygun ajan talimatları. İki şablonda aynı dosya varsa sağdaki kazanır.
 
-  Kart son seçiminizi hatırlar; her zamanki proje için ad yazıp **Enter**'a basmak yeter. **Tab** seçenekler arasında gezer, **Boşluk** seçeneği açıp kapatır; Prompt açıkken **Enter** prompt'a geçer, **Ctrl+Enter** oluşturur. Hiç kullanmadığınız seçenekleri Ayarlar'dan kapatabilirsiniz.
+  Kart son seçiminizi hatırlar; her zamanki proje için ad yazıp **Enter**'a basmak yeter. **Tab** seçenekler arasında gezer, **Boşluk** seçeneği açıp kapatır; Prompt açıkken **Enter** prompt'a geçer, **Ctrl+Enter** (macOS'ta **⌘↩**) oluşturur. Hiç kullanmadığınız seçenekleri Ayarlar'dan kapatabilirsiniz.
 
 <p align="center">
   <img src="docs/images/new-tr.png" width="360" alt="Yeni Proje kartı: klasör adı, açık Prompt ve Git seçenekleri, seçilmiş iki şablon ve ilk prompt">
 </p>
 
-- Sor dilimleri doğrudan prompt'a geçer (**Ctrl+Enter** başlatır, **Esc** vazgeçer).
+- Sor dilimleri doğrudan prompt'a geçer (**Ctrl+Enter** ya da **⌘↩** başlatır, **Esc** vazgeçer).
 - Dilime tıklayın, **1–N** tuşlarına basın ya da ok tuşları ve **Enter** kullanın; **Tab** seçili dilimin ya da projenin öğelerine (en yeniden başlayarak) geçer, **Esc** bir seviye geri çıkar ve en sonunda menüyü kapatır. Basılı tutmaya devam edip bir dilimin üzerine gelerek bırakmak da seçer.
-- Normal Ctrl+tık ve Ctrl+sürükle her yerde eskisi gibi çalışır. Gezinti bölmesi, adres çubuğu, Bu Bilgisayar gibi sanal konumlar ve yönetici olarak çalışan Dosya Gezgini pencereleri menüyü açmaz.
-- İsteğe bağlı bir klavye kısayolu (Ayarlar) menüyü fare imlecinin olduğu yerde açar.
+- Normal Ctrl+tık ve Ctrl+sürükle her yerde eskisi gibi çalışır (macOS'ta ⌥+tık ve ⌥+sürükle). Gezinti bölmesi, adres çubuğu, Bu Bilgisayar gibi sanal konumlar ve yönetici olarak çalışan Dosya Gezgini pencereleri menüyü açmaz.
+- İsteğe bağlı bir klavye kısayolu (Ayarlar) menüyü fare imlecinin olduğu yerde açar. Şimdilik yalnızca Windows'ta.
 
 ## Aktif ajanlar
 
-Rondel başlattığı ajanları takip eder; terminallerine göz kulak olmanız gerekmez.
+Rondel başlattığı ajanları takip eder; terminallerine göz kulak olmanız gerekmez. Şimdilik yalnızca Windows'ta.
 
 - **Bildirimler.** Bir ajan izin istediğinde ya da size bir soru sorduğunda, işini bitirdiğinde veya bir hatayla durduğunda gelen bildirim projenin adını ve ne gerektiğini söyler. Bildirime tıklayınca ajanın terminali öne gelir. O terminaldeyken bildirim gösterilmez.
 - **Aktif Ajanlar** (masaüstü menüsü) Rondel'den başlattığınız ajanlara açılır; sizi bekleyenler önce gelir. Her birinin yanındaki nokta ne yaptığını gösterir: sarı, izin ya da cevap bekliyor; yeşil, bitti; kırmızı, bir hatayla durdu; temanın vurgu rengi, çalışıyor. Birini seçince terminali öne gelir. Dilimin kendisi kaç ajanın beklediğini söyler.
@@ -75,19 +89,21 @@ Rondel günde bir kez ve internet bağlantısı geldiğinde GitHub'a son sürüm
 
 Güncelleme yeni exe'yi indirir, doğrular, çalışan exe'nin yerine koyar ve Rondel'i yeniden başlatır; ajanlarınız çalışmaya devam eder. Rondel dosyayı yalnızca yayının özet dosyası, yalnızca yayın iş akışında bulunan Rondel yayın anahtarıyla imzalıysa ve dosya bu özetle eşleşiyorsa kullanır; eşleşmeyen dosya silinir. Rondel'in klasörüne yazılamıyorsa (örneğin Program Files altında) bunun yerine sürüm sayfası açılır.
 
-Ayarlar'daki **Güncellemeleri otomatik denetle** seçeneği günlük denetimi kapatır; **Şimdi denetle** her durumda çalışır. 0.7.0'dan önceki sürümler kendini güncelleyemez: 0.7.0'ı bir kez elle indirin.
+Ayarlar'daki **Güncellemeleri otomatik denetle** seçeneği günlük denetimi kapatır; **Şimdi denetle** her durumda çalışır. 0.7.0'dan önceki sürümler kendini güncelleyemez: 0.7.0'ı bir kez elle indirin. macOS uygulaması henüz kendini güncellemez: yeni zip'i sürüm sayfasından indirip Uygulamalar'daki Rondel'in yerine koyun.
 
 ## Ayarlar ve özelleştirme
 
 Tray ikonu → **Ayarlar…**: dil (Otomatik / English / Türkçe), menünün görünümü, proje klasörü, basılı tutma süresi, klavye kısayolu, ajanın komutu (`claude` ya da `cc` gibi bir alias), terminal (Windows Terminal veya konsol penceresi), kabuk (PowerShell 7 veya Windows PowerShell), ajanların takibi ile bildirimleri ve kısayolu, güncelleme denetimi, Yeni Proje kartındaki seçenekler ve şablon klasörü.
 
-**Görünüm**: beş tema — Rondel, İnce Halka, Vurgu, Yörünge ve Yaprak — her biri koyu ve açık; menünün resimlerinden seçilir. Koyu ya da açık mod Windows'u izleyebilir ya da sabit kalabilir; vurgu rengi temanın kendi rengi, hazır bir çift ya da kendi `#RRGGBB` renkleriniz olabilir. Değişiklikler menüye hemen yansır.
+macOS'ta menü çubuğu ikonu → **Ayarlar…** aynısını sunar; klavye kısayolu ve aktif ajanlar yoktur, terminal olarak Terminal ya da iTerm2 seçilir. Ajan giriş kabuğunuzda çalışır, bu yüzden `~/.zprofile` ve `~/.zshrc` içindeki `PATH` ve alias'lar geçerlidir. **İzinler** bölümü Erişilebilirlik ve Finder izinlerinin verilip verilmediğini gösterir; **Oturum açılınca başlat** Rondel'i giriş öğelerinize ekler.
+
+**Görünüm**: beş tema — Rondel, İnce Halka, Vurgu, Yörünge ve Yaprak — her biri koyu ve açık; menünün resimlerinden seçilir. Koyu ya da açık mod Windows'u (ya da macOS'u) izleyebilir ya da sabit kalabilir; vurgu rengi temanın kendi rengi, hazır bir çift ya da kendi `#RRGGBB` renkleriniz olabilir. Değişiklikler menüye hemen yansır.
 
 <p align="center">
   <img src="docs/images/themes-tr.png" width="720" alt="Aynı klasör menüsü beş temada: Rondel, İnce Halka, Vurgu, Yörünge ve Yaprak">
 </p>
 
-Menüler, aksiyonlar ve ajanlar `%APPDATA%\Rondel\settings.json` içindedir; dosya kaydedilince değişiklik hemen uygulanır. Örneğin Claude Code'u plan modunda açan bir dilim eklemek için bir aksiyon ekleyip kimliğini bir menüye yazın:
+Menüler, aksiyonlar ve ajanlar `%APPDATA%\Rondel\settings.json` (macOS'ta `~/Library/Application Support/Rondel/settings.json`) içindedir; dosya kaydedilince değişiklik hemen uygulanır. Örneğin Claude Code'u plan modunda açan bir dilim eklemek için bir aksiyon ekleyip kimliğini bir menüye yazın:
 
 ```jsonc
 "Actions": [
@@ -106,21 +122,23 @@ Menüler, aksiyonlar ve ajanlar `%APPDATA%\Rondel\settings.json` içindedir; dos
 - Ayarlar'da **Hata ayıklama logu**'nu açın, sorunu tekrarlayın, sonra tray ikonu → **Log klasörünü aç** (`%LOCALAPPDATA%\Rondel\logs`). Her tetiklemede UI Automation zinciri, algılanan bağlam ve klasör yazılır.
 - `Rondel.exe --probe X Y sonuc.txt` tek bir ekran noktasını (fiziksel piksel) tüm ayrıntılarıyla sınıflandırır.
 - Terminal komutun bulunamadığını söylüyorsa Ayarlar'daki komutu ve `PATH`'i kontrol edin; PowerShell profilinizdeki alias'lar da çalışır.
+- macOS'ta loglar `~/Library/Logs/Rondel` içindedir; probe, Rondel'in kendi izinleri geçerli olsun diye `open -n -W /Applications/Rondel.app --args --probe X Y ~/sonuc.txt` ile çalıştırılır (nokta cinsinden). Ayarlar, komutun giriş kabuğunuzda bulunup bulunmadığını gösterir. ⌥ + basılı tutma hiçbir şey yapmıyorsa Ayarlar'daki **İzinler**'e bakın.
 
 [Hata bildirirken](https://github.com/xelfiera-shn/rondel/issues/new/choose) log satırlarını veya probe çıktısını eklemeniz çok yardımcı olur.
 
 ## Gizlilik
 
-Rondel telemetri içermez. Ajanın yerel oturum verisini yalnızca ipuçlarını ve son oturumları göstermek için okur; başlattığı ajanların olaylarını yalnızca 127.0.0.1 üzerinden alır. Günde bir kez GitHub'a son sürümünü sorar (Ayarlar'dan kapatılabilir); bu istek Rondel'in sürümü dışında hiçbir bilgi taşımaz. Kendi ayarları (başlattığı ajanlar için hook dosyasıyla birlikte), logları, ajanlarının pencere listesi, güncelleme denetiminin durumu ile indirdiği güncellemeler ve (açarsanız) Windows ile başlatma kaydı dışında hiçbir şey yazmaz.
+Rondel telemetri içermez. Ajanın yerel oturum verisini yalnızca ipuçlarını ve son oturumları göstermek için okur; başlattığı ajanların olaylarını yalnızca 127.0.0.1 üzerinden alır. Windows uygulaması günde bir kez GitHub'a son sürümünü sorar (Ayarlar'dan kapatılabilir); bu istek Rondel'in sürümü dışında hiçbir bilgi taşımaz. Kendi ayarları (başlattığı ajanlar için hook dosyasıyla birlikte), logları, ajanlarının pencere listesi, güncelleme denetiminin durumu ile indirdiği güncellemeler ve (açarsanız) Windows ile başlatma kaydı (macOS'ta giriş öğesi) dışında hiçbir şey yazmaz.
 
 ## Kaynaktan derleme
 
-Windows ve .NET 10 SDK gerekir.
+.NET 10 SDK gerekir; `Rondel.exe` için Windows, `Rondel.app` için macOS.
 
 ```powershell
 dotnet build
 dotnet test
-.\build\publish.ps1     # dist\win-x64\Rondel.exe, tek dosyalık, bağımsız çalışan exe
+.\build\publish.ps1       # dist\win-x64\Rondel.exe, tek dosyalık, bağımsız çalışan exe
+build/publish-macos.sh    # dist/osx-arm64/Rondel.app (macOS'ta), sertifikası için CONTRIBUTING.md'ye bakın
 ```
 
 Dallar, commit mesajları ve sürümler için [CONTRIBUTING.md](CONTRIBUTING.md), tasarım notları ve [yol haritası](docs/roadmap.md) için [docs/](docs/) klasörüne bakın.

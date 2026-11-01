@@ -153,10 +153,14 @@ internal sealed class SettingsWindow : Window
         int version = ++_commandVersion;
         string name = CommandLine.Split(DefaultAgent(Store.Current)?.Command ?? "").Name;
         SetStatus(_commandStatus, Loc.Get("Settings.Command.Checking"));
-        _ = Task.Run(() => CommandProbe.FindAsync(name)).ContinueWith(lookup => Dispatcher.UIThread.Post(() =>
+        _ = Task.Run(() => CommandProbe.CheckAsync(name)).ContinueWith(lookup => Dispatcher.UIThread.Post(() =>
         {
-            if (version == _commandVersion)
-                SetStatus(_commandStatus, lookup.Result is { } found ? Loc.Format("Settings.Command.Found", found) : Loc.Get("Settings.Command.NotFound.Mac"));
+            if (version != _commandVersion)
+                return;
+            var check = lookup.Result;
+            SetStatus(_commandStatus, check.Found is { } found ? Loc.Format("Settings.Command.Found", found)
+                : check.Known ? Loc.Get("Settings.Command.NotFound.Mac")
+                : Loc.Get("Settings.Command.Unknown.Mac"));
         }), TaskContinuationOptions.OnlyOnRanToCompletion);
     }
 

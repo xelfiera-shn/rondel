@@ -32,7 +32,7 @@ Rondel follows [Conventional Commits](https://www.conventionalcommits.org/):
 ```
 
 - **Types:** `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`.
-- **Scopes (optional):** `core`, `windows`, `macos`, `menu`, `detection`, `launch`, `sessions`, `settings`, `ui`, `l10n`, `ci`, `docs`. Changes to the macOS app use `macos` until it ships (see below).
+- **Scopes (optional):** `core`, `windows`, `macos`, `menu`, `detection`, `launch`, `sessions`, `settings`, `ui`, `l10n`, `ci`, `docs`.
 - **Summary:** imperative, lower case, no trailing period, at most 72 characters — `fix(launch): keep quotes in prompts on Windows PowerShell`.
 - **Breaking changes:** add `!` after the type (`feat(settings)!: …`) or a `BREAKING CHANGE:` footer.
 
@@ -53,19 +53,48 @@ Releases are automatic. On every push to `prod`, the next version is computed fr
 - `feat` → minor version, `fix` and `perf` → patch version.
 - A breaking change raises the minor version while Rondel is below 1.0, and the major version from 1.0 on.
 - Commits of other types alone (`docs`, `chore`, …) do not produce a release.
-- Until the macOS app ships, releases contain only the Windows app: commits with the `macos` scope neither produce a release nor appear in its notes.
 
-The release notes are generated from the same commits, so a clear PR title is also a clear changelog line. A release contains `Rondel-<version>-win-x64.exe`, `Rondel-<version>-win-arm64.exe`, a `SHA256SUMS.txt`, its signature `SHA256SUMS.txt.sig` and build provenance attestations.
+The release notes are generated from the same commits, so a clear PR title is also a clear changelog line. A release contains `Rondel-<version>-win-x64.exe`, `Rondel-<version>-win-arm64.exe`, the zipped macOS apps `Rondel-<version>-osx-arm64.zip` (Apple Silicon) and `Rondel-<version>-osx-x64.zip` (Intel), a `SHA256SUMS.txt`, its signature `SHA256SUMS.txt.sig` and build provenance attestations.
 
 Rondel updates itself only from a release whose `SHA256SUMS.txt` is signed with Rondel's release key. The release job signs it with the `RELEASE_SIGNING_KEY` secret of the `release` environment, which only `prod` may use, and checks the signature against the public half in `src/Rondel.Core/Updates/release-key.pem`; without the secret, nothing is published. A new key needs a new public half in the app, and versions with the old one can no longer update themselves (they are sent to the release page), so the key is kept, with a backup outside GitHub, by the maintainer.
 
-Running the Release workflow by hand is always a dry run: it shows the next version and its notes and builds the executables, but publishes nothing.
+Running the Release workflow by hand is always a dry run: it shows the next version and its notes and builds the executables and the macOS apps, but publishes nothing.
+
+### The macOS signing certificate
+
+macOS ties the Accessibility and Automation permissions to the app's signing certificate, so every release is signed with the same self-signed certificate, kept as two secrets of the `release` environment, next to the release key: `MACOS_CERTIFICATE` (the `.p12` file, base64) and `MACOS_CERTIFICATE_PASSWORD`. A release fails without it; a dry run, which cannot use the environment, signs ad hoc instead. It is not an Apple certificate and costs nothing, so releases are not notarized (see [docs/macos.md](docs/macos.md#permissions-and-signing)).
+
+**It must never be replaced:** a release signed with another certificate makes every user grant both permissions again. Keep the `.p12` file and its password in a password manager. A maintainer creates it once, with OpenSSL (Git Bash on Windows has it):
+
+```bash
+cat > rondel-release.cnf <<'EOF'
+[req]
+distinguished_name = dn
+x509_extensions = ext
+prompt = no
+[dn]
+CN = Rondel Release
+[ext]
+basicConstraints = critical, CA:false
+keyUsage = critical, digitalSignature
+extendedKeyUsage = critical, codeSigning
+EOF
+openssl req -x509 -newkey rsa:3072 -nodes -days 7300 -config rondel-release.cnf -keyout rondel-release.key -out rondel-release.crt
+# macOS imports only these older .p12 algorithms; it asks for the password here
+openssl pkcs12 -export -name "Rondel Release" -inkey rondel-release.key -in rondel-release.crt -out rondel-release.p12 \
+    -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1
+openssl base64 -A -in rondel-release.p12 | gh secret set MACOS_CERTIFICATE --env release --repo xelfiera-shn/rondel
+gh secret set MACOS_CERTIFICATE_PASSWORD --env release --repo xelfiera-shn/rondel   # asks for the same password
+rm rondel-release.key rondel-release.cnf                               # the .p12 holds the key
+```
+
+The release job builds the app first, signed ad hoc, and only then imports the certificate into a keychain of its own, as non-extractable, to sign it with the identity named `Rondel Release`; so no package's build code runs while the key is there, and the key can sign but not be exported.
 
 Every push to `dev` also produces a test build: the CI run's **Rondel-dev.N-win-x64** artifact (kept for 14 days).
 
 ## Building and checking
 
-Requirements: the .NET 10 SDK. The Windows app runs on Windows 10 or 11; the macOS app, in progress (see [docs/macos.md](docs/macos.md)), on macOS 15 and later. The whole solution, including the Windows project, also builds on macOS and Linux, and the core tests run there.
+Requirements: the .NET 10 SDK. The Windows app runs on Windows 10 or 11; the macOS app on macOS 15 and later (Apple Silicon and Intel; see [docs/macos.md](docs/macos.md)). The whole solution, including the Windows project, also builds on macOS and Linux, and the core tests run there.
 
 ```powershell
 dotnet build                                   # must finish with zero warnings
@@ -95,7 +124,7 @@ CI builds and tests on Windows and on macOS; both must pass.
 
 Please use the bug report form. The most helpful details are:
 
-1. Rondel version (shown in Settings) and Windows version with build number (`winver`).
+1. Rondel version (shown in Settings) and Windows version with build number (`winver`), or the macOS version (Apple menu → About This Mac).
 2. Where you held the mouse (desktop, Explorer folder, folder item…).
 3. The debug log: Settings → **Debug logging** on, reproduce the problem, then tray icon → **Open log folder**. Remove any paths you do not want to share.
 4. For "the menu does not open" or "wrong folder": the output of `Rondel.exe --probe X Y result.txt`, where X and Y are the screen coordinates of the spot.
