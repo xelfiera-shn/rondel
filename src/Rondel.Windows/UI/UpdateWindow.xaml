@@ -1,0 +1,75 @@
+<Window x:Class="Rondel.Windows.UI.UpdateWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="clr-namespace:Rondel.Windows.UI"
+        Title="Rondel"
+        Width="500" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <Style x:Key="Description" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header: the mark, the new version and the one in use, over a thin line in the brand gradient. -->
+        <StackPanel Margin="24,20,24,0">
+            <StackPanel Orientation="Horizontal">
+                <Image x:Name="HeaderIcon" Width="36" Height="36" VerticalAlignment="Center" />
+                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                    <TextBlock x:Name="TitleText" FontSize="18" FontWeight="SemiBold" />
+                    <TextBlock x:Name="SubtitleText" Style="{StaticResource Description}" />
+                </StackPanel>
+            </StackPanel>
+            <Border x:Name="BrandLine" Height="2" Margin="0,14,0,0" CornerRadius="1" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Margin="24,16,24,20">
+            <StackPanel x:Name="NotesPanel">
+                <TextBlock Margin="2,0,0,8" FontSize="14" FontWeight="SemiBold" Text="{l:Loc Update.WhatsNew}" />
+                <Border Padding="16,10,16,12" CornerRadius="6" BorderThickness="1"
+                        Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                    <ScrollViewer MaxHeight="230" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="NotesList" />
+                    </ScrollViewer>
+                </Border>
+            </StackPanel>
+            <TextBlock Margin="2,10,0,0">
+                <Hyperlink x:Name="ReleaseLink" Click="OnReleasePage"><Run Text="{l:Loc Update.ReleasePage}" /></Hyperlink>
+            </TextBlock>
+
+            <!-- What happens when updating; replaced by the progress while it happens, or by what went wrong. -->
+            <TextBlock x:Name="ExplainText" Margin="2,16,0,0" Style="{StaticResource Description}" Text="{l:Loc Update.Explain}" />
+            <StackPanel x:Name="ProgressPanel" Margin="2,16,0,0" Visibility="Collapsed">
+                <TextBlock x:Name="ProgressText" Style="{StaticResource Description}" />
+                <ProgressBar x:Name="Progress" Margin="0,8,0,0" Height="4" Maximum="1" />
+            </StackPanel>
+            <TextBlock x:Name="ErrorText" Margin="2,16,0,0" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"
+                       Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
+        </StackPanel>
+
+        <Border Grid.Row="2" Padding="24,12" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button x:Name="SkipButton" Padding="12,5" HorizontalAlignment="Left" Content="{l:Loc Update.Skip}" Click="OnSkip" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="SecondaryButton" Padding="16,5" MinWidth="90" Click="OnSecondary" />
+                    <Button x:Name="PrimaryButton" Margin="8,0,0,0" Padding="16,5" MinWidth="110" IsDefault="True"
+                            Style="{DynamicResource AccentButtonStyle}" Click="OnPrimary" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
