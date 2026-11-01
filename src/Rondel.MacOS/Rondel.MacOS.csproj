@@ -9,6 +9,10 @@
     <!-- Published with NativeAOT (build/publish-macos.sh); the analyzers flag anything that would break it.
          The project builds on Windows and Linux too, so CI checks it everywhere; Rondel.app only runs on macOS. -->
     <IsAotCompatible>true</IsAotCompatible>
+    <!-- Avalonia's build tasks send build statistics (its AvaloniaStats target) unless AVALONIA_TELEMETRY_OPTOUT is
+         set. The target runs only when Avalonia.props has listed a product here, so clearing the list turns it off
+         on every machine, without the environment variable. -->
+    <UsedAvaloniaProducts></UsedAvaloniaProducts>
   </PropertyGroup>
 
   <ItemGroup>
