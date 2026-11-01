@@ -54,17 +54,22 @@ internal static class Workspace
     }
 
     /// <summary>Opens a URL, file or folder the way Finder would (open(1)).</summary>
-    public static void Open(string target, string? application = null)
+    public static void Open(string target, string? application = null) =>
+        Run(application is null ? [target] : ["-a", application, target], target);
+
+    /// <summary>
+    /// Opens a text file in the user's default text editor (open -t). Not TextEdit by name: its Smart Quotes, on by
+    /// default, turn a typed " into curly quotes and break JSON.
+    /// </summary>
+    public static void OpenText(string file) => Run(["-t", file], file);
+
+    static void Run(string[] arguments, string target)
     {
         try
         {
             var start = new ProcessStartInfo("/usr/bin/open") { UseShellExecute = false };
-            if (application is not null)
-            {
-                start.ArgumentList.Add("-a");
-                start.ArgumentList.Add(application);
-            }
-            start.ArgumentList.Add(target);
+            foreach (string argument in arguments)
+                start.ArgumentList.Add(argument);
             Process.Start(start)?.Dispose();
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)

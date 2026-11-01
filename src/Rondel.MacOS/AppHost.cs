@@ -60,7 +60,7 @@ internal sealed class AppHost : IGestureSink, IDisposable
         };
         _menuBar.FinderAccessClicked += () => AskForFinderAccess(fromMenu: true);
         _menuBar.PauseClicked += () => Store.Update(s => s.Paused = !s.Paused);
-        _menuBar.EditSettingsClicked += () => Workspace.Open(Store.FilePath, "TextEdit");
+        _menuBar.EditSettingsClicked += () => Workspace.OpenText(Store.FilePath);
         _menuBar.OpenLogsClicked += () => Workspace.Open(Log.Directory);
         _menuBar.QuitClicked += () => QuitRequested?.Invoke();
         _menuBar.Show(new MenuBarState(Store.Current.Paused, !Native.AXIsProcessTrusted(), true,
@@ -201,7 +201,7 @@ internal sealed class AppHost : IGestureSink, IDisposable
     {
         if (_menu is null)
             return;
-        var model = MenuBuilder.Build(context, Store.Current);
+        var model = WithoutActiveAgents(MenuBuilder.Build(context, Store.Current));
         if (model.Items.Count == 0)
         {
             Log.Warn($"No actions configured for {context.Kind}; check Menus in settings.json");
@@ -218,6 +218,15 @@ internal sealed class AppHost : IGestureSink, IDisposable
             _tap.NotifyMenuClosed();
         }
     }
+
+    /// <summary>
+    /// Rondel does not follow agents on macOS yet (C-24), so an Active Agents slice could only ever say there are none:
+    /// it is left out.
+    /// </summary>
+    static MenuModel WithoutActiveAgents(MenuModel model) =>
+        model.Items.Any(MenuBuilder.ListsActiveAgents)
+            ? model with { Items = [.. model.Items.Where(item => !MenuBuilder.ListsActiveAgents(item))] }
+            : model;
 
     /// <summary>Session hints are filled in when they arrive; they never delay the menu.</summary>
     void RequestDetails(MenuModel model)

@@ -27,21 +27,25 @@ internal static class FinderScript
 
         string x = point.X.ToString("F0", CultureInfo.InvariantCulture), y = point.Y.ToString("F0", CultureInfo.InvariantCulture);
         // Finder lists its windows front to back; bounds are {left, top, right, bottom} in the same points as the pointer.
+        // The script runs on the main thread, and AppleScript would wait two minutes for a hung Finder: one second
+        // keeps it within the gesture's own limit.
         string source = $$"""
-            tell application "Finder"
-                set allBounds to bounds of every Finder window
-                repeat with i from 1 to count of allBounds
-                    set b to item i of allBounds
-                    if {{x}} ≥ item 1 of b and {{x}} < item 3 of b and {{y}} ≥ item 2 of b and {{y}} < item 4 of b then
-                        try
-                            return URL of target of Finder window i
-                        on error
-                            return "virtual"
-                        end try
-                    end if
-                end repeat
-                return "none"
-            end tell
+            with timeout of 1 second
+                tell application "Finder"
+                    set allBounds to bounds of every Finder window
+                    repeat with i from 1 to count of allBounds
+                        set b to item i of allBounds
+                        if {{x}} ≥ item 1 of b and {{x}} < item 3 of b and {{y}} ≥ item 2 of b and {{y}} < item 4 of b then
+                            try
+                                return URL of target of Finder window i
+                            on error
+                                return "virtual"
+                            end try
+                        end if
+                    end repeat
+                    return "none"
+                end tell
+            end timeout
             """;
         string? answer = null, error = null;
         if (IsMainThread() != 0)
