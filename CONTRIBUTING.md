@@ -60,6 +60,10 @@ Rondel updates itself only from a release whose `SHA256SUMS.txt` is signed with 
 
 Running the Release workflow by hand is always a dry run: it shows the next version and its notes and builds the executables and the macOS apps, but publishes nothing.
 
+Until 1.0, the release job keeps only the two newest releases on GitHub, the new one and the one before it to go back to, and removes the older ones. Their tags stay, since the next version is computed from them. The files the release jobs hand on to each other are kept for a day; the release keeps its own copies.
+
+[CHANGELOG.md](CHANGELOG.md) keeps the notes of every version. After each release, the release job writes it from the version tags (`build/changelog-body.tera`) onto a branch `changelog/v<version>`, and its summary links to the pull request to open; a maintainer opens it into `dev`. GitHub Actions does not open it itself, because the setting that would allow it also lets workflows approve pull requests.
+
 ### The macOS signing certificate
 
 macOS ties the Accessibility and Automation permissions to the app's signing certificate, so every release is signed with the same self-signed certificate, kept as two secrets of the `release` environment, next to the release key: `MACOS_CERTIFICATE` (the `.p12` file, base64) and `MACOS_CERTIFICATE_PASSWORD`. A release fails without it; a dry run, which cannot use the environment, signs ad hoc instead. It is not an Apple certificate and costs nothing, so releases are not notarized (see [docs/macos.md](docs/macos.md#permissions-and-signing)).

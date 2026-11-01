@@ -10,7 +10,7 @@ English · [Türkçe](README.tr.md)
 
 Hold **Ctrl + the left mouse button** for a moment on the Windows desktop or in File Explorer (**⌥ Option + the left mouse button** on the Mac desktop or in Finder), and a radial menu opens under the cursor. Pick a slice and your coding agent starts in a terminal, already in the right folder.
 
-Rondel runs on Windows and macOS. **[Features by platform](docs/features.md)** shows what each one has, and since which version.
+Rondel runs on Windows and macOS. **[Features by platform](docs/features.md)** shows what each one has, and since which version; **[CHANGELOG.md](CHANGELOG.md)** lists what changed in each version.
 
 ## Install
 
