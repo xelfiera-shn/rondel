@@ -44,8 +44,7 @@ jobs:
         run: |
           last=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)
           range="${last:+$last..}HEAD"
-          # The macOS app's commits (scope macos) do not make a release of the Windows app until it ships.
-          if git log --format='%s%n%b' "$range" | grep -vE '^[a-z]+\(macos\)' | grep -qE '^(feat|fix|perf)(\([a-z0-9-]+\))?!?: |^[a-z]+(\([a-z0-9-]+\))?!: |^BREAKING[ -]CHANGE: '; then
+          if git log --format='%s%n%b' "$range" | grep -qE '^(feat|fix|perf)(\([a-z0-9-]+\))?!?: |^[a-z]+(\([a-z0-9-]+\))?!: |^BREAKING[ -]CHANGE: '; then
             tag=$(git-cliff --bumped-version)
             git-cliff --unreleased --tag "$tag" --strip all > notes.md
             echo "releasable=true" >> "$GITHUB_OUTPUT"
@@ -88,9 +87,76 @@ jobs:
           path: dist/${{ matrix.runtime }}/Rondel.exe
           if-no-files-found: error
 
+  build-macos:
+    name: Build ${{ matrix.runtime }}
+    needs: version
+    if: needs.version.outputs.releasable == 'true'
+    # Apple Silicon; the Intel app is cross-compiled.
+    runs-on: macos-latest
+    # The signing certificate is a secret of the "release" environment, like the release key.
+    environment: ${{ github.event_name == 'push' && github.ref == 'refs/heads/prod' && 'release' || '' }}
+    strategy:
+      matrix:
+        runtime: [osx-arm64, osx-x64]
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/prod' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      # macOS ties the Accessibility and Automation permissions to the signing certificate, so every release is
+      # signed with the same self-signed one (CONTRIBUTING.md, "The macOS signing certificate"). It goes into a
+      # keychain of this job only. A dry run, without the environment, signs ad hoc; a release without it fails.
+      - name: Import the signing certificate
+        env:
+          CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$CERTIFICATE" ]; then
+            if [ "$PUBLISH" = "true" ]; then
+              echo "::error::The release environment has no MACOS_CERTIFICATE secret; a release must be signed with it."
+              exit 1
+            fi
+            echo "::warning::No MACOS_CERTIFICATE secret: this dry run signs ad hoc."
+            echo "IDENTITY=-" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(openssl rand -hex 24)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          echo "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/signing.p12"
+          security import "$RUNNER_TEMP/signing.p12" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/signing.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          echo "IDENTITY=Rondel Release" >> "$GITHUB_ENV"
+
+      - name: Publish
+        run: ./build/publish-macos.sh --runtime ${{ matrix.runtime }} --version "$VERSION" --identity "$IDENTITY"
+
+      # ditto keeps the bundle's symbolic links and signature intact, which zip does not.
+      - name: Zip
+        run: ditto -c -k --keepParent "dist/${{ matrix.runtime }}/Rondel.app" "dist/Rondel-${VERSION}-${{ matrix.runtime }}.zip"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rondel-${{ matrix.runtime }}
+          path: dist/Rondel-${{ needs.version.outputs.version }}-${{ matrix.runtime }}.zip
+          if-no-files-found: error
+
+      - name: Remove the keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2> /dev/null || true
+
   release:
     name: Publish release
-    needs: [version, build]
+    needs: [version, build, build-macos]
     runs-on: ubuntu-latest
     # The release key is a secret of the "release" environment, which only the prod branch may use. A dry run
     # publishes nothing and signs nothing, so it runs without the environment.
@@ -118,7 +184,10 @@ jobs:
           for runtime in win-x64 win-arm64; do
             cp "artifacts/rondel-${runtime}/Rondel.exe" "release/Rondel-${VERSION}-${runtime}.exe"
           done
-          (cd release && sha256sum *.exe > SHA256SUMS.txt)
+          for runtime in osx-arm64 osx-x64; do
+            cp "artifacts/rondel-${runtime}/Rondel-${VERSION}-${runtime}.zip" release/
+          done
+          (cd release && sha256sum *.exe *.zip > SHA256SUMS.txt)
           cat release/SHA256SUMS.txt
 
       # Rondel takes an update only when SHA256SUMS.txt carries this signature; the app holds the public half
@@ -141,7 +210,9 @@ jobs:
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         if: env.PUBLISH == 'true'
         with:
-          subject-path: release/*.exe
+          subject-path: |
+            release/*.exe
+            release/*.zip
 
       - name: Create the GitHub release
         if: env.PUBLISH == 'true'

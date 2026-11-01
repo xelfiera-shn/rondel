@@ -46,9 +46,9 @@ Verified for 0.1.0:
 - winget manifest.
 - First-run hint that explains the gesture.
 
-## macOS (in progress)
+## macOS
 
-The macOS app is built on the shared core, step by step, following [macos.md](macos.md): a spike first, then the core additions, the app itself and distribution. Its builds ship in the same releases as Windows.
+The macOS app is built on the shared core, following [macos.md](macos.md), and ships in the same releases as Windows. Still to come there: the keyboard shortcut and active agents.
 
 ## Later — Linux
 
