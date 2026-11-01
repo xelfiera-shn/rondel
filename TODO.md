@@ -80,7 +80,7 @@ Kept by the macOS side. The first rows are the steps of [macos.md](https://githu
 | M-2 | Spike | ✅ #32 | |
 | M-3 | Core: POSIX launch script, `MacFolderNameRules`, terminal values and strings, source-generated settings JSON | ✅ #34, #36 | |
 | M-4 | Menu bar icon, trigger and Finder detection, `--probe` | 🔄 burakseyitkara1 | |
-| M-5 | Menu window, `--render-menu` | ⬜ | A fallback when the non-activating panel API is missing (review of #32) |
+| M-5 | Menu window, `--render-menu` | 🔄 burakseyitkara1 | A fallback when the non-activating panel API is missing (review of #32) |
 | M-6 | Launching and the settings window | ⬜ | |
 | M-7 | Distribution: signing with the release certificate, the release job, the macOS part of the README | ⬜ | |
 
