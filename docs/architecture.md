@@ -14,7 +14,7 @@ The platform-neutral parts (what the menu contains, how an agent is started, set
 |---|---|---|
 | `src/Rondel.Core` | `net10.0` | The shared menu flow, agent profiles, menu model, launch planning, folder-name rules, session stores, settings schema and migrations, localization, logging, platform interfaces. No Win32 or WPF. |
 | `src/Rondel.Windows` | `net10.0-windows` (WPF) | `Rondel.exe`: mouse hook, input re-injection, UI Automation and Shell detection, terminal launching, tray icon, radial menu and settings windows, autostart. |
-| `src/Rondel.MacOS` | `net10.0` (Avalonia, NativeAOT) | `Rondel.app`, in progress ([macos.md](macos.md)): event tap, Finder detection (window list, Accessibility, Apple Events), menu bar extra. The menu window, launching and settings follow. |
+| `src/Rondel.MacOS` | `net10.0` (Avalonia, NativeAOT) | `Rondel.app`, in progress ([macos.md](macos.md)): event tap, Finder detection (window list, Accessibility, Apple Events), menu bar extra, the radial menu (the ring; its arcs and input cards follow). Launching and settings follow. |
 | `tests/Rondel.Core.Tests` | `net10.0` | Unit tests for core logic that can break silently. |
 
 ```

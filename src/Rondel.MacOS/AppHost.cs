@@ -1,7 +1,10 @@
 using System.Diagnostics;
+using Avalonia;
+using Avalonia.Platform;
 using Avalonia.Threading;
 using Rondel.Core;
 using Rondel.Core.Context;
+using Rondel.Core.Flow;
 using Rondel.Core.Localization;
 using Rondel.Core.Logging;
 using Rondel.Core.Menus;
@@ -18,8 +21,7 @@ namespace Rondel.MacOS;
 /// callbacks arrive on the tap thread or a timer thread and are only forwarded from here.
 /// </summary>
 /// <remarks>
-/// The menu window comes with the next step (M-5 in the task list); until then a gesture that reaches the hold
-/// time over Finder logs the context and the menu it would open, and shows it in the menu bar menu.
+/// Launching comes with the next step: until then a chosen item is logged and the menu closes.
 /// </remarks>
 internal sealed class AppHost : IGestureSink, IDisposable
 {
@@ -29,6 +31,8 @@ internal sealed class AppHost : IGestureSink, IDisposable
     readonly EventTap _tap;
     IDisposable? _accessibilityPoll;
     nint _activity;
+    RadialMenuWindow? _menu;
+    string? _look;
 
     public AppHost()
     {
@@ -56,11 +60,18 @@ internal sealed class AppHost : IGestureSink, IDisposable
         };
         _menuBar.FinderAccessClicked += () => AskForFinderAccess(fromMenu: true);
         _menuBar.PauseClicked += () => Store.Update(s => s.Paused = !s.Paused);
-        _menuBar.EditSettingsClicked += () => Workspace.Open(Store.FilePath, "TextEdit");
+        _menuBar.EditSettingsClicked += () => Workspace.OpenText(Store.FilePath);
         _menuBar.OpenLogsClicked += () => Workspace.Open(Log.Directory);
         _menuBar.QuitClicked += () => QuitRequested?.Invoke();
         _menuBar.Show(new MenuBarState(Store.Current.Paused, !Native.AXIsProcessTrusted(), true,
-            Store.LoadError is null ? null : Loc.Get("Tray.SettingsInvalid"), null));
+            Store.LoadError is null ? null : Loc.Get("Tray.SettingsInvalid")));
+
+        _menu = new RadialMenuWindow(Palette(Store.Current));
+        _menu.ItemInvoked += OnItemInvoked;
+        _menu.MenuClosed += _tap.NotifyMenuClosed;
+        _menu.Prepare();
+        if (Application.Current?.PlatformSettings is { } platform)
+            platform.ColorValuesChanged += (_, _) => ApplyLook(Store.Current, force: true);
 
         // The event tap must answer within a fraction of a second, also after hours in the background.
         _activity = Native.BeginLatencyCriticalActivity("Rondel watches for Option + hold");
@@ -76,7 +87,23 @@ internal sealed class AppHost : IGestureSink, IDisposable
         Loc.SetLanguage(settings.Language);
         _tap.Configure(settings.HoldMs, settings.Paused);
         _menuBar.Update(s => s with { Paused = settings.Paused });
+        ApplyLook(settings);
     }
+
+    /// <summary>The menu's theme, mode and accent; redrawn only when one of them changed (or macOS switched modes).</summary>
+    void ApplyLook(AppSettings settings, bool force = false)
+    {
+        var appearance = settings.Appearance;
+        string look = $"{appearance.Theme}|{appearance.Mode}|{appearance.AccentFrom}|{appearance.AccentTo}|{SystemIsDark}";
+        if (_menu is null || (!force && look == _look))
+            return;
+        _look = look;
+        _menu.ApplyLook(Palette(settings));
+    }
+
+    static MenuPalette Palette(AppSettings settings) => MenuPalette.For(settings.Appearance, SystemIsDark);
+
+    static bool SystemIsDark => Application.Current?.PlatformSettings?.GetColorValues().ThemeVariant == PlatformThemeVariant.Dark;
 
     void Warn(string message)
     {
@@ -143,19 +170,16 @@ internal sealed class AppHost : IGestureSink, IDisposable
     }
 
     void IGestureSink.OnShowMenu(Gesture gesture, TriggerContext context) =>
-        Dispatcher.UIThread.Post(() => ShowMenu(context));
+        Dispatcher.UIThread.Post(() => ShowMenu(context, gesture.Point));
 
-    void IGestureSink.OnHeldMove(CGPoint point)
-    {
-    }
+    void IGestureSink.OnHeldMove(CGPoint point) =>
+        Dispatcher.UIThread.Post(() => _menu?.OnHeldMove(point));
 
-    void IGestureSink.OnHeldRelease(CGPoint point)
-    {
-    }
+    void IGestureSink.OnHeldRelease(CGPoint point) =>
+        Dispatcher.UIThread.Post(() => _menu?.OnHeldRelease(point));
 
-    void IGestureSink.OnOutsideClick()
-    {
-    }
+    void IGestureSink.OnOutsideClick() =>
+        Dispatcher.UIThread.Post(() => _menu?.CloseMenu(restoreFocus: true));
 
     void IGestureSink.OnGestureCancelled(Gesture gesture, string reason) =>
         Log.Debug($"Gesture #{gesture.Id}: given back ({reason})");
@@ -173,12 +197,52 @@ internal sealed class AppHost : IGestureSink, IDisposable
         return context;
     }
 
-    /// <summary>Until the menu window exists: the menu that would open, in the log and the menu bar menu.</summary>
-    void ShowMenu(TriggerContext context)
+    void ShowMenu(TriggerContext context, CGPoint anchor)
     {
-        var model = MenuBuilder.Build(context, Store.Current);
-        Log.Info($"Menu for {context.Kind} '{context.TargetDir}': {string.Join(", ", model.Items.Select(i => i.Action.Id))}");
-        _menuBar.Update(s => s with { LastTrigger = $"{context.Kind} · {context.DisplayName}" });
+        if (_menu is null)
+            return;
+        var model = WithoutActiveAgents(MenuBuilder.Build(context, Store.Current));
+        if (model.Items.Count == 0)
+        {
+            Log.Warn($"No actions configured for {context.Kind}; check Menus in settings.json");
+            return;
+        }
+        try
+        {
+            _tap.NotifyMenuOpened(_menu.ShowMenu(model, anchor));
+            RequestDetails(model);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
+        {
+            Log.Error("Showing the menu failed", ex);
+            _tap.NotifyMenuClosed();
+        }
+    }
+
+    /// <summary>
+    /// Rondel does not follow agents on macOS yet (C-24), so an Active Agents slice could only ever say there are none:
+    /// it is left out.
+    /// </summary>
+    static MenuModel WithoutActiveAgents(MenuModel model) =>
+        model.Items.Any(MenuBuilder.ListsActiveAgents)
+            ? model with { Items = [.. model.Items.Where(item => !MenuBuilder.ListsActiveAgents(item))] }
+            : model;
+
+    /// <summary>Session hints are filled in when they arrive; they never delay the menu.</summary>
+    void RequestDetails(MenuModel model)
+    {
+        if (!MenuDetails.Needed(model))
+            return;
+        Task.Run(() => MenuDetails.Load(model)).ContinueWith(
+            lookup => Dispatcher.UIThread.Post(() => _menu?.ApplyHints(model, lookup.Result.Hints)),
+            TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
+    /// <summary>Until launching comes: what would start, in the log.</summary>
+    void OnItemInvoked(MenuModel model, MenuItemModel item)
+    {
+        Log.Info($"Action '{item.Action.Id}' ({item.Agent.Id}) for {model.Context.Kind} '{item.Directory ?? model.Context.TargetDir}'; launching comes next");
+        _menu?.CloseMenu(restoreFocus: true);
     }
 
     public void Dispose()

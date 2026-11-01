@@ -194,7 +194,8 @@ public static class MenuBuilder
         string? subtitle = context.Kind switch
         {
             ContextKind.DesktopEmpty => Loc.Get("Context.Desktop"),
-            ContextKind.ExplorerEmpty => Loc.Get("Context.Explorer"),
+            // The file manager's own name: File Explorer on Windows, Finder on macOS.
+            ContextKind.ExplorerEmpty => Loc.Get(OperatingSystem.IsMacOS() ? "Context.Finder" : "Context.Explorer"),
             // For a folder item, show where it lives.
             ContextKind.FolderItem => Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(context.TargetDir ?? "")) is { Length: > 0 } parent
                 ? Path.GetFileName(parent) is { Length: > 0 } parentName ? parentName : parent
