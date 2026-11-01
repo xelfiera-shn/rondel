@@ -6,18 +6,22 @@ using Rondel.Core.Activity;
 
 namespace Rondel.Windows.UI;
 
-/// <summary>What a notification about an agent is for; each has its own badge.</summary>
+/// <summary>What a notification is for; each has its own badge.</summary>
 internal enum NoticeIcon
 {
     Permission,
     Question,
     Done,
     Error,
+
+    /// <summary>A newer release of Rondel is out.</summary>
+    Update,
 }
 
 /// <summary>
-/// The large icon of a notification about an agent: Rondel's mark, so the notification is known as Rondel's at a
-/// glance (Windows names the app only in small print), with a badge in the agent's state color for what happened.
+/// The large icon of a notification about an agent or an update: Rondel's mark, so the notification is known as
+/// Rondel's at a glance (Windows names the app only in small print), with a badge in the agent's state color for what
+/// happened, or in blue for a new release.
 /// The gap around the badge is transparent, so the icon sits on light and dark notifications alike.
 /// </summary>
 internal static class NoticeIconRenderer
@@ -28,6 +32,9 @@ internal static class NoticeIconRenderer
     public static readonly Color Done = Color.FromRgb(0x22, 0xC5, 0x5E);
 
     public static readonly Color Failed = Color.FromRgb(0xEF, 0x44, 0x44);
+
+    /// <summary>A new release: blue, apart from every agent state.</summary>
+    public static readonly Color Update = Color.FromRgb(0x3B, 0x82, 0xF6);
 
     static readonly Typeface IconFont = new(new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"), FontStyles.Normal, FontWeights.Normal,
         FontStretches.Normal);
@@ -48,6 +55,7 @@ internal static class NoticeIconRenderer
             NoticeIcon.Permission => (Waiting, "\uE72E"), // lock
             NoticeIcon.Question => (Waiting, "\uE897"),   // question mark
             NoticeIcon.Done => (Done, "\uE73E"),          // check mark
+            NoticeIcon.Update => (Update, "\uE896"),      // download arrow
             _ => (Failed, "\uE7BA"),                      // warning
         };
         // The mark a little smaller, in the top left, so the badge covers only the ring's corner and the hub stays.

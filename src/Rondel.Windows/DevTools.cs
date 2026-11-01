@@ -35,6 +35,7 @@ namespace Rondel.Windows;
 ///              [hover=N] [FOLDER|FILE]                 draw the Explorer menu
 ///                                            for FOLDER (default: current folder), its folder-icon menu with "item", or the menu of FILE
 /// --render-settings out.png [en|tr] [bottom|scroll=DIP]   draw the settings window (in the current Windows theme), scrolled down
+/// --render-update out.png [dark|light] [en|tr] [working|failed]   draw the update window for a made-up release
 /// --render-new out.png [dark|light] [en|tr] [prompt] [empty] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]
 ///                                            draw the New Project card with sample templates
 ///                                            (prompt: with the Prompt option on; empty: with no templates)
@@ -86,6 +87,10 @@ internal static class DevTools
 
             case ["--render-notice-icons", var output]:
                 RenderNoticeIcons(output);
+                return true;
+
+            case ["--render-update", var output, .. var options]:
+                RenderUpdate(output, options);
                 return true;
 
             default:
@@ -360,6 +365,9 @@ internal static class DevTools
         string real = Path.Combine(AppInfo.SettingsDirectory, "settings.json");
         if (File.Exists(real))
             File.Copy(real, Path.Combine(copy.FullName, "settings.json"));
+        // A made-up update check five minutes ago that found this version, so the picture shows the usual line.
+        File.WriteAllText(Path.Combine(copy.FullName, "update-state.json"),
+            $$"""{ "LastCheck": "{{DateTime.UtcNow.AddMinutes(-5):O}}", "Latest": "{{AppInfo.Version}}" }""");
         try
         {
             RenderSettingsWindow(output, options, dark, copy.FullName);
@@ -393,6 +401,56 @@ internal static class DevTools
                 scroller.ScrollToEnd();
             window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         }
+
+        var content = (System.Windows.FrameworkElement)window.Content;
+        var size = new System.Windows.Size(content.ActualWidth, content.ActualHeight);
+        var backdrop = new DrawingVisual();
+        using (var dc = backdrop.RenderOpen())
+            dc.DrawRectangle(new SolidColorBrush(dark ? Color.FromRgb(0x20, 0x20, 0x20) : Color.FromRgb(0xF3, 0xF3, 0xF3)), null, new System.Windows.Rect(size));
+        var bitmap = new RenderTargetBitmap((int)(size.Width * 2), (int)(size.Height * 2), 192, 192, PixelFormats.Pbgra32);
+        bitmap.Render(backdrop);
+        bitmap.Render(content);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using (var file = File.Create(output))
+            encoder.Save(file);
+        window.Close();
+    }
+
+    /// <summary>
+    /// Draws the update window for a made-up 0.7.0, over 0.6.0: the offer, or with "working" the download under way,
+    /// or with "failed" a failed download.
+    /// </summary>
+    static void RenderUpdate(string output, string[] options)
+    {
+        bool dark = !options.Contains("light", StringComparer.OrdinalIgnoreCase);
+        Loc.SetLanguage(options.Contains("tr", StringComparer.OrdinalIgnoreCase) ? "tr" : "en");
+        var release = new Rondel.Core.Updates.ReleaseInfo(new Rondel.Core.Updates.AppVersion(0, 7, 0), """
+            ### Features
+
+            - **windows:** Update Rondel from within the app, verified with its release key (#46)
+            - **core:** Look for a newer release once a day and when the connection comes back (#45)
+            - **menu:** Open the active agents from the desktop menu or a shortcut (#40)
+
+            ### Bug fixes
+
+            - **settings:** Keep reading settings.json written by a newer version (#34)
+            """, new Uri("https://github.com/xelfiera-shn/rondel/releases/tag/v0.7.0"),
+            new DateTimeOffset(2026, 11, 12, 10, 0, 0, TimeSpan.Zero), []);
+        var window = new UpdateWindow(release, new Rondel.Core.Updates.AppVersion(0, 6, 0), new ThemeColors(dark),
+            dark ? System.Windows.ThemeMode.Dark : System.Windows.ThemeMode.Light)
+        {
+            WindowStartupLocation = System.Windows.WindowStartupLocation.Manual,
+            Left = -32000,
+            Top = -32000,
+            ShowActivated = false,
+        };
+        if (options.Contains("working", StringComparer.OrdinalIgnoreCase))
+            window.ShowWorking(Loc.Format("Update.Downloading", 23.4.ToString("0.0", Loc.Culture), 63.9.ToString("0.0", Loc.Culture)), 23.4 / 63.9, canCancel: true);
+        else if (options.Contains("failed", StringComparer.OrdinalIgnoreCase))
+            window.ShowFailed(Loc.Get("Update.Failed.Network"), canRetry: true);
+        window.Show();
+        window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
 
         var content = (System.Windows.FrameworkElement)window.Content;
         var size = new System.Windows.Size(content.ActualWidth, content.ActualHeight);

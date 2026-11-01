@@ -25,6 +25,9 @@ internal sealed partial class AppHost
     /// <summary>The agent the last notification was about; null after any other notification.</summary>
     string? _balloonAgent;
 
+    /// <summary>What a click on the last notification does, when it is not about an agent.</summary>
+    Action? _balloonClick;
+
     /// <summary>The agents Rondel follows (for the menu).</summary>
     public AgentActivity Activity => _activity;
 
@@ -35,6 +38,8 @@ internal sealed partial class AppHost
         {
             if (_balloonAgent is { } id)
                 FocusAgent(id);
+            else
+                _balloonClick?.Invoke();
         };
         if (!_hooks.Start(Store.DirectoryPath))
             return;
@@ -122,10 +127,12 @@ internal sealed partial class AppHost
     }
 
     /// <param name="agentId">The agent a click on the notification brings to the front, if any.</param>
-    /// <param name="icon">The icon of a notification about an agent.</param>
-    void ShowBalloon(string title, string text, bool warning, string? agentId = null, NoticeIcon? icon = null)
+    /// <param name="icon">The icon of a notification about an agent or an update.</param>
+    /// <param name="onClick">What a click on a notification that is not about an agent does.</param>
+    void ShowBalloon(string title, string text, bool warning, string? agentId = null, NoticeIcon? icon = null, Action? onClick = null)
     {
         _balloonAgent = agentId;
+        _balloonClick = onClick;
         _tray.ShowBalloon(title, text, warning, icon);
     }
 }

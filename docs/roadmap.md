@@ -38,12 +38,12 @@ Verified for 0.1.0:
 - WSL paths.
 - **0.5.0 — Themes** (done): five menu themes (Rondel, Line, Spotlight, Orbit, Petal), each dark and light, chosen in Settings from pictures of the menu; the mode can follow Windows or stay fixed, and the accent can be a ready-made pair or the user's own colors.
 - **0.6.0 — Active agents** (done): Rondel follows the agents it starts through Claude Code's hooks. A notification, with Rondel's mark and a badge for what happened, says when one asks for a permission or a question, is done or stopped with an error, and a click brings its terminal to the front. The desktop menu's Active Agents slice opens into the followed agents with a dot for each one's state; a shortcut opens it anywhere.
+- **0.7.0 — Updates** (done): once a day, and when the connection comes back, Rondel looks for a newer release and asks before it updates. The update is downloaded, verified with Rondel's release key, put in place of the running exe, and Rondel restarts; the daily check can be turned off in Settings.
 
 ## Phase 3 — Trust and distribution
 
 - Code signing (SignPath for open source or Azure Trusted Signing).
 - winget manifest.
-- Update notification.
 - First-run hint that explains the gesture.
 
 ## macOS (in progress)

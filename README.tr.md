@@ -17,7 +17,7 @@ Windows masaüstünde veya Dosya Gezgini'nde **Ctrl + sol fare tuşunu** kısa b
    - Dosya henüz kod imzalı olmadığı için ilk açılışta SmartScreen uyarısı çıkabilir: **Ek bilgi → Yine de çalıştır**. Her sürümde SHA-256 özetleri ve derleme kaynağı doğrulaması (build provenance) bulunur.
 3. İkona sağ tıklayıp **Windows ile başlat**'ı işaretleyin.
 
-Kurulum programı yoktur, yönetici izni gerekmez. Windows 10 ve 11 desteklenir.
+Kurulum programı yoktur, yönetici izni gerekmez. Windows 10 ve 11 desteklenir. Rondel 0.7.0'dan itibaren kendini güncel tutar (bkz. [Güncellemeler](#güncellemeler)).
 
 ## Kullanım
 
@@ -69,9 +69,17 @@ Rondel başlattığı ajanları takip eder; terminallerine göz kulak olmanız g
 
 Rondel Claude Code'u ek bir ayar dosyasıyla (`--settings`) başlatır; bu dosyadaki hook'lar her olayı yalnızca bilgisayarınızın içinde (127.0.0.1) Rondel'e bildirir. Kendi Claude Code ayarlarınız değişmez. Her ajan kendi Windows Terminal penceresinde açılır, böylece o pencere öne getirilebilir. Bir ajan çalışırken Rondel'i kapatırsanız Claude Code, Rondel yeniden açılana kadar her prompt'un altında bir hook hatası gösterir; Rondel açılınca ajanı kaldığı yerden takip eder. Ajanları eskisi gibi başlatmak için Ayarlar'da **Rondel'in başlattığı ajanları takip et** seçeneğini kapatın.
 
+## Güncellemeler
+
+Rondel günde bir kez ve internet bağlantısı geldiğinde GitHub'a son sürümünü sorar. Daha yeni bir sürüm çıkmışsa bir bildirim bunu söyler. Bildirime ya da tepsi ikonu → **… sürümüne güncelle** satırına tıklayınca yenilikleri görür; **Şimdi güncelle**, **Sonra** veya **Bu sürümü atla** seçeneklerinden birini seçersiniz.
+
+Güncelleme yeni exe'yi indirir, doğrular, çalışan exe'nin yerine koyar ve Rondel'i yeniden başlatır; ajanlarınız çalışmaya devam eder. Rondel dosyayı yalnızca yayının özet dosyası, yalnızca yayın iş akışında bulunan Rondel yayın anahtarıyla imzalıysa ve dosya bu özetle eşleşiyorsa kullanır; eşleşmeyen dosya silinir. Rondel'in klasörüne yazılamıyorsa (örneğin Program Files altında) bunun yerine sürüm sayfası açılır.
+
+Ayarlar'daki **Güncellemeleri otomatik denetle** seçeneği günlük denetimi kapatır; **Şimdi denetle** her durumda çalışır. 0.7.0'dan önceki sürümler kendini güncelleyemez: 0.7.0'ı bir kez elle indirin.
+
 ## Ayarlar ve özelleştirme
 
-Tray ikonu → **Ayarlar…**: dil (Otomatik / English / Türkçe), menünün görünümü, proje klasörü, basılı tutma süresi, klavye kısayolu, ajanın komutu (`claude` ya da `cc` gibi bir alias), terminal (Windows Terminal veya konsol penceresi), kabuk (PowerShell 7 veya Windows PowerShell), ajanların takibi ile bildirimleri ve kısayolu, Yeni Proje kartındaki seçenekler ve şablon klasörü.
+Tray ikonu → **Ayarlar…**: dil (Otomatik / English / Türkçe), menünün görünümü, proje klasörü, basılı tutma süresi, klavye kısayolu, ajanın komutu (`claude` ya da `cc` gibi bir alias), terminal (Windows Terminal veya konsol penceresi), kabuk (PowerShell 7 veya Windows PowerShell), ajanların takibi ile bildirimleri ve kısayolu, güncelleme denetimi, Yeni Proje kartındaki seçenekler ve şablon klasörü.
 
 **Görünüm**: beş tema — Rondel, İnce Halka, Vurgu, Yörünge ve Yaprak — her biri koyu ve açık; menünün resimlerinden seçilir. Koyu ya da açık mod Windows'u izleyebilir ya da sabit kalabilir; vurgu rengi temanın kendi rengi, hazır bir çift ya da kendi `#RRGGBB` renkleriniz olabilir. Değişiklikler menüye hemen yansır.
 
@@ -103,7 +111,7 @@ Menüler, aksiyonlar ve ajanlar `%APPDATA%\Rondel\settings.json` içindedir; dos
 
 ## Gizlilik
 
-Rondel telemetri içermez. Ajanın yerel oturum verisini yalnızca ipuçlarını ve son oturumları göstermek için okur; başlattığı ajanların olaylarını yalnızca 127.0.0.1 üzerinden alır. Kendi ayarları (başlattığı ajanlar için hook dosyasıyla birlikte), logları, ajanlarının pencere listesi ve (açarsanız) Windows ile başlatma kaydı dışında hiçbir şey yazmaz.
+Rondel telemetri içermez. Ajanın yerel oturum verisini yalnızca ipuçlarını ve son oturumları göstermek için okur; başlattığı ajanların olaylarını yalnızca 127.0.0.1 üzerinden alır. Günde bir kez GitHub'a son sürümünü sorar (Ayarlar'dan kapatılabilir); bu istek Rondel'in sürümü dışında hiçbir bilgi taşımaz. Kendi ayarları (başlattığı ajanlar için hook dosyasıyla birlikte), logları, ajanlarının pencere listesi, güncelleme denetiminin durumu ile indirdiği güncellemeler ve (açarsanız) Windows ile başlatma kaydı dışında hiçbir şey yazmaz.
 
 ## Kaynaktan derleme
 

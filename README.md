@@ -17,7 +17,7 @@ Hold **Ctrl + the left mouse button** for a moment on the Windows desktop or in 
    - The executable is not code-signed yet, so SmartScreen may warn on first start: **More info → Run anyway**. Each release lists SHA-256 checksums and carries a build provenance attestation.
 3. Right-click the icon and tick **Start with Windows**.
 
-There is no installer and Rondel needs no admin rights. Windows 10 and 11 are supported.
+There is no installer and Rondel needs no admin rights. Windows 10 and 11 are supported. From 0.7.0 on, Rondel keeps itself up to date (see [Updates](#updates)).
 
 ## Use
 
@@ -69,9 +69,17 @@ Rondel follows the agents it starts, so you don't have to keep an eye on their t
 
 Rondel starts Claude Code with an extra settings file (`--settings`) whose hooks report each event to Rondel, on your computer only (127.0.0.1); your own Claude Code settings are not changed. Each agent opens in a Windows Terminal window of its own, so that window can be brought to the front. If you quit Rondel while an agent is still running, Claude Code shows a hook error under each prompt until Rondel runs again, and Rondel then picks the agent up. To start agents as before, turn off **Follow the agents Rondel starts** in Settings.
 
+## Updates
+
+Once a day, and when the connection comes back, Rondel asks GitHub for its latest release. When a newer one is out, a notification says so. Click it, or tray icon → **Update to …**, to see what is new and choose **Update now**, **Later** or **Skip this version**.
+
+Updating downloads the new executable, checks it, puts it in place of the running one and restarts Rondel; your agents keep running. Rondel takes the file only when the release's checksums carry the signature of Rondel's release key, which only the release workflow holds, and the file matches its checksum; anything else is deleted. If Rondel's folder is not writable (for example under Program Files), it opens the release page instead.
+
+Settings → **Check for updates automatically** turns the daily check off; **Check now** works either way. Versions before 0.7.0 cannot update themselves: download 0.7.0 once by hand.
+
 ## Settings and customization
 
-Tray icon → **Settings…**: language (Automatic / English / Türkçe), the menu's look, projects folder, hold duration, keyboard shortcut, the agent's command (`claude`, or an alias such as `cc`), terminal (Windows Terminal or console window), shell (PowerShell 7 or Windows PowerShell), following agents with their notifications and shortcut, the options on the New Project card and the templates folder.
+Tray icon → **Settings…**: language (Automatic / English / Türkçe), the menu's look, projects folder, hold duration, keyboard shortcut, the agent's command (`claude`, or an alias such as `cc`), terminal (Windows Terminal or console window), shell (PowerShell 7 or Windows PowerShell), following agents with their notifications and shortcut, update checks, the options on the New Project card and the templates folder.
 
 **Appearance**: five themes — Rondel, Line, Spotlight, Orbit and Petal — each in dark and light, chosen from pictures of the menu; dark or light can follow Windows or stay fixed, and the accent color is the theme's own, a ready-made pair or your own `#RRGGBB` colors. Changes show in the menu at once.
 
@@ -103,7 +111,7 @@ Please include the log lines or the probe output when you [report a bug](https:/
 
 ## Privacy
 
-Rondel has no telemetry. It reads the agent's local session data only to show the hints and the recent sessions, and it receives the events of the agents it starts on 127.0.0.1 only. It writes nothing except its own settings (with the hooks file for the agents it starts), its logs, the list of its agents' windows and, if you enable it, the start-with-Windows entry.
+Rondel has no telemetry. It reads the agent's local session data only to show the hints and the recent sessions, and it receives the events of the agents it starts on 127.0.0.1 only. Once a day it asks GitHub for its latest release (this can be turned off in Settings); the request carries nothing but Rondel's version. It writes nothing except its own settings (with the hooks file for the agents it starts), its logs, the list of its agents' windows, the update checks' state and downloads and, if you enable it, the start-with-Windows entry.
 
 ## Build from source
 

@@ -10,6 +10,7 @@ using Rondel.Core.Logging;
 using Rondel.Core.Menus;
 using Rondel.Core.Platform;
 using Rondel.Core.Settings;
+using Rondel.Core.Updates;
 using Rondel.Windows.Detection;
 using Rondel.Windows.Hook;
 using Rondel.Windows.Interop;
@@ -54,6 +55,9 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         _hooks = new HookServer(_activity);
         _flow = new MenuFlow(this, new WindowsTerminalLauncher(_agentWindows), new FolderNameValidator(), () => Store.Current,
             change => Store.Update(change), activity: _activity);
+        // Developer aids keep the update checks' state with their copy of the settings.
+        string updateState = settingsDirectory is null ? Path.Combine(UpdatesDirectory, "state.json") : Path.Combine(settingsDirectory, "update-state.json");
+        _updates = new UpdateService(_http, AppVersion.Current, () => Store.Current.Updates.Check, updateState, TestFeed);
     }
 
     public SettingsStore Store { get; }
@@ -93,6 +97,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 
         ApplySettings(Store.Current);
         StartFollowingAgents();
+        StartUpdates();
         if (Store.LoadError is not null)
             ShowBalloon(AppInfo.Name, Loc.Get("Tray.SettingsInvalid"), warning: true);
 
@@ -283,8 +288,12 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
     IReadOnlyList<TrayMenuItem> BuildTrayMenu()
     {
         var settings = Store.Current;
+        var update = _updates.Latest is { } release && !_updates.IsSkipped(release)
+            ? new TrayMenuItem(Loc.Format("Tray.Update", release.Version), () => OpenUpdateWindow(release))
+            : null;
         return
         [
+            .. update is null ? [] : new[] { update, TrayMenuItem.Separator },
             new(Loc.Get("Tray.Settings"), OpenSettings, IsDefault: true),
             new(Loc.Get(settings.Paused ? "Tray.Resume" : "Tray.Pause"), () => Store.Update(s => s.Paused = !s.Paused)),
             new(Loc.Get("Tray.Autostart"), () => Autostart.Set(!Autostart.IsEnabled), Checked: Autostart.IsEnabled),
@@ -346,6 +355,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 
     public void Dispose()
     {
+        StopUpdates();
         StopFollowingAgents();
         _hook.Dispose();
         _worker.Dispose();
