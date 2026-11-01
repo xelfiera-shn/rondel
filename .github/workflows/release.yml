@@ -108,10 +108,16 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      # Built and signed ad hoc first: dotnet publish runs the build code of every package, and the release
+      # certificate must not be in reach while it does.
+      - name: Publish
+        run: ./build/publish-macos.sh --runtime ${{ matrix.runtime }} --version "$VERSION" --identity -
+
       # macOS ties the Accessibility and Automation permissions to the signing certificate, so every release is
-      # signed with the same self-signed one (CONTRIBUTING.md, "The macOS signing certificate"). It goes into a
-      # keychain of this job only. A dry run, without the environment, signs ad hoc; a release without it fails.
-      - name: Import the signing certificate
+      # signed with the same self-signed one (CONTRIBUTING.md, "The macOS signing certificate"). Its key goes into a
+      # keychain of this step only, as non-extractable (-x): it can sign, but not be exported. A dry run, without the
+      # environment, keeps the ad hoc signature; a release without the certificate fails.
+      - name: Sign
         env:
           CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
@@ -121,8 +127,7 @@ jobs:
               echo "::error::The release environment has no MACOS_CERTIFICATE secret; a release must be signed with it."
               exit 1
             fi
-            echo "::warning::No MACOS_CERTIFICATE secret: this dry run signs ad hoc."
-            echo "IDENTITY=-" >> "$GITHUB_ENV"
+            echo "::warning::No MACOS_CERTIFICATE secret: this dry run keeps the ad hoc signature."
             exit 0
           fi
           keychain="$RUNNER_TEMP/signing.keychain-db"
@@ -131,14 +136,16 @@ jobs:
           security set-keychain-settings "$keychain"
           security unlock-keychain -p "$password" "$keychain"
           echo "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/signing.p12"
-          security import "$RUNNER_TEMP/signing.p12" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security import "$RUNNER_TEMP/signing.p12" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign -x
           rm "$RUNNER_TEMP/signing.p12"
           security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" > /dev/null
           security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
-          echo "IDENTITY=Rondel Release" >> "$GITHUB_ENV"
+          ./build/publish-macos.sh --runtime ${{ matrix.runtime }} --identity "Rondel Release" --sign-only
+          security delete-keychain "$keychain"
 
-      - name: Publish
-        run: ./build/publish-macos.sh --runtime ${{ matrix.runtime }} --version "$VERSION" --identity "$IDENTITY"
+      - name: Remove the keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2> /dev/null || true
 
       # ditto keeps the bundle's symbolic links and signature intact, which zip does not.
       - name: Zip
@@ -149,10 +156,6 @@ jobs:
           name: rondel-${{ matrix.runtime }}
           path: dist/Rondel-${{ needs.version.outputs.version }}-${{ matrix.runtime }}.zip
           if-no-files-found: error
-
-      - name: Remove the keychain
-        if: always()
-        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2> /dev/null || true
 
   release:
     name: Publish release

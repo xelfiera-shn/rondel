@@ -88,7 +88,7 @@ gh secret set MACOS_CERTIFICATE_PASSWORD --env release --repo xelfiera-shn/ronde
 rm rondel-release.key rondel-release.cnf                               # the .p12 holds the key
 ```
 
-The release job signs with the identity named `Rondel Release`.
+The release job builds the app first, signed ad hoc, and only then imports the certificate into a keychain of its own, as non-extractable, to sign it with the identity named `Rondel Release`; so no package's build code runs while the key is there, and the key can sign but not be exported.
 
 Every push to `dev` also produces a test build: the CI run's **Rondel-dev.N-win-x64** artifact (kept for 14 days).
 

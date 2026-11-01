@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Builds Rondel.app (NativeAOT) into dist/<runtime>/ and signs it.
 #
-#   build/publish-macos.sh [--runtime osx-arm64|osx-x64] [--version 0.1.0] [--identity "Rondel Development"]
+#   build/publish-macos.sh [--runtime osx-arm64|osx-x64] [--version 0.1.0] [--identity "Rondel Development"] [--sign-only]
+#
+# --sign-only signs the app already built there, without building: the release job builds with --identity - (ad hoc)
+# and imports the release certificate only afterwards, so no package's build code runs while it is in reach.
 #
 # macOS ties the Accessibility and Automation permissions to the app's signature, so every build is signed with
 # the same certificate; an ad-hoc signature changes with every build and the permissions would have to be granted
@@ -12,11 +15,13 @@ set -euo pipefail
 runtime="osx-$(uname -m | sed 's/x86_64/x64/')"
 version="0.0.0"
 identity="Rondel Development"
+sign_only=false
 while [ $# -gt 0 ]; do
     case "$1" in
         --runtime) runtime="$2"; shift 2 ;;
         --version) version="$2"; shift 2 ;;
         --identity) identity="$2"; shift 2 ;;
+        --sign-only) sign_only=true; shift ;;
         *) echo "Unknown option: $1" >&2; exit 2 ;;
     esac
 done
@@ -25,6 +30,7 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 app="$root/dist/$runtime/Rondel.app"
 export AVALONIA_TELEMETRY_OPTOUT=1
 
+if [ "$sign_only" = false ]; then
 echo "Publishing Rondel.app $version for $runtime ..."
 rm -rf "$app"
 dotnet publish "$root/src/Rondel.MacOS/Rondel.MacOS.csproj" -c Release -r "$runtime" -o "$app/Contents/MacOS" \
@@ -51,6 +57,10 @@ cat > "$app/Contents/Info.plist" <<PLIST
 </dict>
 </plist>
 PLIST
+elif [ ! -d "$app" ]; then
+    echo "No $app to sign; build it first" >&2
+    exit 1
+fi
 
 # The libraries first, then the app: a bundle is signed from the inside out.
 find "$app/Contents/MacOS" -name '*.dylib' -exec codesign --force --timestamp=none --sign "$identity" {} \;
