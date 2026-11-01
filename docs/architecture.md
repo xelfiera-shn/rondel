@@ -14,7 +14,7 @@ The platform-neutral parts (what the menu contains, how an agent is started, set
 |---|---|---|
 | `src/Rondel.Core` | `net10.0` | The shared menu flow, agent profiles, menu model, launch planning, folder-name rules, session stores, settings schema and migrations, localization, logging, platform interfaces. No Win32 or WPF. |
 | `src/Rondel.Windows` | `net10.0-windows` (WPF) | `Rondel.exe`: mouse hook, input re-injection, UI Automation and Shell detection, terminal launching, tray icon, radial menu and settings windows, autostart. |
-| `src/Rondel.MacOS` | `net10.0` (Avalonia, NativeAOT) | `Rondel.app`, in progress ([macos.md](macos.md)): event tap, Finder detection (window list, Accessibility, Apple Events), menu bar extra, the radial menu (the ring; its arcs and input cards follow). Launching and settings follow. |
+| `src/Rondel.MacOS` | `net10.0` (Avalonia, NativeAOT) | `Rondel.app`, in progress ([macos.md](macos.md)): event tap, Finder detection (window list, Accessibility, Apple Events), menu bar extra, the radial menu (the ring; its arcs and input cards follow), launching in Terminal.app or iTerm2. Settings follow. |
 | `tests/Rondel.Core.Tests` | `net10.0` | Unit tests for core logic that can break silently. |
 
 ```
@@ -48,12 +48,12 @@ Each platform app owns the trigger, context detection and the menu window; every
 3. `MenuDetails.Load` reads the session stores off the UI thread; the platform fills in the hints and the items that open further when they arrive. `MenuDetails.Needed` says whether there is anything to look up.
 4. The platform reports the chosen item to `MenuFlow.Invoke`, which starts the agent or asks for a folder name (and a prompt) first, creates the folder and launches.
 
-| Interface | What the platform provides | Windows |
-|---|---|---|
-| `IMenuHost` | Closing the menu, the inline name/prompt card, the New Project card, warnings outside the menu | `AppHost` (radial menu window, tray balloon) |
-| `ITerminalLauncher` | Running a `LaunchPlan` in a terminal | `WindowsTerminalLauncher` |
-| `IFolderNameValidator` | The file system's rules for a new folder name | `FolderNameValidator` (`FolderNameRules`, long paths, write permission) |
-| `IAutostart` | Starting with the user's session | `Autostart` (Run key) |
+| Interface | What the platform provides | Windows | macOS |
+|---|---|---|---|
+| `IMenuHost` | Closing the menu, the inline name/prompt card, the New Project card, warnings outside the menu | `AppHost` (radial menu window, tray balloon) | `AppHost` (radial menu window, a warning in the menu bar menu; the cards follow) |
+| `ITerminalLauncher` | Running a `LaunchPlan` in a terminal | `WindowsTerminalLauncher` | `MacTerminalLauncher` (a `.command` file opened in Terminal.app or iTerm2) |
+| `IFolderNameValidator` | The file system's rules for a new folder name | `FolderNameValidator` (`FolderNameRules`, long paths, write permission) | `MacFolderNameValidator` (`MacFolderNameRules`, write permission) |
+| `IAutostart` | Starting with the user's session | `Autostart` (Run key) | follows (`SMAppService`) |
 
 Some core parts carry one platform's rules because they are pure and worth testing in the core: `FolderNameRules` and `PowerShellScript` for Windows, `MacFolderNameRules` and `PosixShellScript` for macOS. The `Terminal` setting has values for both platforms (`WindowsTerminal`, `Console`; `TerminalApp`, `ITerm`), and each platform treats the other's as `Auto`; the `Shell` setting lists Windows choices.
 

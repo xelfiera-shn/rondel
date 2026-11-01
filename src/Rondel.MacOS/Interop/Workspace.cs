@@ -31,6 +31,17 @@ internal static class Workspace
         return id;
     }
 
+    /// <summary>An app with this bundle identifier is installed (Launch Services knows where it is).</summary>
+    public static bool IsInstalled(string bundleId)
+    {
+        using var pool = new AutoreleasePool();
+        nint workspace = Send(Class("NSWorkspace"), Sel("sharedWorkspace"));
+        nint id = CFString(bundleId);
+        nint url = Send(workspace, Sel("URLForApplicationWithBundleIdentifier:"), id);
+        CFRelease(id);
+        return url != 0;
+    }
+
     /// <summary>A folder that Finder shows as a single item (an .app, a .photoslibrary…).</summary>
     public static bool IsPackage(string path)
     {

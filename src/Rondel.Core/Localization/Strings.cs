@@ -184,6 +184,7 @@ static class Strings
         ["Launch.NotFound"] = "Rondel: the command '{0}' was not found.",
         ["Launch.NotFoundHint"] = "Install {0}, or change its command in Rondel settings (tray icon > Settings).",
         ["Launch.NotFoundHintMac"] = "Install {0}, or change its command in Rondel settings (menu bar icon > Settings).",
+        ["Launch.TerminalFailed"] = "{0} did not open the launch script.",
         ["Launch.BatchNote"] = "Note: '{0}' is a .cmd wrapper: line breaks and double quotes in the prompt were simplified, and %VARIABLES% may be expanded by cmd.exe. A native installation of the agent avoids this.",
 
         ["Agent.Someone"] = "The agent",
@@ -428,6 +429,7 @@ static class Strings
         ["Launch.NotFound"] = "Rondel: '{0}' komutu bulunamadı.",
         ["Launch.NotFoundHint"] = "{0} uygulamasını yükleyin ya da komutunu Rondel ayarlarından değiştirin (tray ikonu > Ayarlar).",
         ["Launch.NotFoundHintMac"] = "{0} uygulamasını yükleyin ya da komutunu Rondel ayarlarından değiştirin (menü çubuğu simgesi > Ayarlar).",
+        ["Launch.TerminalFailed"] = "{0} başlatma betiğini açmadı.",
         ["Launch.BatchNote"] = "Not: '{0}' bir .cmd sarmalayıcısı: prompttaki satır sonları ve çift tırnaklar sadeleştirildi, %DEĞİŞKEN% ifadeleri cmd.exe tarafından genişletilebilir. Ajanın native kurulumunda bu sorun yoktur.",
 
         ["Agent.Someone"] = "Ajan",
