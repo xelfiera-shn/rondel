@@ -55,7 +55,7 @@ What every platform gets, with a mark per platform. A Linux column is added when
 | C-21 | Update notification | ⬜ | ⬜ | |
 | C-22 | First-run hint that explains the gesture | ⬜ | ⬜ | |
 | C-23 | Pick up where you left off: a desktop slice that resumes the latest project's last session | ⏸️ | ⏸️ | Parked; to be decided later |
-| C-24 | Active agents: a notification when an agent asks something or finishes, and clicking it brings that session's terminal to the front; an Active Agents arc on the desktop with a status dot per session (working, waiting for you, done) and a shortcut that opens it anywhere | 🔄 xelfiera-shn | ⬜ | Sessions started from Rondel, through Claude Code's hooks. Spike first: hooks reaching Rondel, bringing the right terminal window to the front |
+| C-24 | Active agents: a notification when an agent asks something or finishes, and clicking it brings that session's terminal to the front; an Active Agents arc on the desktop with a status dot per session (working, waiting for you, done) and a shortcut that opens it anywhere | ✅ #37–#40 | ⬜ | Sessions started from Rondel, through Claude Code's hooks. Spike first: hooks reaching Rondel, bringing the right terminal window to the front |
 
 ## Windows
 
