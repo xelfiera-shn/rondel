@@ -45,8 +45,14 @@ internal static unsafe class MenuPanel
         // after replacing it the window came back 0×0) and says YES for the menu only.
         if (s_original == 0)
         {
-            s_original = MethodImplementation(nsWindow, isPanel);
-            AddMethod(avnWindow, isPanel, (nint)(delegate* unmanaged<nint, nint, byte>)&IsNonactivatingPanel, "c@:");
+            nint original = MethodImplementation(nsWindow, isPanel);
+            // AvnWindow answering it itself (an Avalonia update) would leave the window activating Rondel.
+            if (!AddMethod(avnWindow, isPanel, (nint)(delegate* unmanaged<nint, nint, byte>)&IsNonactivatingPanel, "c@:"))
+            {
+                Log.Warn("Menu window: AvnWindow already answers _isNonactivatingPanel; the menu activates Rondel while it is open");
+                return false;
+            }
+            s_original = original;
         }
         Panels.Add(window);
         SendVoid(window, prevents, true);
