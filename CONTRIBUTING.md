@@ -32,7 +32,7 @@ Rondel follows [Conventional Commits](https://www.conventionalcommits.org/):
 ```
 
 - **Types:** `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`.
-- **Scopes (optional):** `core`, `windows`, `menu`, `detection`, `launch`, `sessions`, `settings`, `ui`, `l10n`, `ci`, `docs`.
+- **Scopes (optional):** `core`, `windows`, `macos`, `menu`, `detection`, `launch`, `sessions`, `settings`, `ui`, `l10n`, `ci`, `docs`. Changes to the macOS app use `macos` until it ships (see below).
 - **Summary:** imperative, lower case, no trailing period, at most 72 characters — `fix(launch): keep quotes in prompts on Windows PowerShell`.
 - **Breaking changes:** add `!` after the type (`feat(settings)!: …`) or a `BREAKING CHANGE:` footer.
 
@@ -53,6 +53,7 @@ Releases are automatic. On every push to `prod`, the next version is computed fr
 - `feat` → minor version, `fix` and `perf` → patch version.
 - A breaking change raises the minor version while Rondel is below 1.0, and the major version from 1.0 on.
 - Commits of other types alone (`docs`, `chore`, …) do not produce a release.
+- Until the macOS app ships, releases contain only the Windows app: commits with the `macos` scope neither produce a release nor appear in its notes.
 
 The release notes are generated from the same commits, so a clear PR title is also a clear changelog line. A release contains `Rondel-<version>-win-x64.exe`, `Rondel-<version>-win-arm64.exe`, a `SHA256SUMS.txt` and build provenance attestations.
 
