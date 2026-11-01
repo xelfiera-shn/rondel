@@ -66,7 +66,7 @@ What every platform gets, with a mark per platform. A Linux column is added when
 | W-3 | Choice of shell: PowerShell 7 or Windows PowerShell | ✅ 0.1.0 | |
 | W-4 | Lighter menu on battery (no animations) | ✅ 0.2.0 | |
 | W-5 | WSL folders (`\\wsl.localhost\…`) | ⬜ | |
-| W-6 | Code signing (SignPath for open source, or Azure Trusted Signing) | ⬜ | So that SmartScreen stops warning |
+| W-6 | Code signing (SignPath for open source, or Azure Trusted Signing) | ⏸️ | So that SmartScreen stops warning. Parked: no budget for a paid certificate. SignPath Foundation signs open source projects for free (MIT and a public repo qualify; the publisher shown is SignPath Foundation; MFA for everyone on the team; an application that must be approved) |
 | W-7 | winget manifest | ⬜ | |
 | W-8 | Run the ARM64 build on ARM hardware | ⬜ | It is built and released, but has not run on ARM yet |
 
