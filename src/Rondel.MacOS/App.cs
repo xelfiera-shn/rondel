@@ -9,6 +9,9 @@ internal sealed class App : Application
 {
     AppHost? _host;
 
+    // macOS shows this name for the app (otherwise "Avalonia Application").
+    public override void Initialize() => Name = Core.AppInfo.Name;
+
     public override void OnFrameworkInitializationCompleted()
     {
         // A menu bar app should survive a bug in one action: log it and keep running.

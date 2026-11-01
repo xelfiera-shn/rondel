@@ -19,11 +19,11 @@ static class Strings
         ["MacMenu.AllowAccessibility"] = "Allow Accessibility (needed for ⌥ + hold)…",
         ["MacMenu.AllowFinder"] = "Allow Finder access (for empty areas of folder windows)…",
         ["MacMenu.EditSettings"] = "Edit settings.json",
-        ["MacMenu.Last"] = "Last: {0}",
         ["MacMenu.Quit"] = "Quit Rondel",
 
         ["Context.Desktop"] = "Desktop",
         ["Context.Explorer"] = "File Explorer",
+        ["Context.Finder"] = "Finder",
 
         ["Action.NewProject"] = "New Project",
         ["Action.NewWithPrompt"] = "New + Prompt",
@@ -222,11 +222,11 @@ static class Strings
         ["MacMenu.AllowAccessibility"] = "Erişilebilirlik izni ver (⌥ + basılı tutma için)…",
         ["MacMenu.AllowFinder"] = "Finder'a erişim izni ver (klasör pencerelerinin boş alanları için)…",
         ["MacMenu.EditSettings"] = "settings.json'u düzenle",
-        ["MacMenu.Last"] = "Son: {0}",
         ["MacMenu.Quit"] = "Rondel'den çık",
 
         ["Context.Desktop"] = "Masaüstü",
         ["Context.Explorer"] = "Dosya Gezgini",
+        ["Context.Finder"] = "Finder",
 
         ["Action.NewProject"] = "Yeni Proje",
         ["Action.NewWithPrompt"] = "Yeni + Prompt",

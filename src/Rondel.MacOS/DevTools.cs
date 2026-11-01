@@ -1,11 +1,17 @@
 using System.Globalization;
 using System.Text;
+using Avalonia;
+using Avalonia.Media;
 using Rondel.Core;
+using Rondel.Core.Context;
+using Rondel.Core.Flow;
+using Rondel.Core.Localization;
 using Rondel.Core.Logging;
 using Rondel.Core.Menus;
 using Rondel.Core.Settings;
 using Rondel.MacOS.Detection;
 using Rondel.MacOS.Interop;
+using Rondel.MacOS.UI;
 
 namespace Rondel.MacOS;
 
@@ -22,6 +28,9 @@ internal static class DevTools
         {
             case ["--probe", var x, var y, var output]:
                 Probe(new CGPoint(double.Parse(x, CultureInfo.InvariantCulture), double.Parse(y, CultureInfo.InvariantCulture)), output);
+                return true;
+            case ["--render-menu", var output, .. var options]:
+                RenderMenu(output, options);
                 return true;
             default:
                 return false;
@@ -54,6 +63,38 @@ internal static class DevTools
         foreach (string line in context.Trace)
             report.AppendLine("  " + line);
         File.WriteAllText(output, report.ToString());
+    }
+
+    /// <summary>
+    /// Draws the menu into a PNG without showing it, for checking the design:
+    /// <c>--render-menu out.png [dark|light] [en|tr] [desktop|item] [theme=ID] [hover=N] [FOLDER|FILE]</c>. The Finder-window
+    /// menu for a folder by default (the desktop menu with <c>desktop</c>, the folder's own menu with <c>item</c>, a file's
+    /// menu when given a file), with its real session hints.
+    /// </summary>
+    static void RenderMenu(string output, string[] options)
+    {
+        var settings = ReadSettings();
+        bool? dark = options.Contains("dark") ? true : options.Contains("light") ? false : null;
+        Loc.SetLanguage(options.FirstOrDefault(o => o is "en" or "tr") ?? settings.Language);
+        if (options.FirstOrDefault(o => o.StartsWith("theme=", StringComparison.Ordinal)) is { } theme)
+            settings.Appearance.Theme = theme["theme=".Length..];
+        int hover = options.FirstOrDefault(o => o.StartsWith("hover=", StringComparison.Ordinal)) is { } h
+            ? int.Parse(h["hover=".Length..], CultureInfo.InvariantCulture) : -1;
+        string path = options.LastOrDefault(o => o.StartsWith('/')) ?? settings.ResolveProjectsRoot();
+        string name = Path.GetFileName(Path.TrimEndingDirectorySeparator(path));
+        var context = options.Contains("desktop") ? new TriggerContext(ContextKind.DesktopEmpty, settings.ResolveProjectsRoot(), name, "render")
+            : File.Exists(path) ? new TriggerContext(ContextKind.FileItem, Path.GetDirectoryName(path), name, "render") { FilePath = path }
+            : new TriggerContext(options.Contains("item") ? ContextKind.FolderItem : ContextKind.ExplorerEmpty, path, name, "render");
+
+        AppBuilder.Configure<App>().UsePlatformDetect()
+            .With(new FontManagerOptions { DefaultFamilyName = ".AppleSystemUIFont" })
+            .SetupWithoutStarting();
+        bool isDark = dark ?? Application.Current?.PlatformSettings?.GetColorValues().ThemeVariant == Avalonia.Platform.PlatformThemeVariant.Dark;
+        var model = MenuBuilder.Build(context, settings);
+        var hints = MenuDetails.Needed(model) ? MenuDetails.Load(model).Hints : [];
+        var window = new RadialMenuWindow(MenuPalette.For(settings.Appearance, isDark));
+        var bitmap = window.RenderPreview(model, hints, hover, isDark ? Color.FromRgb(0x1E, 0x1E, 0x1E) : Color.FromRgb(0xEC, 0xEC, 0xEC));
+        bitmap.Save(output, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
     }
 
     /// <summary>The saved settings, read without watching or writing the file; the defaults when there are none.</summary>

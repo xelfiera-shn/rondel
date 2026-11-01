@@ -62,7 +62,7 @@ Other findings:
 
 **Themes:** the menu's themes are data in the core (`Rondel.Core.Themes`): tile shape, highlight, decoration and a palette per mode. The Mac menu draws the same themes from them, with the same geometry.
 
-**Icons:** actions name Segoe Fluent Icons code points, a font that is not on macOS. The Mac app maps the built-in code points to its own vector icons (for example Fluent UI System Icons, MIT); an unknown code point gets the default icon.
+**Icons:** actions name Segoe Fluent Icons code points, a font that is not on macOS. The Mac menu draws the SF Symbol that means the same (`SymbolIcons`: E756 CommandPrompt is `terminal`, E81C History is `clock.arrow.circlepath`, …), rendered by AppKit and used as a mask that takes the theme's colors, so the icons look native and nothing is bundled; an unknown code point gets `terminal`, as Windows falls back to CommandPrompt.
 
 ## Folder detection in Finder
 

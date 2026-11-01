@@ -67,8 +67,40 @@ internal static unsafe partial class Native
     public static partial nint Send(nint receiver, nint selector, ulong arg1, nint arg2);
 
     [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
+    public static partial nint Send(nint receiver, nint selector, nint arg1, nint arg2);
+
+    [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
+    public static partial nint Send(nint receiver, nint selector, double arg1, double arg2);
+
+    [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
+    public static partial nuint SendUInt(nint receiver, nint selector);
+
+    [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
     [return: MarshalAs(UnmanagedType.U1)]
     public static partial bool SendBool(nint receiver, nint selector, nint arg);
+
+    [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
+    [return: MarshalAs(UnmanagedType.U1)]
+    public static partial bool SendBool(nint receiver, nint selector);
+
+    [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
+    public static partial void SendVoid(nint receiver, nint selector, [MarshalAs(UnmanagedType.U1)] bool arg);
+
+    [LibraryImport(ObjC, EntryPoint = "objc_msgSend")]
+    public static partial void SendVoid(nint receiver, nint selector, long arg);
+
+    [LibraryImport(ObjC, EntryPoint = "object_getClass")]
+    public static partial nint ClassOf(nint instance);
+
+    [LibraryImport(ObjC, EntryPoint = "class_getInstanceMethod")]
+    public static partial nint InstanceMethod(nint cls, nint selector);
+
+    [LibraryImport(ObjC, EntryPoint = "class_getMethodImplementation")]
+    public static partial nint MethodImplementation(nint cls, nint selector);
+
+    [LibraryImport(ObjC, EntryPoint = "class_addMethod", StringMarshalling = StringMarshalling.Utf8)]
+    [return: MarshalAs(UnmanagedType.U1)]
+    public static partial bool AddMethod(nint cls, nint selector, nint implementation, string types);
 
     [LibraryImport(ObjC, EntryPoint = "objc_autoreleasePoolPush")]
     public static partial nint AutoreleasePoolPush();

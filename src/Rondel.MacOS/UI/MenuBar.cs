@@ -7,7 +7,7 @@ using Rondel.Core.Localization;
 namespace Rondel.MacOS.UI;
 
 /// <summary>What the menu bar extra shows; the menu is rebuilt from it whenever it changes.</summary>
-internal sealed record MenuBarState(bool Paused, bool NeedsAccessibility, bool NeedsFinderAccess, string? Warning, string? LastTrigger);
+internal sealed record MenuBarState(bool Paused, bool NeedsAccessibility, bool NeedsFinderAccess, string? Warning);
 
 /// <summary>
 /// Rondel's menu bar extra, the counterpart of the Windows tray icon: a template image (black, tinted by macOS for
@@ -17,7 +17,6 @@ internal sealed class MenuBar : IDisposable
 {
     readonly TrayIcon _icon;
     readonly NativeMenuItem _warning = new() { IsEnabled = false };
-    readonly NativeMenuItem _last = new() { IsEnabled = false };
     readonly NativeMenuItem _accessibility, _finderAccess, _pause, _editSettings, _openLogs, _quit;
     readonly NativeMenuItemSeparator _permissionsSeparator = new(), _quitSeparator = new();
 
@@ -26,7 +25,7 @@ internal sealed class MenuBar : IDisposable
     /// IsVisible), so its items are put back in on every change.
     /// </summary>
     readonly NativeMenu _menu = [];
-    MenuBarState _state = new(false, false, false, null, null);
+    MenuBarState _state = new(false, false, false, null);
 
     public MenuBar()
     {
@@ -69,7 +68,6 @@ internal sealed class MenuBar : IDisposable
         var s = _state;
         _icon.ToolTipText = Loc.Get(s.Paused ? "Tray.TooltipPaused" : "MacMenu.Tooltip");
         _warning.Header = "⚠︎ " + s.Warning;
-        _last.Header = Loc.Format("MacMenu.Last", s.LastTrigger ?? "");
         _accessibility.Header = Loc.Get("MacMenu.AllowAccessibility");
         _finderAccess.Header = Loc.Get("MacMenu.AllowFinder");
         _pause.Header = Loc.Get(s.Paused ? "Tray.Resume" : "Tray.Pause");
@@ -80,7 +78,6 @@ internal sealed class MenuBar : IDisposable
         NativeMenuItemBase?[] items =
         [
             s.Warning is null ? null : _warning,
-            s.LastTrigger is null ? null : _last,
             s.NeedsAccessibility ? _accessibility : null,
             s.NeedsFinderAccess ? _finderAccess : null,
         ];
