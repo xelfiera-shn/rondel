@@ -153,6 +153,7 @@ Shape of version 5 (abridged):
   "NewProjectCard": { "Prompt": true, "Git": true, "Plan": true, "Templates": true },     // options the card offers
   "Appearance": { "Theme": "orbit", "Mode": "Auto", "AccentFrom": "#22D3EE", "AccentTo": "#3B82F6" },  // no accent: the theme's own
   "ActiveAgents": { "Follow": true, "NotifyAsks": true, "NotifyFinished": true, "Hotkey": "Ctrl+Alt+A" },
+  "Updates": { "Check": true },              // the daily check; "Check now" works either way
   "Actions": [
     { "Id": "continue", "Label": "@Action.Continue", "Icon": "E768", "Capability": "Continue", "Hint": "LastSession" },
     { "Id": "plan", "Label": "Plan", "Icon": "E8FD", "Capability": "Open", "ExtraArgs": ["--permission-mode", "plan"] },
@@ -196,6 +197,13 @@ Rondel follows the agents it starts, so it can say when one asks for something o
 - **The menu.** An action with `"Source": "ActiveAgents"` (the desktop menu's Active Agents slice) opens into the followed agents, those waiting for the user first (`MenuBuilder.AgentItems`); its line counts the waiting ones, with a dot in the most urgent state's color. Choosing an agent asks the platform to bring its terminal to the front (`IMenuHost.FocusAgent`). The Active Agents shortcut opens the desktop menu with that slice open (`MenuFlow.AgentsMenu`), adding the slice for that time if the menu has none.
 - **States.** `AgentActivity` turns events into a state per session: a prompt or a tool at work → **working**; a permission request or a question (`AskUserQuestion`) → **waiting**; the end of a turn (`Stop`) → **ready**; an error (`StopFailure`) → **failed**. A permission is announced by Claude Code's own reminder a few seconds later, so a prompt the user answers at once is not announced; a question is announced at once. `SessionEnd` ends following, except for `/clear` and `/resume`, which go on in the same window. Claude Code sends no `SessionStart` to these hooks, so Rondel follows a session from the moment it starts it.
 
+## Updates
+
+- **Checking.** `UpdateService` asks GitHub's API for the latest release about a minute after Rondel starts, then once a day, and soon after the connection comes back when a check is due; a failed check is tried again at the next hourly tick. The request carries only Rondel's version, in its User-Agent. Local and CI test builds (0.0.0) never check. What the last check found, the version the user skipped and the last announcement are kept in `%LOCALAPPDATA%\Rondel\updates\state.json`, not in settings.json. A newer release is announced once a day until the user skips it; **Check now** in Settings always offers it.
+- **Trust.** The release workflow signs `SHA256SUMS.txt` with Rondel's release key (ECDSA P-256 with SHA-256) into `SHA256SUMS.txt.sig`. The private key is the `RELEASE_SIGNING_KEY` secret of the `release` environment, which only the `prod` branch may use; its public half is `src/Rondel.Core/Updates/release-key.pem`, built into the app. `UpdateDownloader` takes a file only when that signature is valid and the file matches its checksum (hashed while it arrives); anything else is deleted. A file the app downloads carries no mark of the web, so SmartScreen never looks at it: this check takes its place.
+- **Replacing the exe (Windows).** `SelfUpdate` renames the running exe to `Rondel.exe.old` (a running exe can be renamed, but not overwritten), moves the new one to its path and starts it with `--after-update <process id> <old version>`. The new version signals `Local\Rondel.UpdateStarted`, waits for the old one to exit, starts as usual and deletes the `.old` file; the old one exits as soon as it hears the signal, or puts itself back when the new one does not start within 30 seconds. The path stays the same, so the Start-with-Windows entry and shortcuts keep working. When Rondel's folder is not writable, the update window offers the release page instead.
+- **Testing.** `RONDEL_UPDATE_FEED` names another "latest release" address, such as a local test feed (http is allowed on the loopback address only). What it offers is still taken only with the release key's signature.
+
 ## Localization
 
 English and Turkish string tables live in the core. The language follows the Windows display language unless the user picks one in Settings; switching applies immediately.
@@ -216,7 +224,8 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 | `--show-menu [input [text]]` | Starts normally and opens the menu at the cursor without the gesture; `input` continues into the New + Prompt card. |
 | `--render-menu out.png [dark\|light] [en\|tr] [desktop\|item] [idle] [deep] [edge] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]] [hover=N] [agents] [FOLDER\|FILE]` | Draws the Explorer menu for a folder (the desktop menu with `desktop`, the folder's own menu with `item`, a file's menu when given a file) with its real session hints and recent sessions into a PNG, the first expandable slice opened unless `idle`; `edge` places the menu against the left edge of the screen, `transparent` leaves out the background; `theme`/`accent` pick a theme and accent, `hover=N` only highlights slice N, `agents` opens the Active Agents slice into made-up agents in every state. |
 | `--render-settings out.png [en\|tr] [bottom\|scroll=DIP]` | Draws the settings window (current Windows theme) into a PNG, scrolled to the end or by DIP. It works on a copy of settings.json: a running Rondel, and the real file, are not touched. |
-| `--render-notice-icons out.png` | Draws the icons of the notifications about agents at 32, 48 and 64 px, on a dark and a light notification. |
+| `--render-notice-icons out.png` | Draws the icons of the notifications about agents and updates at 32, 48 and 64 px, on a dark and a light notification. |
+| `--render-update out.png [dark\|light] [en\|tr] [working\|failed]` | Draws the update window for a made-up release: the offer, the download under way (`working`) or a failed download (`failed`). |
 | `--render-new out.png [dark\|light] [en\|tr] [prompt] [empty] [transparent] [theme=ID] [accent=…]` | Draws the New Project card with made-up templates (`prompt`: with Prompt on; `empty`: without templates). |
 
 ## Fixed identifiers
@@ -230,5 +239,8 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 | Activation event | `Local\Rondel.Activate` |
 | Start with Windows | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, value `Rondel` |
 | Tag on re-injected input | `dwExtraInfo = 0x524E444C` ("RNDL"); on macOS `kCGEventSourceUserData` |
+| Updates folder | `%LOCALAPPDATA%\Rondel\updates`: the checks' `state.json` and a download until it is installed |
+| Update handshake event | `Local\Rondel.UpdateStarted` |
+| Release key | public half `src/Rondel.Core/Updates/release-key.pem`; private half the `RELEASE_SIGNING_KEY` secret of the `release` environment |
 | macOS bundle identifier | `app.rondel` |
 | macOS single-instance lock | `.instance` in the settings folder |

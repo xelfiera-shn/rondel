@@ -55,7 +55,9 @@ Releases are automatic. On every push to `prod`, the next version is computed fr
 - Commits of other types alone (`docs`, `chore`, …) do not produce a release.
 - Until the macOS app ships, releases contain only the Windows app: commits with the `macos` scope neither produce a release nor appear in its notes.
 
-The release notes are generated from the same commits, so a clear PR title is also a clear changelog line. A release contains `Rondel-<version>-win-x64.exe`, `Rondel-<version>-win-arm64.exe`, a `SHA256SUMS.txt` and build provenance attestations.
+The release notes are generated from the same commits, so a clear PR title is also a clear changelog line. A release contains `Rondel-<version>-win-x64.exe`, `Rondel-<version>-win-arm64.exe`, a `SHA256SUMS.txt`, its signature `SHA256SUMS.txt.sig` and build provenance attestations.
+
+Rondel updates itself only from a release whose `SHA256SUMS.txt` is signed with Rondel's release key. The release job signs it with the `RELEASE_SIGNING_KEY` secret of the `release` environment, which only `prod` may use, and checks the signature against the public half in `src/Rondel.Core/Updates/release-key.pem`; without the secret, nothing is published. A new key needs a new public half in the app, and versions with the old one can no longer update themselves (they are sent to the release page), so the key is kept, with a backup outside GitHub, by the maintainer.
 
 Running the Release workflow by hand is always a dry run: it shows the next version and its notes and builds the executables, but publishes nothing.
 

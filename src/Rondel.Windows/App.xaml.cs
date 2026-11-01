@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Threading;
 using Rondel.Core.Logging;
+using Rondel.Windows.Updates;
 
 namespace Rondel.Windows;
 
@@ -23,6 +24,9 @@ public partial class App : Application
             Shutdown();
             return;
         }
+
+        // Started by an update: tell the previous version that this one runs, and wait for it to exit and make room.
+        var updatedFrom = SelfUpdate.AfterUpdate(e.Args);
 
         _mutex = new Mutex(initiallyOwned: true, MutexName, out bool firstInstance);
         if (!firstInstance)
@@ -54,6 +58,8 @@ public partial class App : Application
 
         _host = new AppHost();
         _host.Start();
+        if (updatedFrom is { } from)
+            _host.ShowUpdated(from);
         if (e.Args.Contains("--show-menu", StringComparer.OrdinalIgnoreCase))
         {
             int inputAt = Array.FindIndex(e.Args, a => a.Equals("input", StringComparison.OrdinalIgnoreCase));

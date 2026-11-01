@@ -11,4 +11,9 @@
     <InternalsVisibleTo Include="Rondel.Core.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The public half of Rondel's release key: updates are taken only when the release workflow signed them with it. -->
+    <EmbeddedResource Include="Updates\release-key.pem" LogicalName="Rondel.ReleaseKey.pem" />
+  </ItemGroup>
+
 </Project>

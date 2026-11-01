@@ -72,6 +72,9 @@ public sealed class AppSettings
     /// <summary>Following the agents Rondel starts, and notifications about them.</summary>
     public ActiveAgentsOptions ActiveAgents { get; set; } = new();
 
+    /// <summary>Looking for newer releases.</summary>
+    public UpdatesOptions Updates { get; set; } = new();
+
     /// <summary>Context name (DesktopEmpty, ExplorerEmpty, FolderItem, FileItem) → action ids, clockwise from the top.</summary>
     public Dictionary<string, List<string>> Menus { get; set; } = DefaultMenus();
 
@@ -123,6 +126,7 @@ public sealed class AppSettings
         NewProject ??= new();
         NewProjectCard ??= new();
         ActiveAgents ??= new();
+        Updates ??= new();
         ActiveAgents.Hotkey = ActiveAgents.Hotkey?.Trim() ?? "";
         Appearance ??= new();
         Appearance.Normalize();
