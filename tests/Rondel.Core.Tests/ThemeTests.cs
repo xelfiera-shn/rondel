@@ -43,4 +43,26 @@ public class ThemeTests
             Assert.True(theme.Light.RingFill >> 24 > 0, theme.Id);
         });
     }
+
+    [Theory]
+    [InlineData(0xFFFF0000u, 0, 1, 1)]
+    [InlineData(0xFF00FF00u, 120, 1, 1)]
+    [InlineData(0xFF0000FFu, 240, 1, 1)]
+    [InlineData(0xFF808080u, 0, 0, 0.502)]
+    public void HsvSeesColorsAsAPickerDoes(uint argb, double hue, double saturation, double value)
+    {
+        var hsv = HsvColor.FromArgb(argb);
+
+        Assert.Equal(hue, hsv.Hue, 3);
+        Assert.Equal(saturation, hsv.Saturation, 3);
+        Assert.Equal(value, hsv.Value, 3);
+    }
+
+    [Fact]
+    public void EveryColorComesBackFromHsvUnchanged()
+    {
+        uint[] colors = [0xFF7C3AED, 0xFF22D3EE, 0xFF14B8A6, 0xFFF59E0B, 0xFFE11D48, 0xFF000000, 0xFFFFFFFF, 0xFF6B7280];
+        Assert.All(colors, argb => Assert.Equal(argb, HsvColor.FromArgb(argb).ToArgb()));
+        Assert.Equal(0xFFFF0000u, new HsvColor(360, 1, 1).ToArgb()); // the end of the hue strip is red again
+    }
 }

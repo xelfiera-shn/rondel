@@ -23,6 +23,7 @@ Rondel'in Windows'ta ve macOS'ta hangi özelliklere sahip olduğu ve her birinin
 | Menüde klavye: rakamlar, oklar, Tab, Boşluk, Enter, Esc | ✅ 0.1.0 | ✅ 0.8.0 |
 | Uzun proje adları dilimlerine sığar | ✅ 0.3.0 | ✅ 0.8.0 |
 | Beş tema, koyu ve açık mod, vurgu renkleri | ✅ 0.5.0 | ✅ 0.8.0 |
+| Kendi vurgu renkleriniz için renk seçici | ✅ 0.10.0 | ⬜ |
 | Menüyü fare imlecinin olduğu yerde açan klavye kısayolu | ✅ 0.1.0 | ⬜ |
 
 ## Ajanı başlatma
@@ -33,6 +34,7 @@ Rondel'in Windows'ta ve macOS'ta hangi özelliklere sahip olduğu ve her birinin
 | **Oturum Seç**, en yeni oturumlara açılır | ✅ 0.1.0 | ✅ 0.8.0 |
 | Masaüstünde **Son Projeler**: projelere ve onların oturumlarına açılır | ✅ 0.2.0 | ✅ 0.8.0 |
 | **Sor**, **Burada Sor** ve **Bu Dosyayı Sor** | ✅ 0.3.0 | ✅ 0.8.0 |
+| **Bu Dosyaları Sor**: seçili birden fazla dosya tek prompt'ta | ✅ 0.10.0 | ⬜ |
 | **Yeni Proje** kartı: ilk prompt, `git init`, plan modu ve şablonlar | ✅ 0.4.0 | ✅ 0.8.0 |
 | Terminal seçimi | ✅ 0.1.0: Windows Terminal ya da konsol penceresi | ✅ 0.8.0: Terminal ya da iTerm2 |
 | Kabuk seçimi | ✅ 0.1.0: PowerShell 7 ya da Windows PowerShell | — ajan, `PATH` ve alias'larınızla birlikte giriş kabuğunuzda çalışır |
@@ -65,7 +67,6 @@ Henüz iki platformda da yok; bkz. [yol haritası](roadmap.md).
 | Özellik | Windows | macOS |
 |---|---|---|
 | Başka bir mod için değiştirici tuş, örneğin plan modu için Shift | ⬜ | ⬜ |
-| Seçili birden fazla dosya hakkında sorma | ✅ 0.10.0 | ⬜ |
 | İlk açılışta hareketi gösteren ipucu | ⬜ | ⬜ |
 
 ARM64 Windows sürümü ve Intel Mac sürümü yayımlanıyor, ancak ikisi de henüz böyle bir bilgisayarda denenmedi. Bunlardan birini kullanıyorsanız nasıl çalıştığını [bildirirseniz](https://github.com/xelfiera-shn/rondel/issues/new/choose) seviniriz.
