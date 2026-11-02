@@ -59,6 +59,7 @@ What every platform gets, with a mark per platform. A Linux column is added when
 | C-25 | Agents card: an optional floating card (on in Settings, with a shortcut) that lists the active agents with their state, how long and what they wait for; a click brings an agent's terminal to the front. It can be dragged anywhere and remembers its place per monitor. It collapses to Rondel's mark with the number of waiting agents as a badge and opens while the mouse is over it. On the card, a pin keeps it open, and a menu button next to it opens quick settings: on top of other windows or on the desktop (like Sticky Notes), and more. Over full-screen apps it hides, unless Settings keeps it there; then it stays open (a game has the focus, so it could not be opened), never takes the focus and lets clicks through. It appears when the first agent starts and hides when none is left. A notification setting turns notifications off while the card is shown. | ✅ 0.9.0 | ⬜ | Windows first, on top of C-24; macOS once it follows agents |
 | C-26 | Color picker for the custom accent colors: in Settings → Appearance, each of the two colors (start and end of the gradient) can be picked from a palette instead of typing a hex code; the hex box stays and follows the picker | ✅ 0.10.0 | ⬜ | WPF has no color picker of its own; Avalonia has one (`Avalonia.Controls.ColorPicker`) |
 | C-27 | Fix: one key, one job in the menu. Tab (Shift+Tab back) only moves between slices, and selecting an expandable slice with the keyboard no longer opens its arc. Space only opens the arc of the selected slice and steps in; on a slice without one it does nothing. Enter only runs the selected slice; on Recent Projects and Active Agents, which run nothing themselves, it does nothing. The mouse and the number keys are unchanged | ✅ 0.10.0 | ⬜ | Today Tab on Resume, Recent Projects or Active Agents opens the arc and moves into it, Space runs a slice like Enter, and Enter on Recent Projects steps into it. The README describes the keys |
+| C-28 | Saved prompts, turned on in Settings (off by default; off, Ask is unchanged): every `.md` file in `%APPDATA%\Rondel\Prompts` is a prompt, named after its file, and the folder starts empty. Up to five prompts pinned in Settings sit on an arc around the Ask slices (Ask, Ask Here, Ask About This File and These Files), in the order they were pinned; picking one starts the agent with it at once. Clicking an Ask slice opens the prompt card as today, now with a list of every saved prompt: picking one fills the box, to edit before starting. On a file, its mention still comes first | 🔄 xelfiera-shn | ⬜ | Moved here from the ideas |
 
 ## Windows
 
@@ -91,7 +92,6 @@ Kept by the macOS side. The first rows are the steps of [macos.md](https://githu
 
 Not agreed yet. Once an idea is agreed, it moves into one of the lists above with an ID.
 
-- Saved prompts: an arc of ready-made prompts (review, write tests, explain) next to Ask.
 - Parallel sessions: start in a git worktree or in the background, and open the agents view.
 - More agent profiles: Codex CLI, Gemini CLI.
 - A menu editor in Settings, instead of editing `settings.json`.
