@@ -229,6 +229,7 @@ internal static unsafe partial class Native
 
     // Menus
     public const uint MF_STRING = 0x0000;
+    public const uint MF_GRAYED = 0x0001;
     public const uint MF_CHECKED = 0x0008;
     public const uint MF_SEPARATOR = 0x0800;
     public const uint TPM_LEFTALIGN = 0x0000;
@@ -377,6 +378,14 @@ internal static unsafe partial class Native
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool GetWindowRect(nint hWnd, RECT* lpRect);
+
+    public const uint GW_HWNDNEXT = 2, GW_HWNDPREV = 3;
+
+    [LibraryImport("user32.dll")]
+    public static partial nint GetWindow(nint hWnd, uint uCmd);
+
+    [LibraryImport("user32.dll")]
+    public static partial nint GetTopWindow(nint hWnd);
 
     [LibraryImport("user32.dll")]
     public static partial nint SetWinEventHook(uint eventMin, uint eventMax, nint hmodWinEventProc,

@@ -302,6 +302,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         [
             .. update is null ? [] : new[] { update, TrayMenuItem.Separator },
             new(Loc.Get("Tray.Settings"), OpenSettings, IsDefault: true),
+            .. CardTrayItems(settings),
             new(Loc.Get(settings.Paused ? "Tray.Resume" : "Tray.Pause"), () => Store.Update(s => s.Paused = !s.Paused)),
             new(Loc.Get("Tray.Autostart"), () => Autostart.Set(!Autostart.IsEnabled), Checked: Autostart.IsEnabled),
             new(Loc.Get("Tray.OpenLogs"), OpenLogFolder),

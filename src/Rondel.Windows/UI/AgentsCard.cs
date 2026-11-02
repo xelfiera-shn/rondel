@@ -30,6 +30,7 @@ namespace Rondel.Windows.UI;
 internal sealed unsafe class AgentsCard : IDisposable
 {
     static readonly TimeSpan CollapseDelay = TimeSpan.FromMilliseconds(450);
+    static readonly TimeSpan QuickSettingsDelay = TimeSpan.FromMilliseconds(600);
     static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(30);
     static readonly TimeSpan ForegroundPoll = TimeSpan.FromSeconds(2);
 
@@ -50,6 +51,7 @@ internal sealed unsafe class AgentsCard : IDisposable
     readonly string? _stateFile;
     readonly Dictionary<string, POINT> _positions = [];
     readonly DispatcherTimer _collapse;
+    readonly DispatcherTimer _quickClose;
     readonly DispatcherTimer _refresh;
     readonly DispatcherTimer _poll;
     string? _lastMonitor;
@@ -100,6 +102,8 @@ internal sealed unsafe class AgentsCard : IDisposable
 
         _collapse = new DispatcherTimer(CollapseDelay, DispatcherPriority.Normal, (_, _) => Collapse(), _window.Dispatcher);
         _collapse.Stop();
+        _quickClose = new DispatcherTimer(QuickSettingsDelay, DispatcherPriority.Normal, (_, _) => CloseQuickSettingsUnlessPointed(), _window.Dispatcher);
+        _quickClose.Stop();
         _refresh = new DispatcherTimer(RefreshInterval, DispatcherPriority.Background, (_, _) => _window.ShowAgents(_agents), _window.Dispatcher);
         _refresh.Stop();
         // A window can go full screen without the foreground changing (F11 in a browser), so this looks every few seconds too.
@@ -115,6 +119,9 @@ internal sealed unsafe class AgentsCard : IDisposable
 
     /// <summary>Settings… in the quick settings.</summary>
     public event Action? SettingsRequested;
+
+    /// <summary>The user hid the card (its shortcut, or "Hide the card").</summary>
+    public event Action? HiddenByUser;
 
     /// <summary>The card is on screen (open or collapsed): its badge tells what needs the user.</summary>
     public bool IsShown { get; private set; }
@@ -143,12 +150,26 @@ internal sealed unsafe class AgentsCard : IDisposable
         Layout();
     }
 
+    /// <summary>The tray menu's "Show the agents card": brings back a card the user hid, or shows it with no agent.</summary>
+    public void ShowAgain()
+    {
+        if (!_enabled || !_options().Show)
+            return;
+        _manualHidden = false;
+        _manualShown = true;
+        Layout();
+    }
+
+    /// <summary>Whether "Show the agents card" has something to do: the card is turned on, but not on screen.</summary>
+    public bool CanShowAgain => _enabled && _options().Show && !IsShown;
+
     /// <summary>The card's shortcut, or "Hide the card": hides a card on screen, or shows it, also with no agent.</summary>
     public void Toggle()
     {
         if (!_enabled || !_options().Show)
             return;
-        if (IsShown)
+        bool hide = IsShown;
+        if (hide)
         {
             _manualHidden = true;
             _manualShown = false;
@@ -159,6 +180,8 @@ internal sealed unsafe class AgentsCard : IDisposable
             _manualShown = true;
         }
         Layout();
+        if (hide)
+            HiddenByUser?.Invoke();
     }
 
     /// <summary>Shows, hides, opens or collapses the card, and puts it in its place and layer.</summary>
@@ -280,6 +303,7 @@ internal sealed unsafe class AgentsCard : IDisposable
     void OnMouseEnter()
     {
         _collapse.Stop();
+        _quickClose.Stop();
         if (_hovering)
             return;
         _hovering = true;
@@ -288,7 +312,9 @@ internal sealed unsafe class AgentsCard : IDisposable
 
     void OnMouseLeave()
     {
-        if (!_dragging && _quick?.IsOpen != true)
+        if (_quick?.IsOpen == true)
+            _quickClose.Start();
+        else if (!_dragging)
             _collapse.Start();
     }
 
@@ -390,6 +416,10 @@ internal sealed unsafe class AgentsCard : IDisposable
             });
         panel.Margin = new Thickness(0, 4, 12, 16); // room for its shadow
         panel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        panel.MouseEnter += (_, _) => _quickClose.Stop();
+        panel.MouseLeave += (_, _) => _quickClose.Start();
+        // It closes when the mouse leaves it and the card, or another window comes to the front (CheckForeground):
+        // Windows' own "click outside closes it" needs a window with the focus, and the card never takes it.
         popup = new Popup
         {
             Child = panel,
@@ -397,16 +427,24 @@ internal sealed unsafe class AgentsCard : IDisposable
             Placement = PlacementMode.Bottom,
             HorizontalOffset = _window.MenuButton.ActualWidth - panel.DesiredSize.Width + 12,
             AllowsTransparency = true,
-            StaysOpen = false,
+            StaysOpen = true,
             PopupAnimation = PopupAnimation.Fade,
         };
         popup.Closed += (_, _) =>
         {
+            _quickClose.Stop();
             if (!_window.IsMouseOver)
                 _collapse.Start();
         };
         _quick = popup;
         popup.IsOpen = true;
+    }
+
+    void CloseQuickSettingsUnlessPointed()
+    {
+        _quickClose.Stop();
+        if (_quick is { IsOpen: true } popup && !_window.IsMouseOver && popup.Child?.IsMouseOver != true)
+            popup.IsOpen = false;
     }
 
     // ---- foreground: the desktop in front, a full-screen app ----
@@ -427,6 +465,9 @@ internal sealed unsafe class AgentsCard : IDisposable
     void CheckForeground()
     {
         nint foreground = GetForegroundWindow();
+        // A click on another app or on the desktop brought it to the front: the quick settings are done.
+        if (_quick is { IsOpen: true } && foreground != 0 && GetWindowProcessId(foreground) != (uint)Environment.ProcessId)
+            _quick.IsOpen = false;
         bool desktop = foreground != 0 && (ClassNameIs(foreground, "WorkerW") || ClassNameIs(foreground, "Progman"));
         int state = 0;
         bool fullScreen = SHQueryUserNotificationState(&state) == 0 && state is QUNS_BUSY or QUNS_RUNNING_D3D_FULL_SCREEN or QUNS_PRESENTATION_MODE;
@@ -494,6 +535,9 @@ internal sealed unsafe class AgentsCard : IDisposable
         }
     }
 
+    /// <summary>The card's window (the card demo checks which window is in front of it).</summary>
+    internal nint Handle => _hwnd;
+
     /// <summary>For the card demo's report: what is on screen, where, and with which window styles.</summary>
     public string Describe()
     {
@@ -505,8 +549,21 @@ internal sealed unsafe class AgentsCard : IDisposable
         long style = GetWindowLongPtr(_hwnd, GWL_EXSTYLE);
         bool inside = rect.Left >= work.Left && rect.Top >= work.Top && rect.Right <= work.Right && rect.Bottom <= work.Bottom;
         return $"{(_window.IsCollapsed ? "badge" : "open")}, window {rect} in work area {work} ({(inside ? "inside" : "OUTSIDE")}, {dpi} dpi), "
-            + $"anchor {_anchor}, topmost {_window.Topmost}, "
-            + $"tool window {(style & WS_EX_TOOLWINDOW) != 0}, no-activate {(style & WS_EX_NOACTIVATE) != 0}, click-through {(style & WS_EX_TRANSPARENT) != 0}";
+            + $"anchor {_anchor}, topmost {_window.Topmost} (WS_EX_TOPMOST {(style & 0x8) != 0}), "
+            + $"above the desktop {AboveDesktop()}, tool window {(style & WS_EX_TOOLWINDOW) != 0}, no-activate {(style & WS_EX_NOACTIVATE) != 0}, click-through {(style & WS_EX_TRANSPARENT) != 0}";
+    }
+
+    /// <summary>Whether the card comes before the desktop's window in the z-order, so the desktop does not hide it.</summary>
+    bool AboveDesktop()
+    {
+        for (nint window = GetTopWindow(0); window != 0; window = GetWindow(window, GW_HWNDNEXT))
+        {
+            if (window == _hwnd)
+                return true;
+            if (ClassNameIs(window, "Progman") || (ClassNameIs(window, "WorkerW") && IsWindowVisible(window)))
+                return false;
+        }
+        return false;
     }
 
     public void Dispose()
@@ -516,6 +573,7 @@ internal sealed unsafe class AgentsCard : IDisposable
         _hook = 0;
         s_instance = null;
         _collapse.Stop();
+        _quickClose.Stop();
         _refresh.Stop();
         _poll.Stop();
         _window.Close();

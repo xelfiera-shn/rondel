@@ -584,6 +584,20 @@ internal static class DevTools
         live.ApplyLook(PaletteFrom(options, dark));
         live.AgentClicked += id => Log.Info($"Card demo: agent {id} clicked");
         live.SettingsRequested += () => frame.Continue = false;
+        // The demo has no tray icon and no shortcut: a card the user hides comes back after two seconds, as the tray
+        // menu's "Show the agents card" would bring it back.
+        live.HiddenByUser += () =>
+        {
+            if (report is not null)
+                return;
+            var back = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            back.Tick += (_, _) =>
+            {
+                back.Stop();
+                live.ShowAgain();
+            };
+            back.Start();
+        };
         live.HideShortcut = "Ctrl+Alt+K";
         live.Update(agents, enabled: true);
 
@@ -594,14 +608,44 @@ internal static class DevTools
             {
                 action();
                 System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-                text.AppendLine($"{name}: {live.Describe()}");
+                text.AppendLine($"{name}: {live.Describe()}{(live.IsShown ? "; " + InFront() : "")}");
+            }
+            // A plain window over the card, activated: is the card still in front of it?
+            string InFront()
+            {
+                RECT rect;
+                unsafe
+                {
+                    Native.GetWindowRect(live.Handle, &rect);
+                }
+                var cover = new System.Windows.Window
+                {
+                    WindowStartupLocation = System.Windows.WindowStartupLocation.Manual,
+                    Left = rect.Left - 20,
+                    Top = rect.Top - 20,
+                    Width = rect.Width + 40,
+                    Height = rect.Height + 40,
+                    Title = "cover",
+                };
+                cover.Show();
+                cover.Activate();
+                System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                var center = new POINT(rect.Left + rect.Width / 2, rect.Top + rect.Height / 2);
+                bool card = Native.GetAncestor(Native.WindowFromPoint(center), Native.GA_ROOT) == live.Handle;
+                cover.Close();
+                return card ? "card in front of an active window" : "card behind an active window";
             }
             Step("collapsed", () => { });
             Step("pinned open", () => { card.Pinned = true; live.Update(agents, enabled: true); });
             Step("on the desktop", () => { card.Placement = CardPlacement.OnDesktop; live.Update(agents, enabled: true); });
+            Step("above other windows again", () => { card.Placement = CardPlacement.OnTop; live.Update(agents, enabled: true); });
+            Step("on the desktop again", () => { card.Placement = CardPlacement.OnDesktop; live.Update(agents, enabled: true); });
             Step("no agents", () => live.Update([], enabled: true));
             Step("shortcut, no agents", live.Toggle);
             Step("shortcut again", live.Toggle);
+            text.AppendLine($"tray item available: {live.CanShowAgain}");
+            Step("tray: show the agents card", live.ShowAgain);
+            text.AppendLine($"tray item available: {live.CanShowAgain}");
             Step("turned off", () => { card.Show = false; live.Update(agents, enabled: true); });
             Write(report, text.ToString());
             live.Dispose();

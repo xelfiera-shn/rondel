@@ -30,6 +30,17 @@ internal sealed partial class AppHost
 
     void UpdateCard() => _card?.Update(_activity.Agents, Store.Current.ActiveAgents.Follow);
 
+    /// <summary>
+    /// "Show the agents card" while the card is turned on: available when it is not on screen, so a card hidden
+    /// without a shortcut can come back.
+    /// </summary>
+    IEnumerable<TrayMenuItem> CardTrayItems(AppSettings settings)
+    {
+        if (_card is null || !settings.ActiveAgents.Follow || !settings.ActiveAgents.Card.Show)
+            yield break;
+        yield return new TrayMenuItem(Loc.Get("Tray.ShowCard"), _card.ShowAgain, Enabled: _card.CanShowAgain);
+    }
+
     void ApplyCard(AppSettings settings)
     {
         var card = settings.ActiveAgents.Card;

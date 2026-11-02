@@ -7,7 +7,7 @@ using static Rondel.Windows.Interop.Native;
 
 namespace Rondel.Windows.UI;
 
-internal sealed record TrayMenuItem(string Text, Action? Invoke, bool Checked = false, bool IsDefault = false)
+internal sealed record TrayMenuItem(string Text, Action? Invoke, bool Checked = false, bool IsDefault = false, bool Enabled = true)
 {
     public static readonly TrayMenuItem Separator = new("-", null);
 }
@@ -272,7 +272,7 @@ internal sealed unsafe class TrayHost : IDisposable
                     AppendMenuW(menu, MF_SEPARATOR, 0, null);
                     continue;
                 }
-                AppendMenuW(menu, MF_STRING | (item.Checked ? MF_CHECKED : 0), (nuint)(i + 1), item.Text);
+                AppendMenuW(menu, MF_STRING | (item.Checked ? MF_CHECKED : 0) | (item.Enabled ? 0 : MF_GRAYED), (nuint)(i + 1), item.Text);
                 if (item.IsDefault)
                     SetMenuDefaultItem(menu, (uint)(i + 1), 0);
             }
@@ -282,7 +282,7 @@ internal sealed unsafe class TrayHost : IDisposable
             uint align = GetSystemMetrics(SM_MENUDROPALIGNMENT) != 0 ? TPM_RIGHTALIGN : TPM_LEFTALIGN;
             int command = TrackPopupMenuEx(menu, align | TPM_BOTTOMALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD | TPM_NONOTIFY, x, y, Handle, 0);
             PostMessageW(Handle, WM_NULL, 0, 0);
-            if (command > 0 && command <= items.Count)
+            if (command > 0 && command <= items.Count && items[command - 1].Enabled)
                 items[command - 1].Invoke?.Invoke();
         }
         finally
