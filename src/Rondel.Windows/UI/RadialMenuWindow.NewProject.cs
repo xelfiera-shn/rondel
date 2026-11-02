@@ -121,7 +121,12 @@ public partial class RadialMenuWindow
     void RestoreTypingFocus()
     {
         if (_newProject is null)
+        {
+            // The Ask card: after a saved prompt is picked, typing goes on in the prompt box.
+            if (_input is not null && _savedPromptChips.Count > 0)
+                FocusOnCard(PromptBox);
             return;
+        }
         if (NameBox.Text.Length > 0 && PromptOn)
             FocusPrompt();
         else

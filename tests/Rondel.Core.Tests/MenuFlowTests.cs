@@ -6,6 +6,7 @@ using Rondel.Core.Localization;
 using Rondel.Core.Menus;
 using Rondel.Core.Platform;
 using Rondel.Core.Projects;
+using Rondel.Core.Prompts;
 using Rondel.Core.Sessions;
 using Rondel.Core.Settings;
 
@@ -162,6 +163,66 @@ public class MenuFlowTests
         Assert.Empty(FileSelection.Around(a, [b, sub], IsFile)); // the held file is not selected: it alone
         Assert.Empty(FileSelection.Around(a, [a, sub, elsewhere], IsFile)); // no other file beside it
         Assert.Equal([a], new TriggerContext(ContextKind.FileItem, folder, "a.cs", "test") { FilePath = a }.Files);
+    }
+
+    [Fact]
+    public void SavedPromptsArePinnedToTheAskSlicesAndListedOnTheirCard()
+    {
+        var root = Directory.CreateTempSubdirectory("rondel-tests-");
+        try
+        {
+            void Prompt(string file, string text) => File.WriteAllText(Path.Combine(root.FullName, file), text);
+            Prompt("Review.md", "\nReview the changes.\n\n");
+            Prompt("Explain.md", "Explain it.");
+            Prompt("Empty.md", "  \n");
+            Prompt("notes.txt", "not a prompt");
+            Prompt(".draft.md", "not yet");
+            var prompts = new SavedPrompts(root.FullName);
+            var flow = new MenuFlow(_host, _launcher, new RulesOnly(), () => _settings, prompts: prompts);
+            _settings.Prompts = new SavedPromptsOptions { Enabled = true, Pinned = ["review", "Gone", "Explain"] };
+            string folder = Path.Combine(Path.GetTempPath(), "work");
+            var context = new TriggerContext(ContextKind.FileItem, folder, "Program.cs", "test") { FilePath = Path.Combine(folder, "Program.cs") };
+            var model = flow.Build(context)!;
+
+            // Only the Ask slice opens into them: in the order pinned, named as their files are, without the missing one.
+            Assert.Equal(["ask-file"], model.Items.Where(MenuBuilder.OpensPrompts).Select(i => i.Action.Id));
+            Assert.True(MenuDetails.Needed(model));
+            var ask = model.Items.Single(i => i.Action.Id == "ask-file");
+            var arc = MenuDetails.Load(model, prompts: prompts).Children[model.Items.ToList().IndexOf(ask)];
+            Assert.Equal(["Review", "Explain"], arc.Select(i => i.Label));
+            Assert.Empty(MenuDetails.Load(model).Children[model.Items.ToList().IndexOf(ask)]); // a platform that offers none
+
+            // Picked on the arc: it starts right away, after the file it is about.
+            flow.Invoke(model, arc[0]);
+            var plan = Assert.Single(_launcher.Plans);
+            Assert.Equal(folder, plan.Directory);
+            Assert.Equal(["@Program.cs Review the changes."], plan.Arguments);
+            Assert.Equal(["close False"], _host.Calls);
+
+            // Its file went away meanwhile: nothing starts, and it says why.
+            File.Delete(Path.Combine(root.FullName, "Explain.md"));
+            flow.Invoke(model, arc[1]);
+            Assert.Single(_launcher.Plans);
+            Assert.StartsWith("warn ", _host.Calls[^1]);
+
+            // The Ask card lists every saved prompt; an empty one is listed but cannot be used.
+            flow.Invoke(model, ask);
+            var input = Assert.IsType<InputSpec>(_host.Input);
+            Assert.Equal(["Empty", "Review"], input.PromptNames);
+            Assert.Null(input.SavedPrompts!.Read("Empty"));
+
+            // Turned off: Ask is as it was.
+            _settings.Prompts.Enabled = false;
+            model = flow.Build(context)!;
+            Assert.DoesNotContain(model.Items, MenuBuilder.OpensPrompts);
+            flow.Invoke(model, model.Items.Single(i => i.Action.Id == "ask-file"));
+            Assert.Null(_host.Input!.SavedPrompts);
+            Assert.Empty(_host.Input.PromptNames);
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
     }
 
     [Fact]

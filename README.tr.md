@@ -67,6 +67,7 @@ macOS'ta da aynısıdır; Ctrl yerine ⌥ Option, Dosya Gezgini yerine Finder, v
 </p>
 
 - Sor dilimleri doğrudan prompt'a geçer (**Ctrl+Enter** ya da **⌘↩** başlatır, **Esc** vazgeçer).
+- **Hazır promptlar** (Ayarlar'dan açılır; şimdilik Windows'ta): `%APPDATA%\Rondel\Prompts` klasöründeki her `.md` dosyası, dosyanın adıyla bir prompttur. Ayarlar'da en fazla beşini iğnelerseniz Sor dilimleri onlara açılır; ilk iğnelenen dilimin hemen dışında durur. Birini seçince ajan o prompt'la hemen başlar, dosya menüsünde dosyadan sonra. Sor kartı hepsini kutunun üstünde listeler: birini seçin (**Tab** ile ulaşıp **Space** ile), kutuya yazılsın, isterseniz değiştirip başlatın.
 - Dilime tıklayın, **1–N** tuşlarına basın ya da **Tab** veya ok tuşlarıyla gezinip seçili dilimi **Enter** ile çalıştırın. **Boşluk** seçili dilimin ya da projenin öğelerini (en yeniden başlayarak) açar, **Esc** bir seviye geri çıkar ve en sonunda menüyü kapatır. macOS'ta şimdilik **Tab** öğelere geçmeye devam ediyor. Basılı tutmaya devam edip bir dilimin üzerine gelerek bırakmak da seçer.
 - Normal Ctrl+tık ve Ctrl+sürükle her yerde eskisi gibi çalışır (macOS'ta ⌥+tık ve ⌥+sürükle). Gezinti bölmesi, adres çubuğu, Bu Bilgisayar gibi sanal konumlar ve yönetici olarak çalışan Dosya Gezgini pencereleri menüyü açmaz.
 - İsteğe bağlı bir klavye kısayolu (Ayarlar) menüyü fare imlecinin olduğu yerde açar. Şimdilik yalnızca Windows'ta.
@@ -97,7 +98,7 @@ Ayarlar'daki **Güncellemeleri otomatik denetle** seçeneği günlük denetimi k
 
 ## Ayarlar ve özelleştirme
 
-Tray ikonu → **Ayarlar…**: dil (Otomatik / English / Türkçe), menünün görünümü, proje klasörü, basılı tutma süresi, klavye kısayolu, ajanın komutu (`claude` ya da `cc` gibi bir alias), terminal (Windows Terminal veya konsol penceresi), kabuk (PowerShell 7 veya Windows PowerShell), ajanların takibi ile bildirimleri, kısayolu ve kartı, güncelleme denetimi, Yeni Proje kartındaki seçenekler ve şablon klasörü.
+Tray ikonu → **Ayarlar…**: dil (Otomatik / English / Türkçe), menünün görünümü, proje klasörü, basılı tutma süresi, klavye kısayolu, ajanın komutu (`claude` ya da `cc` gibi bir alias), terminal (Windows Terminal veya konsol penceresi), kabuk (PowerShell 7 veya Windows PowerShell), ajanların takibi ile bildirimleri, kısayolu ve kartı, güncelleme denetimi, Yeni Proje kartındaki seçenekler, şablon klasörü ve hazır promptlar.
 
 macOS'ta menü çubuğu ikonu → **Ayarlar…** aynısını sunar; klavye kısayolu ve aktif ajanlar yoktur, terminal olarak Terminal ya da iTerm2 seçilir. Ajan giriş kabuğunuzda çalışır, bu yüzden `~/.zprofile` ve `~/.zshrc` içindeki `PATH` ve alias'lar geçerlidir. **İzinler** bölümü Erişilebilirlik ve Finder izinlerinin verilip verilmediğini gösterir; **Oturum açılınca başlat** Rondel'i giriş öğelerinize ekler.
 

@@ -46,7 +46,12 @@ public partial class SettingsWindow : Window
             _previews?.Dispose();
             _previews = null;
         };
-        Activated += (_, _) => RefreshAutostart();
+        // Prompts may have been added to their folder meanwhile.
+        Activated += (_, _) =>
+        {
+            RefreshAutostart();
+            LoadPrompts(Store.Current);
+        };
         LoadValues();
     }
 
@@ -99,6 +104,7 @@ public partial class SettingsWindow : Window
             AutostartBox.IsChecked = _host.Autostart.IsEnabled;
             CheckUpdatesBox.IsChecked = s.Updates.Check;
             LoadAppearance(s);
+            LoadPrompts(s);
             VersionText.Text = Loc.Format("Settings.Version", AppInfo.Version);
         }
         finally
