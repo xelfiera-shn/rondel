@@ -1,3 +1,5 @@
+using Rondel.Core.Prompts;
+
 namespace Rondel.Core.Flow;
 
 /// <summary>What the inline input card asks for and what happens with the answer.</summary>
@@ -15,4 +17,10 @@ public sealed record InputSpec(string Title, char Glyph, string ParentDir, strin
 
     /// <summary>Shown under the title when no name is asked for: the folder, or the file the prompt is about.</summary>
     public string? Location { get; init; }
+
+    /// <summary>Where the saved prompts the card offers are read from; null when saved prompts are turned off.</summary>
+    public SavedPrompts? SavedPrompts { get; init; }
+
+    /// <summary>The saved prompts the card offers; picking one fills the prompt box with it, to edit before starting.</summary>
+    public IReadOnlyList<string> PromptNames { get; init; } = [];
 }

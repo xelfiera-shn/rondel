@@ -75,6 +75,9 @@ public sealed class AppSettings
     /// <summary>Looking for newer releases.</summary>
     public UpdatesOptions Updates { get; set; } = new();
 
+    /// <summary>Saved prompts in the Ask slices: whether they are offered, and those pinned to the slices' arc.</summary>
+    public SavedPromptsOptions Prompts { get; set; } = new();
+
     /// <summary>Context name (DesktopEmpty, ExplorerEmpty, FolderItem, FileItem) → action ids, clockwise from the top.</summary>
     public Dictionary<string, List<string>> Menus { get; set; } = DefaultMenus();
 
@@ -134,6 +137,9 @@ public sealed class AppSettings
         Appearance.Normalize();
         NewProject.Templates = (NewProject.Templates ?? []).Where(t => !string.IsNullOrWhiteSpace(t))
             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        Prompts ??= new();
+        Prompts.Pinned = (Prompts.Pinned ?? []).Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase).Take(Rondel.Core.Prompts.SavedPrompts.MaxPinned).ToList();
 
         NormalizeAgents();
         NormalizeActions();

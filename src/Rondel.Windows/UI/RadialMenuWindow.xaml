@@ -173,6 +173,15 @@
                     <WrapPanel x:Name="TemplateChips" />
                     <TextBlock x:Name="NoTemplates" FontSize="11" TextWrapping="Wrap" Margin="1,0,0,4" Visibility="Collapsed" />
                 </StackPanel>
+                <!-- Ask with saved prompts turned on: the prompts that fill the box. -->
+                <StackPanel x:Name="SavedPromptsPanel" Margin="0,0,0,8" Visibility="Collapsed">
+                    <DockPanel Margin="1,0,0,6">
+                        <TextBlock x:Name="OpenPrompts" DockPanel.Dock="Right" FontSize="11" Cursor="Hand" />
+                        <TextBlock x:Name="SavedPromptsLabel" FontSize="11" />
+                    </DockPanel>
+                    <WrapPanel x:Name="SavedPromptChips" />
+                    <TextBlock x:Name="NoSavedPrompts" FontSize="11" TextWrapping="Wrap" Margin="1,0,0,0" Visibility="Collapsed" />
+                </StackPanel>
                 <TextBlock x:Name="PromptLabel" FontSize="11" Margin="1,6,0,6" Visibility="Collapsed" />
                 <TextBox x:Name="PromptBox" Style="{StaticResource InputBox}" Height="132" AcceptsReturn="True" AcceptsTab="False"
                          TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Visibility="Collapsed" />

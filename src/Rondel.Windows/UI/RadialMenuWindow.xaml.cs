@@ -177,7 +177,9 @@ public partial class RadialMenuWindow : Window
         NameBox.TextChanged += (_, _) => { if (_input is not null && !_promptStage) UpdateNameFeedback(); };
         NameBox.GotKeyboardFocus += (_, _) => { if (_newProject is not null) UpdateNewProjectHint(); };
         PromptBox.GotKeyboardFocus += (_, _) => { if (_newProject is not null) UpdateNewProjectHint(); };
+        PromptBox.TextChanged += (_, _) => OnPromptTextChanged();
         OpenTemplates.MouseLeftButtonUp += (_, _) => OnOpenTemplates();
+        OpenPrompts.MouseLeftButtonUp += (_, _) => OnOpenPrompts();
         InputCard.SizeChanged += (_, _) => FitInputCard();
     }
 
@@ -447,13 +449,15 @@ public partial class RadialMenuWindow : Window
     // ---- placement, focus, animation ----
 
     /// <summary>
-    /// The window is only as big as the deepest arc this menu can open (none, sessions, or recent projects and
-    /// their sessions): a per-pixel transparent window is copied whole for every frame, so size is speed.
+    /// The window is only as big as the deepest arc this menu can open (none, sessions or saved prompts, or recent
+    /// projects and their sessions): a per-pixel transparent window is copied whole for every frame, so size is speed.
     /// The stage keeps its full size and is centered in the window, so all geometry stays the same.
     /// </summary>
     double StageSizeFor(MenuModel model)
     {
-        int depth = model.Items.Any(MenuBuilder.ListsRecentProjects) ? 2 : model.Items.Any(MenuBuilder.CanExpand) ? 1 : 0;
+        int depth = model.Items.Any(MenuBuilder.ListsRecentProjects) ? 2
+            : model.Items.Any(item => MenuBuilder.CanExpand(item) || MenuBuilder.OpensPrompts(item)) ? 1
+            : 0;
         double reach = (depth == 0 ? OuterR : _bands[depth].EdgeR) + ArrowReach + ShadowPad;
         return Math.Min(2 * StageR, Math.Ceiling(2 * reach));
     }
@@ -961,6 +965,7 @@ public partial class RadialMenuWindow : Window
         PromptBox.Tag = Loc.Format("Input.PromptPlaceholder", spec.AgentName);
         NameBox.Text = "";
         PromptBox.Text = "";
+        SetUpSavedPrompts(spec);
 
         MenuRoot.IsHitTestVisible = false;
         InputCard.Visibility = Visibility.Visible;
@@ -984,6 +989,7 @@ public partial class RadialMenuWindow : Window
         _input = null;
         InputShift.X = InputShift.Y = 0;
         ResetNewProject();
+        ResetSavedPrompts();
         _promptStage = false;
         InputCard.BeginAnimation(OpacityProperty, null);
         InputCard.Visibility = Visibility.Collapsed;
@@ -1062,6 +1068,11 @@ public partial class RadialMenuWindow : Window
             return;
         }
         var input = _input!;
+        if (OnSavedPromptsKeyDown(e))
+        {
+            e.Handled = true;
+            return;
+        }
         if (e.Key == Key.Escape)
         {
             e.Handled = true;
@@ -1560,6 +1571,7 @@ public partial class RadialMenuWindow : Window
             box.SelectionBrush = _palette.Accent;
         }
         ApplyNewProjectPalette();
+        ApplySavedPromptsPalette();
     }
 
     static Point OnCircle(double radius, double degrees)

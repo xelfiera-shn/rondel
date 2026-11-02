@@ -124,6 +124,23 @@ public class SettingsTests
     }
 
     [Fact]
+    public void SavedPromptsAreOffUntilTurnedOnAndAtMostFiveArePinned()
+    {
+        var fresh = new AppSettings();
+        fresh.Normalize();
+        Assert.False(fresh.Prompts.Enabled);
+        Assert.Empty(fresh.Prompts.Pinned);
+
+        var saved = SettingsJson.Deserialize("""
+            { "Prompts": { "Enabled": true, "Pinned": [" Review ", "review", "", "Tests", "Explain", "Docs", "Fix", "Sixth"] } }
+            """)!;
+        saved.Normalize();
+        var prompts = SettingsJson.Deserialize(SettingsJson.Serialize(saved))!.Prompts; // as after a restart
+        Assert.True(prompts.Enabled);
+        Assert.Equal(["Review", "Tests", "Explain", "Docs", "Fix"], prompts.Pinned);
+    }
+
+    [Fact]
     public void ProjectsRootExpandsTheHomeFolder()
     {
         string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

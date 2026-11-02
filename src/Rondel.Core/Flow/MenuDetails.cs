@@ -1,13 +1,14 @@
 using Rondel.Core.Activity;
 using Rondel.Core.Menus;
+using Rondel.Core.Prompts;
 using Rondel.Core.Sessions;
 
 namespace Rondel.Core.Flow;
 
 /// <summary>
 /// What the session stores add to a menu: the hint under each item and the items each one opens into
-/// (a Resume slice's sessions, Recent Projects' folders and their sessions). Looked up after the menu is
-/// shown and filled in when it arrives, so it never delays the menu.
+/// (a Resume slice's sessions, Recent Projects' folders and their sessions, an Ask slice's saved prompts). Looked up
+/// after the menu is shown and filled in when it arrives, so it never delays the menu.
 /// </summary>
 /// <param name="Hints">One per menu item, in order.</param>
 /// <param name="Children">One per menu item, in order; empty for an item that does not open further.</param>
@@ -18,13 +19,19 @@ public sealed record MenuDetails(IReadOnlyList<(string? Hint, bool Dimmed)> Hint
 
     /// <summary>Whether any item of the menu has something to look up; if not, <see cref="Load"/> can be skipped.</summary>
     public static bool Needed(MenuModel model) =>
-        model.Items.Any(item => MenuBuilder.ListsActiveAgents(item) || (UsesSessions(item) && SessionStores.Get(item.Agent.Sessions) is not null));
+        model.Items.Any(item => MenuBuilder.ListsActiveAgents(item) || MenuBuilder.OpensPrompts(item)
+            || (UsesSessions(item) && SessionStores.Get(item.Agent.Sessions) is not null));
 
     /// <summary>Reads the session stores, one pass per store. Blocking file I/O: call it off the UI thread.</summary>
     /// <param name="agents">The agents Rondel follows (<see cref="AgentActivity.Agents"/>), for Active Agents slices.</param>
-    public static MenuDetails Load(MenuModel model, IReadOnlyList<ActiveAgent>? agents = null)
+    /// <param name="prompts">Where the saved prompts pinned to the Ask slices are; null: the Ask slices open into nothing.</param>
+    public static MenuDetails Load(MenuModel model, IReadOnlyList<ActiveAgent>? agents = null, SavedPrompts? prompts = null)
     {
         agents ??= [];
+        // Every Ask slice has the same pins; their files are looked up once.
+        IReadOnlyList<string> pinned = prompts is not null && model.Items.FirstOrDefault(MenuBuilder.OpensPrompts) is { } asks
+            ? prompts.Existing(asks.PinnedPrompts)
+            : [];
         string? directory = model.Context.TargetDir;
         var byStore = model.Items
             .Where(UsesSessions)
@@ -44,6 +51,7 @@ public sealed record MenuDetails(IReadOnlyList<(string? Hint, bool Dimmed)> Hint
             .ToList();
         var children = model.Items
             .Select(item => MenuBuilder.ListsActiveAgents(item) ? MenuBuilder.AgentItems(item, agents)
+                : MenuBuilder.OpensPrompts(item) ? MenuBuilder.PromptItems(item, pinned)
                 : DetailsFor(item) is not { } details ? []
                 : MenuBuilder.CanExpand(item) ? MenuBuilder.SessionItems(item, details.Recent)
                 : MenuBuilder.ListsRecentProjects(item) ? MenuBuilder.ProjectItems(item, details.Folders,

@@ -9,6 +9,7 @@ using Rondel.Core.Localization;
 using Rondel.Core.Logging;
 using Rondel.Core.Menus;
 using Rondel.Core.Platform;
+using Rondel.Core.Prompts;
 using Rondel.Core.Settings;
 using Rondel.Core.Updates;
 using Rondel.Windows.Detection;
@@ -53,8 +54,10 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         // Developer aids work on a copy of the settings and leave the real agents' windows alone.
         _agentWindows = new AgentWindows(settingsDirectory is null ? AgentWindowsFile : null);
         _hooks = new HookServer(_activity);
+        // Developer aids read the saved prompts next to their copy of the settings.
+        Prompts = settingsDirectory is null ? SavedPrompts.Default : new SavedPrompts(Path.Combine(settingsDirectory, "Prompts"));
         _flow = new MenuFlow(this, new WindowsTerminalLauncher(_agentWindows), new FolderNameValidator(), () => Store.Current,
-            change => Store.Update(change), activity: _activity);
+            change => Store.Update(change), activity: _activity, prompts: Prompts);
         // Developer aids keep the update checks' state with their copy of the settings.
         string updateState = settingsDirectory is null ? Path.Combine(UpdatesDirectory, "state.json") : Path.Combine(settingsDirectory, "update-state.json");
         // A release that changes only the macOS app is not announced here.
@@ -63,6 +66,9 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
     }
 
     public SettingsStore Store { get; }
+
+    /// <summary>The saved prompts the Ask slices offer.</summary>
+    public SavedPrompts Prompts { get; }
 
     public IAutostart Autostart { get; } = new Autostart();
 
@@ -242,13 +248,16 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         }
     }
 
-    /// <summary>Session hints, a Resume slice's sessions, the recent projects and the active agents are filled in when they arrive.</summary>
+    /// <summary>
+    /// Session hints, a Resume slice's sessions, the recent projects, the active agents and the saved prompts pinned to the
+    /// Ask slices are filled in when they arrive.
+    /// </summary>
     void RequestDetails(MenuModel model)
     {
         if (!MenuDetails.Needed(model))
             return;
         var agents = _activity.Agents;
-        Task.Run(() => MenuDetails.Load(model, agents))
+        Task.Run(() => MenuDetails.Load(model, agents, Prompts))
             .ContinueWith(
                 lookup => _ui.BeginInvoke(() =>
                 {
@@ -339,6 +348,20 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
             Log.Warn($"Creating the templates folder '{directory}' failed", ex);
         }
         ShellOpen(directory);
+    }
+
+    /// <summary>Opens the folder of the saved prompts, creating it the first time.</summary>
+    public void OpenPromptsFolder()
+    {
+        try
+        {
+            Directory.CreateDirectory(Prompts.Directory);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Warn($"Creating the prompts folder '{Prompts.Directory}' failed", ex);
+        }
+        ShellOpen(Prompts.Directory);
     }
 
     public void OpenSettingsFile()
