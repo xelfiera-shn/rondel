@@ -2,6 +2,12 @@
 
 Every version of Rondel, newest first. Until 1.0 only the two newest [releases](https://github.com/xelfiera-shn/rondel/releases) are kept for download; the notes of all versions are here.
 
+## 0.9.0 (2026-11-02)
+
+### Features
+
+- **windows:** Keep the active agents in sight on a card (#58)
+
 ## 0.8.0 (2026-11-01)
 
 ### Features
