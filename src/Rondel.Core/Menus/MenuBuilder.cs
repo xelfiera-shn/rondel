@@ -64,6 +64,17 @@ public static class MenuBuilder
     public static bool ListsActiveAgents(MenuItemModel item) => item.Action.Source == ActionSource.ActiveAgents;
 
     /// <summary>
+    /// Whether running the item does something (Enter): the Recent Projects and Active Agents slices only hold their
+    /// items, while a project in them continues it and an agent comes to the front.
+    /// </summary>
+    public static bool RunsItself(MenuItemModel item) => item.Action.Source switch
+    {
+        ActionSource.RecentProjects => item.Directory is not null,
+        ActionSource.ActiveAgents => item.ActivityId is not null,
+        _ => true,
+    };
+
+    /// <summary>
     /// The items an Active Agents slice opens into, in <paramref name="agents"/>' order (those waiting for the user
     /// first): the project's name, and under it what the agent is doing and since when.
     /// </summary>

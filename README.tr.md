@@ -67,7 +67,7 @@ macOS'ta da aynısıdır; Ctrl yerine ⌥ Option, Dosya Gezgini yerine Finder, v
 </p>
 
 - Sor dilimleri doğrudan prompt'a geçer (**Ctrl+Enter** ya da **⌘↩** başlatır, **Esc** vazgeçer).
-- Dilime tıklayın, **1–N** tuşlarına basın ya da ok tuşları ve **Enter** kullanın; **Tab** seçili dilimin ya da projenin öğelerine (en yeniden başlayarak) geçer, **Esc** bir seviye geri çıkar ve en sonunda menüyü kapatır. Basılı tutmaya devam edip bir dilimin üzerine gelerek bırakmak da seçer.
+- Dilime tıklayın, **1–N** tuşlarına basın ya da **Tab** veya ok tuşlarıyla gezinip seçili dilimi **Enter** ile çalıştırın. **Boşluk** seçili dilimin ya da projenin öğelerini (en yeniden başlayarak) açar, **Esc** bir seviye geri çıkar ve en sonunda menüyü kapatır. macOS'ta şimdilik **Tab** öğelere geçmeye devam ediyor. Basılı tutmaya devam edip bir dilimin üzerine gelerek bırakmak da seçer.
 - Normal Ctrl+tık ve Ctrl+sürükle her yerde eskisi gibi çalışır (macOS'ta ⌥+tık ve ⌥+sürükle). Gezinti bölmesi, adres çubuğu, Bu Bilgisayar gibi sanal konumlar ve yönetici olarak çalışan Dosya Gezgini pencereleri menüyü açmaz.
 - İsteğe bağlı bir klavye kısayolu (Ayarlar) menüyü fare imlecinin olduğu yerde açar. Şimdilik yalnızca Windows'ta.
 

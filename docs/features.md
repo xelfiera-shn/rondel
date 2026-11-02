@@ -20,7 +20,7 @@ Which features Rondel has on Windows and on macOS, and since which version. Down
 | Hold the modifier and the left mouse button to open the menu; ordinary clicks and drags keep working | ✅ 0.1.0 | ✅ 0.8.0 |
 | A menu for each place: the desktop, a folder window, a folder, a file | ✅ 0.3.0 | ✅ 0.8.0 |
 | Session hints on the slices: when the last session was, how many there are | ✅ 0.1.0 | ✅ 0.8.0 |
-| Keyboard in the menu: digits, arrows, Enter, Tab, Esc | ✅ 0.1.0 | ✅ 0.8.0 |
+| Keyboard in the menu: digits, arrows, Tab, Space, Enter, Esc | ✅ 0.1.0 | ✅ 0.8.0 |
 | Long project names fit their tiles | ✅ 0.3.0 | ✅ 0.8.0 |
 | Five themes, dark and light, accent colors | ✅ 0.5.0 | ✅ 0.8.0 |
 | A keyboard shortcut that opens the menu at the mouse cursor | ✅ 0.1.0 | ⬜ |

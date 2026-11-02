@@ -20,7 +20,7 @@ Rondel'in Windows'ta ve macOS'ta hangi özelliklere sahip olduğu ve her birinin
 | Değiştirici tuş ve sol fare tuşu basılı tutulunca menü açılır; normal tıklama ve sürüklemeler eskisi gibi çalışır | ✅ 0.1.0 | ✅ 0.8.0 |
 | Her yer için ayrı menü: masaüstü, klasör penceresi, klasör, dosya | ✅ 0.3.0 | ✅ 0.8.0 |
 | Dilimlerde oturum ipuçları: son oturumun ne zaman olduğu, kaç oturum bulunduğu | ✅ 0.1.0 | ✅ 0.8.0 |
-| Menüde klavye: rakamlar, oklar, Enter, Tab, Esc | ✅ 0.1.0 | ✅ 0.8.0 |
+| Menüde klavye: rakamlar, oklar, Tab, Boşluk, Enter, Esc | ✅ 0.1.0 | ✅ 0.8.0 |
 | Uzun proje adları dilimlerine sığar | ✅ 0.3.0 | ✅ 0.8.0 |
 | Beş tema, koyu ve açık mod, vurgu renkleri | ✅ 0.5.0 | ✅ 0.8.0 |
 | Menüyü fare imlecinin olduğu yerde açan klavye kısayolu | ✅ 0.1.0 | ⬜ |
