@@ -2,6 +2,17 @@
 
 Every version of Rondel, newest first. Until 1.0 only the two newest [releases](https://github.com/xelfiera-shn/rondel/releases) are kept for download; the notes of all versions are here.
 
+## 0.10.0 (2026-11-02)
+
+### Features
+
+- **windows:** Ask about several selected files (#62)
+- **windows:** Pick the custom accent colors with a color picker (#63)
+
+### Bug fixes
+
+- **windows:** Give each menu key one job (#61)
+
 ## 0.9.0 (2026-11-02)
 
 ### Features
