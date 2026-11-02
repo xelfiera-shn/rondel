@@ -35,6 +35,7 @@ Which features Rondel has on Windows and on macOS, and since which version. Down
 | **Recent Projects** on the desktop, opening into the projects and their sessions | ✅ 0.2.0 | ✅ 0.8.0 |
 | **Ask**, **Ask Here** and **Ask About This File** | ✅ 0.3.0 | ✅ 0.8.0 |
 | **Ask About These Files**: several selected files in one prompt | ✅ 0.10.0 | ⬜ |
+| Saved prompts: up to five on an arc of the Ask slices, all of them on the Ask card | ✅ 0.11.0 | ⬜ |
 | **New Project** card: a first prompt, `git init`, plan mode and templates | ✅ 0.4.0 | ✅ 0.8.0 |
 | Choice of terminal | ✅ 0.1.0: Windows Terminal or a console window | ✅ 0.8.0: Terminal or iTerm2 |
 | Choice of shell | ✅ 0.1.0: PowerShell 7 or Windows PowerShell | — the agent runs in your login shell, with your `PATH` and aliases |
@@ -59,6 +60,7 @@ Which features Rondel has on Windows and on macOS, and since which version. Down
 | English and Turkish | ✅ 0.1.0 | ✅ 0.8.0 |
 | Updates from within the app, verified with Rondel's release key | ✅ 0.7.0 | ⬜ download the new zip from the release page |
 | Diagnostics: debug logging and `--probe` | ✅ 0.1.0 | ✅ 0.8.0 |
+| A welcome window at the first start that shows how the menu opens, again from the tray menu | ✅ 0.11.0 | ⬜ |
 
 ## Planned
 
@@ -67,6 +69,5 @@ On neither platform yet; see the [roadmap](roadmap.md).
 | Feature | Windows | macOS |
 |---|---|---|
 | A modifier key for another mode, for example Shift for plan mode | ⬜ | ⬜ |
-| A first-run hint that shows the gesture | ⬜ | ⬜ |
 
 The ARM64 Windows build and the Intel Mac build are released, but neither has been tried on such a computer yet. If you use one, please [report](https://github.com/xelfiera-shn/rondel/issues/new/choose) how it goes.

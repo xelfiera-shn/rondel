@@ -26,6 +26,12 @@ public sealed record MenuItemModel(ActionDefinition Action, AgentProfile Agent, 
 
     /// <summary>For a followed agent: its id, to bring its terminal to the front.</summary>
     public string? ActivityId { get; init; }
+
+    /// <summary>For an Ask slice: the saved prompts pinned to its arc (from the settings; their files are looked up later).</summary>
+    public IReadOnlyList<string> PinnedPrompts { get; init; } = [];
+
+    /// <summary>For an item on an Ask slice's arc: the saved prompt it starts the agent with.</summary>
+    public string? SavedPrompt { get; init; }
 }
 
 public sealed record MenuModel(TriggerContext Context, string Title, string? Subtitle, IReadOnlyList<MenuItemModel> Items);
@@ -62,6 +68,33 @@ public static class MenuBuilder
 
     /// <summary>An Active Agents slice: it opens into the agents Rondel follows.</summary>
     public static bool ListsActiveAgents(MenuItemModel item) => item.Action.Source == ActionSource.ActiveAgents;
+
+    /// <summary>An Ask slice with saved prompts pinned to it: it opens into those whose files are there.</summary>
+    public static bool OpensPrompts(MenuItemModel item) => item.PinnedPrompts.Count > 0;
+
+    /// <summary>
+    /// The items an Ask slice opens into: one per saved prompt, in the order they were pinned. Choosing one starts the
+    /// agent with that prompt right away, after the file mentions when the slice has them.
+    /// </summary>
+    public static IReadOnlyList<MenuItemModel> PromptItems(MenuItemModel parent, IReadOnlyList<string> prompts) =>
+        prompts.Select(name => new MenuItemModel(
+            new ActionDefinition
+            {
+                Id = $"{parent.Action.Id}:{name}",
+                Label = name,
+                Icon = parent.Action.Icon,
+                Capability = AgentCapability.Prompt,
+                Agent = parent.Agent.Id,
+                ExtraArgs = parent.Action.ExtraArgs,
+                MentionFile = parent.Action.MentionFile,
+            },
+            parent.Agent,
+            name,
+            parent.Glyph,
+            null,
+            false)
+        { SavedPrompt = name })
+        .ToList();
 
     /// <summary>
     /// Whether running the item does something (Enter): the Recent Projects and Active Agents slices only hold their
@@ -181,6 +214,7 @@ public static class MenuBuilder
     public static MenuModel Build(TriggerContext context, AppSettings settings)
     {
         var items = new List<MenuItemModel>();
+        IReadOnlyList<string> pinned = settings.Prompts.Enabled ? settings.Prompts.Pinned : [];
         if (settings.Menus.TryGetValue(context.Kind.ToString(), out var ids))
         {
             foreach (string id in ids)
@@ -192,7 +226,12 @@ public static class MenuBuilder
                 if (action.MentionFile && (context.FilePath is null || string.IsNullOrEmpty(agent.FileMention)))
                     continue;
                 if (agent.Supports(action.Capability))
-                    items.Add(new MenuItemModel(action, agent, LabelOf(action, context), action.Glyph, null, false));
+                {
+                    items.Add(new MenuItemModel(action, agent, LabelOf(action, context), action.Glyph, null, false)
+                    {
+                        PinnedPrompts = action.Input == ActionInput.Prompt && action.Source == ActionSource.Context ? pinned : [],
+                    });
+                }
             }
         }
 

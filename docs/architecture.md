@@ -102,6 +102,8 @@ Menu actions refer to a **capability**, not to a command line. An action uses th
 
 An action may ask for input first (`Input`): a new folder's name (`FolderName`), a name and then a prompt (`FolderNameAndPrompt`), only a prompt for the menu's folder (`Prompt`, the Ask slices), or the New Project card (`NewProject`). An action with `MentionFile` starts its prompt with the file the menu was opened on, in the agent's `FileMention` syntax; the agent starts in the file's folder, so `{file}` is the file's name, in double quotes unless it consists only of letters, digits and `._-()` (Claude Code reads `@"My Notes.md"` as one path). Such an action is hidden where there is no file or the agent has no `FileMention`.
 
+**Saved prompts** come from `SavedPrompts`: every `.md` file in the prompts folder is one, named after its file and sent as written (a file over 64 KB is not read). With `Prompts.Enabled`, `MenuBuilder` gives the slices of `Prompt` actions the pinned names (`MenuItemModel.PinnedPrompts`); `MenuDetails.Load` looks their files up off the UI thread and opens the slice into those still there, in the order they were pinned (items with `SavedPrompt`), which start the agent at once, the file mentions first. The Ask card's `InputSpec` carries the folder and every prompt's name; picking one fills the box. A platform that passes no `SavedPrompts` to `MenuDetails.Load` (macOS, for now) shows no arc.
+
 ### New projects
 
 The New Project card asks for the folder name and how the project starts; the options combine:
@@ -154,6 +156,7 @@ Shape of version 5 (abridged):
   "Appearance": { "Theme": "orbit", "Mode": "Auto", "AccentFrom": "#22D3EE", "AccentTo": "#3B82F6" },  // no accent: the theme's own
   "ActiveAgents": { "Follow": true, "NotifyAsks": true, "NotifyFinished": true, "Hotkey": "Ctrl+Alt+A" },
   "Updates": { "Check": true },              // the daily check; "Check now" works either way
+  "Prompts": { "Enabled": true, "Pinned": ["Review my changes", "Write tests"] },  // saved prompts on the Ask slices' arc
   "Actions": [
     { "Id": "continue", "Label": "@Action.Continue", "Icon": "E768", "Capability": "Continue", "Hint": "LastSession" },
     { "Id": "plan", "Label": "Plan", "Icon": "E8FD", "Capability": "Open", "ExtraArgs": ["--permission-mode", "plan"] },
@@ -223,13 +226,15 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 | `--launch-now FOLDER COMMAND prompt.txt` | Launches like the menu does, with COMMAND instead of the configured one. |
 | `--export-icon out.ico` | Writes the application icon. |
 | `--show-menu [input [text]]` | Starts normally and opens the menu at the cursor without the gesture; `input` continues into the New + Prompt card. |
-| `--render-menu out.png [dark\|light] [en\|tr] [desktop\|item] [idle] [deep] [edge] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]] [hover=N] [agents] [FOLDER\|FILE...]` | Draws the Explorer menu for a folder (the desktop menu with `desktop`, the folder's own menu with `item`, a file's menu when given a file, held in a selection of them when given several) with its real session hints and recent sessions into a PNG, the first expandable slice opened unless `idle`; `edge` places the menu against the left edge of the screen, `transparent` leaves out the background; `theme`/`accent` pick a theme and accent, `hover=N` only highlights slice N, `agents` opens the Active Agents slice into made-up agents in every state. |
-| `--render-settings out.png [en\|tr] [bottom\|scroll=DIP] [picker]` | Draws the settings window (current Windows theme) into a PNG, scrolled to the end or by DIP; `picker` sets a custom accent and draws its color picker open. It works on a copy of settings.json: a running Rondel, and the real file, are not touched. |
+| `--render-menu out.png [dark\|light] [en\|tr] [desktop\|item] [idle] [deep] [edge] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]] [hover=N] [agents] [prompts] [FOLDER\|FILE...]` | Draws the Explorer menu for a folder (the desktop menu with `desktop`, the folder's own menu with `item`, a file's menu when given a file, held in a selection of them when given several) with its real session hints and recent sessions into a PNG, the first expandable slice opened unless `idle`; `edge` places the menu against the left edge of the screen, `transparent` leaves out the background; `theme`/`accent` pick a theme and accent, `hover=N` only highlights slice N, `agents` opens the Active Agents slice into made-up agents in every state, `prompts` pins made-up saved prompts to the Ask slices. |
+| `--render-settings out.png [en\|tr] [bottom\|scroll=DIP] [picker] [prompts]` | Draws the settings window (current Windows theme) into a PNG, scrolled to the end or by DIP; `picker` sets a custom accent and draws its color picker open; `prompts` turns saved prompts on with made-up ones, scrolled to them. It works on a copy of settings.json: a running Rondel, and the real file, are not touched. |
 | `--render-card out.png [dark\|light] [en\|tr] [open] [theme=ID] [accent=…]` | Draws the agents card with made-up agents: open, collapsed, its quick settings and empty side by side, or with `open` the open card alone (the README's picture). |
 | `--card-demo [dark\|light] [en\|tr] [desktop] [report.txt]` | The live agents card with made-up agents, its options in memory and its place in a temporary file, so the real settings are left alone; Settings… on the card ends it. With `report.txt` it runs a short script (collapsed, pinned open, on the desktop, no agents, its shortcut) and writes the window's state at each step. |
 | `--render-notice-icons out.png` | Draws the icons of the notifications about agents and updates at 32, 48 and 64 px, on a dark and a light notification. |
+| `--render-welcome out.png [dark\|light] [en\|tr] [stage] [t=SECONDS] [frames=N]` | Draws the welcome window at one moment of its picture (by default the still one shown when Windows' animations are off), with `stage` the picture alone, and with `frames=N` N moments over one loop (`out-000.png`, …). The README's `gesture-*.gif` are 72 such frames of `stage`, at three quarters of their size, with one palette for all frames and 100 ms each. |
 | `--render-update out.png [dark\|light] [en\|tr] [working\|failed]` | Draws the update window for a made-up release: the offer, the download under way (`working`) or a failed download (`failed`). |
 | `--render-new out.png [dark\|light] [en\|tr] [prompt] [empty] [transparent] [theme=ID] [accent=…]` | Draws the New Project card with made-up templates (`prompt`: with Prompt on; `empty`: without templates). |
+| `--render-ask out.png [dark\|light] [en\|tr] [empty] [picked] [transparent] [theme=ID] [accent=…]` | Draws the Ask card with made-up saved prompts (`empty`: none in the folder; `picked`: one of them picked into the box). |
 
 ## Fixed identifiers
 
@@ -238,6 +243,7 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 | Settings folder | `%APPDATA%\Rondel` (macOS: `~/Library/Application Support/Rondel`) |
 | Log folder | `%LOCALAPPDATA%\Rondel\logs` (macOS: `~/Library/Logs/Rondel`) |
 | Templates folder | `Templates` in the settings folder |
+| Saved prompts folder | `Prompts` in the settings folder |
 | Single-instance mutex | `Local\Rondel.SingleInstance` (a second start opens Settings in the running instance) |
 | Activation event | `Local\Rondel.Activate` |
 | Start with Windows | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, value `Rondel` |

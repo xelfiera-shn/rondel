@@ -8,6 +8,7 @@ using Rondel.Core.Logging;
 using Rondel.Core.Menus;
 using Rondel.Core.Platform;
 using Rondel.Core.Projects;
+using Rondel.Core.Prompts;
 using Rondel.Core.Settings;
 
 namespace Rondel.Core.Flow;
@@ -22,10 +23,13 @@ namespace Rondel.Core.Flow;
 /// <param name="updateSettings">Changes and saves the settings (the New Project card's last choice).</param>
 /// <param name="templates">Where new projects' templates come from; <see cref="ProjectTemplates.Default"/> when null.</param>
 /// <param name="activity">Follows the agents this flow starts, when the platform listens for their hooks; null: none is followed.</param>
+/// <param name="prompts">Where the saved prompts come from; <see cref="SavedPrompts.Default"/> when null.</param>
 public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolderNameValidator folderNames, Func<AppSettings> settings,
-    Action<Action<AppSettings>>? updateSettings = null, ProjectTemplates? templates = null, AgentActivity? activity = null)
+    Action<Action<AppSettings>>? updateSettings = null, ProjectTemplates? templates = null, AgentActivity? activity = null,
+    SavedPrompts? prompts = null)
 {
     readonly ProjectTemplates _templates = templates ?? ProjectTemplates.Default;
+    readonly SavedPrompts _prompts = prompts ?? SavedPrompts.Default;
 
     /// <returns>The menu for <paramref name="context"/>, or null when no action is configured for it.</returns>
     public MenuModel? Build(TriggerContext context)
@@ -87,6 +91,20 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
             return;
         }
 
+        if (item.SavedPrompt is { } saved)
+        {
+            // A saved prompt on an Ask slice's arc starts right away; the files it is about come first, as typed ones do.
+            host.CloseMenu(restoreFocus: false);
+            if (_prompts.Read(saved) is not { } text)
+            {
+                Log.Warn($"Saved prompt '{saved}' in '{_prompts.Directory}' is missing, empty or too large");
+                host.ShowWarning(Loc.Format("Prompts.Unusable", saved, SavedPrompts.MaxBytes / 1024));
+                return;
+            }
+            Start(item.Agent, action, directory, WithMentions(item.Agent, action.MentionFile ? model.Context.Files : [], text));
+            return;
+        }
+
         if (action.Input == ActionInput.None)
         {
             host.CloseMenu(restoreFocus: false);
@@ -118,6 +136,8 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
                     1 => files[0],
                     _ => $"{directory} · {string.Join(", ", files.Select(Path.GetFileName))}",
                 },
+                SavedPrompts = settings().Prompts.Enabled ? _prompts : null,
+                PromptNames = settings().Prompts.Enabled ? _prompts.List() : [],
             });
             return;
         }

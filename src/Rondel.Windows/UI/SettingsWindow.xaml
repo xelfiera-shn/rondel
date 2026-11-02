@@ -461,6 +461,36 @@
                     </Grid>
                 </Border>
 
+                <!-- Saved prompts -->
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{l:Loc Settings.Prompts}" />
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <CheckBox x:Name="PromptsBox" Content="{l:Loc Settings.Prompts.Use}" Click="OnPromptsClicked" />
+                        <TextBlock Style="{StaticResource Description}" Margin="28,2,0,0" Text="{l:Loc Settings.Prompts.Use.Desc}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel x:Name="PromptsPanel">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                                <TextBlock Text="{l:Loc Settings.Prompts.List}" />
+                                <TextBlock x:Name="PromptsDesc" Style="{StaticResource Description}" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Padding="12,5" VerticalAlignment="Center" Content="{l:Loc Prompts.Open}" Click="OnOpenPrompts" />
+                        </Grid>
+                        <!-- One row per prompt, A to Z; a pinned one shows its place on the arc. -->
+                        <StackPanel x:Name="PromptRows" Margin="0,10,0,0" />
+                        <TextBlock x:Name="PinnedCount" Style="{StaticResource Description}" Margin="0,8,0,0" />
+                        <TextBlock x:Name="NoPrompts" Style="{StaticResource Description}" Margin="0,10,0,0" Text="{l:Loc Settings.Prompts.None}" />
+                    </StackPanel>
+                </Border>
+
                 <!-- System -->
                 <TextBlock Style="{StaticResource SectionHeader}" Text="{l:Loc Settings.System}" />
 

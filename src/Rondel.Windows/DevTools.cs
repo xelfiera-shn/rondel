@@ -11,6 +11,7 @@ using Rondel.Core.Launch;
 using Rondel.Core.Localization;
 using Rondel.Core.Logging;
 using Rondel.Core.Menus;
+using Rondel.Core.Prompts;
 using Rondel.Core.Sessions;
 using Rondel.Core.Settings;
 using Rondel.Windows.Detection;
@@ -32,12 +33,19 @@ namespace Rondel.Windows;
 /// --render-notice-icons out.png              the icons of notifications about agents, dark and light
 ///    (--render-menu … agents: made-up followed agents, with the Active Agents slice open)
 /// --render-menu out.png [dark|light] [en|tr] [desktop|item] [idle] [deep] [edge] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]
-///              [hover=N] [FOLDER|FILE...]              draw the Explorer menu
+///              [hover=N] [prompts] [FOLDER|FILE...]    draw the Explorer menu
 ///                                            for FOLDER (default: current folder), its folder-icon menu with "item", or the menu of FILE
-///                                            (several FILEs: held in a selection of them)
-/// --render-settings out.png [en|tr] [bottom|scroll=DIP] [picker]   draw the settings window (in the current Windows theme),
-///                                            scrolled down; picker: with a custom accent and its color picker open
+///                                            (several FILEs: held in a selection of them); prompts: made-up saved prompts pinned
+/// --render-settings out.png [en|tr] [bottom|scroll=DIP] [picker] [prompts]   draw the settings window (in the current Windows
+///                                            theme), scrolled down; picker: with a custom accent and its color picker open;
+///                                            prompts: with made-up saved prompts, scrolled to them
+/// --render-ask out.png [dark|light] [en|tr] [empty] [picked] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]
+///                                            draw the Ask card with made-up saved prompts (empty: none in the folder;
+///                                            picked: one of them picked)
 /// --render-update out.png [dark|light] [en|tr] [working|failed]   draw the update window for a made-up release
+/// --render-welcome out.png [dark|light] [en|tr] [stage] [t=SECONDS] [frames=N]   draw the welcome window at a moment
+///                                            of its picture (the still one by default); stage: the picture alone;
+///                                            frames=N: N moments over one loop, as out-000.png, out-001.png, …
 /// --render-card out.png [dark|light] [en|tr] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]   draw the agents card with made-up
 ///                                            agents: open, collapsed, its quick settings and with no agent
 /// --card-demo [dark|light] [en|tr] [desktop] [report.txt]   the live agents card with made-up agents, its options in
@@ -92,12 +100,20 @@ internal static class DevTools
                 RenderNewProject(output, options);
                 return true;
 
+            case ["--render-ask", var output, .. var options]:
+                RenderAsk(output, options);
+                return true;
+
             case ["--render-notice-icons", var output]:
                 RenderNoticeIcons(output);
                 return true;
 
             case ["--render-update", var output, .. var options]:
                 RenderUpdate(output, options);
+                return true;
+
+            case ["--render-welcome", var output, .. var options]:
+                RenderWelcome(output, options);
                 return true;
 
             case ["--render-card", var output, .. var options]:
@@ -287,10 +303,14 @@ internal static class DevTools
                 SelectedFiles = paths.Length > 1 ? paths : [],
             }
             : new TriggerContext(kind, target, Path.GetFileName(target), "render-menu");
+        // "prompts": made-up saved prompts, three of them pinned to the Ask slices.
+        using var prompts = options.Contains("prompts", StringComparer.OrdinalIgnoreCase) ? new MadeUpPrompts(Loc.Language == "tr") : null;
+        if (prompts is not null)
+            settings.Prompts = new SavedPromptsOptions { Enabled = true, Pinned = [.. prompts.Pinned] };
         var model = MenuBuilder.Build(context, settings);
         // "agents": made-up followed agents, with the Active Agents slice open.
         bool showAgents = options.Contains("agents", StringComparer.OrdinalIgnoreCase);
-        var details = MenuDetails.Load(model, showAgents ? MadeUpAgents() : []);
+        var details = MenuDetails.Load(model, showAgents ? MadeUpAgents() : [], prompts?.Prompts);
         var children = details.Children.ToList();
 
         // Hover the first slice that opens and its newest item; with "deep", also open the first item that opens further.
@@ -374,6 +394,81 @@ internal static class DevTools
         window.Close();
     }
 
+    /// <summary>Draws the Ask card with made-up saved prompts, for checking its design.</summary>
+    static void RenderAsk(string output, string[] options)
+    {
+        bool dark = !options.Contains("light", StringComparer.OrdinalIgnoreCase);
+        bool tr = options.Contains("tr", StringComparer.OrdinalIgnoreCase);
+        Loc.SetLanguage(tr ? "tr" : "en");
+        using var prompts = new MadeUpPrompts(tr, empty: options.Contains("empty", StringComparer.OrdinalIgnoreCase));
+        // A made-up location: these pictures may end up in the README.
+        string folder = Path.Combine("C:" + Path.DirectorySeparatorChar, "Users", "dev", "Projects", "weather-api");
+        var spec = new InputSpec(Loc.Get("Action.AskHere"), '\uE8F2', folder, "Claude Code", AskPrompt: true, ValidateName: _ => null,
+            Submit: (_, _) => null)
+        {
+            AskName = false,
+            Location = folder,
+            SavedPrompts = prompts.Prompts,
+            PromptNames = prompts.Prompts.List(),
+        };
+        var window = new RadialMenuWindow();
+        var background = options.Contains("transparent", StringComparer.OrdinalIgnoreCase) ? Colors.Transparent
+            : dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6);
+        string? picked = options.Contains("picked", StringComparer.OrdinalIgnoreCase) ? prompts.Pinned[0] : null;
+        var bitmap = window.RenderAskPreview(spec, PaletteFrom(options, dark), background, picked);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using (var file = File.Create(output))
+            encoder.Save(file);
+        window.Close();
+    }
+
+    /// <summary>Saved prompts made up for the pictures, in a temporary folder that goes with this object.</summary>
+    sealed class MadeUpPrompts : IDisposable
+    {
+        readonly DirectoryInfo _folder = Directory.CreateTempSubdirectory("rondel-prompts-");
+
+        /// <param name="into">The folder to write them to (next to a copy of the settings), or null for a temporary one.</param>
+        public MadeUpPrompts(bool tr, bool empty = false, string? into = null)
+        {
+            string directory = into ?? _folder.FullName;
+            Directory.CreateDirectory(directory);
+            Prompts = new SavedPrompts(directory);
+            (string Name, string Text)[] prompts = tr
+                ?
+                [
+                    ("Değişikliklerimi gözden geçir", "Commit edilmemiş değişiklikleri gözden geçir: hataları, belirsiz isimleri ve eksik testleri bul. En önemliden başlayarak listele."),
+                    ("Test yaz", "Testi olmayan kodu bul ve en riskli kısımlar için testler yaz."),
+                    ("Projeyi açıkla", "Bu projenin ne yaptığını, nasıl kurulduğunu ve nereden başlanacağını kısaca açıkla."),
+                    ("Bağımlılıkları güncelle", "Eskimiş bağımlılıkları bul, güncelle ve testleri çalıştır."),
+                    ("Son hatayı ayıkla", "Son hatanın nedenini bul ve düzelt."),
+                    ("README yaz", "Bu proje için kısa ve açık bir README yaz."),
+                ]
+                :
+                [
+                    ("Review my changes", "Review the uncommitted changes: look for bugs, unclear names and missing tests. List what you find, most important first."),
+                    ("Write tests", "Find the code that has no tests and write tests for the riskiest parts."),
+                    ("Explain this project", "Explain briefly what this project does, how it is set up and where to start."),
+                    ("Update dependencies", "Find outdated dependencies, update them and run the tests."),
+                    ("Debug the last error", "Find the cause of the last error and fix it."),
+                    ("Write the README", "Write a short, clear README for this project."),
+                ];
+            if (!empty)
+            {
+                foreach (var (name, text) in prompts)
+                    File.WriteAllText(Path.Combine(directory, name + SavedPrompts.Extension), text);
+            }
+            Pinned = [.. prompts.Take(3).Select(p => p.Name)];
+        }
+
+        public SavedPrompts Prompts { get; }
+
+        /// <summary>The first three, in the order they are pinned.</summary>
+        public IReadOnlyList<string> Pinned { get; }
+
+        public void Dispose() => _folder.Delete(recursive: true);
+    }
+
     /// <summary>
     /// Draws the settings window with the current settings. The host is created but not started:
     /// no mouse hook, no tray icon, and a running Rondel is left alone.
@@ -412,6 +507,11 @@ internal static class DevTools
                 s.Appearance.AccentTo = "#22D3EE";
             });
         }
+        // "prompts": made-up saved prompts next to the copy of the settings, turned on with three of them pinned.
+        bool savedPrompts = options.Contains("prompts", StringComparer.OrdinalIgnoreCase);
+        using var prompts = savedPrompts ? new MadeUpPrompts(Loc.Language == "tr", into: host.Prompts.Directory) : null;
+        if (prompts is not null)
+            host.Store.Update(s => s.Prompts = new SavedPromptsOptions { Enabled = true, Pinned = [.. prompts.Pinned] });
         var window = new SettingsWindow(host)
         {
             WindowStartupLocation = System.Windows.WindowStartupLocation.Manual,
@@ -429,6 +529,13 @@ internal static class DevTools
                 scroller.ScrollToVerticalOffset(offset);
             else
                 scroller.ScrollToEnd();
+            window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        }
+
+        if (savedPrompts && window.FindName("PromptsBox") is System.Windows.FrameworkElement section
+            && FindChild<System.Windows.Controls.ScrollViewer>(window) is { } list)
+        {
+            list.ScrollToVerticalOffset(section.TransformToAncestor(list).Transform(default).Y + list.VerticalOffset - 120);
             window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         }
 
@@ -463,6 +570,66 @@ internal static class DevTools
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using (var file = File.Create(output))
             encoder.Save(file);
+        window.Close();
+    }
+
+    /// <summary>
+    /// Draws the welcome window, at one moment of its picture or at <c>frames=N</c> moments over one loop, for checking the
+    /// design and for making an animation of it.
+    /// </summary>
+    static void RenderWelcome(string output, string[] options)
+    {
+        bool dark = !options.Contains("light", StringComparer.OrdinalIgnoreCase);
+        Loc.SetLanguage(options.Contains("tr", StringComparer.OrdinalIgnoreCase) ? "tr" : "en");
+        string? Value(string name) => options.FirstOrDefault(o => o.StartsWith(name + "=", StringComparison.OrdinalIgnoreCase))?[(name.Length + 1)..];
+        var appearance = new Rondel.Core.Themes.AppearanceOptions { Mode = dark ? Rondel.Core.Themes.ColorMode.Dark : Rondel.Core.Themes.ColorMode.Light };
+        var window = new WelcomeWindow(appearance, new ThemeColors(dark), dark ? System.Windows.ThemeMode.Dark : System.Windows.ThemeMode.Light)
+        {
+            WindowStartupLocation = System.Windows.WindowStartupLocation.Manual,
+            Left = -32000,
+            Top = -32000,
+            ShowActivated = false,
+        };
+        window.Show();
+        // "stage": only the picture, for the README's animation.
+        var content = options.Contains("stage", StringComparer.OrdinalIgnoreCase)
+            ? (System.Windows.FrameworkElement)window.FindName("Stage")
+            : (System.Windows.FrameworkElement)window.Content;
+        var background = new SolidColorBrush(dark ? Color.FromRgb(0x20, 0x20, 0x20) : Color.FromRgb(0xF3, 0xF3, 0xF3));
+
+        void Save(double seconds, string path)
+        {
+            window.ShowMoment(seconds);
+            window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            var size = new System.Windows.Size(content.ActualWidth, content.ActualHeight);
+            var backdrop = new DrawingVisual();
+            using (var dc = backdrop.RenderOpen())
+                dc.DrawRectangle(background, null, new System.Windows.Rect(size));
+            var bitmap = new RenderTargetBitmap((int)(size.Width * 2), (int)(size.Height * 2), 192, 192, PixelFormats.Pbgra32);
+            bitmap.Render(backdrop);
+            bitmap.Render(content);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using var file = File.Create(path);
+            encoder.Save(file);
+        }
+
+        // Each moment is drawn where the picture would be then, not where a running clock has it.
+        window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        window.StopPlaying();
+        if (int.TryParse(Value("frames"), out int frames) && frames > 0)
+        {
+            string stem = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(output))!, Path.GetFileNameWithoutExtension(output));
+            for (int i = 0; i < frames; i++)
+                Save(i * WelcomeWindow.Period / frames, $"{stem}-{i:000}.png");
+        }
+        else
+        {
+            double moment = double.TryParse(Value("t"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double t)
+                ? t
+                : WelcomeWindow.StillMoment;
+            Save(moment, output);
+        }
         window.Close();
     }
 
