@@ -65,7 +65,7 @@ On neither platform yet; see the [roadmap](roadmap.md).
 | Feature | Windows | macOS |
 |---|---|---|
 | A modifier key for another mode, for example Shift for plan mode | ⬜ | ⬜ |
-| Ask about several selected files | ⬜ | ⬜ |
+| Ask about several selected files | ✅ 0.10.0 | ⬜ |
 | A first-run hint that shows the gesture | ⬜ | ⬜ |
 
 The ARM64 Windows build and the Intel Mac build are released, but neither has been tried on such a computer yet. If you use one, please [report](https://github.com/xelfiera-shn/rondel/issues/new/choose) how it goes.

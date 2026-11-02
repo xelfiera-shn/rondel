@@ -25,6 +25,7 @@ static class Strings
         ["Context.Desktop"] = "Desktop",
         ["Context.Explorer"] = "File Explorer",
         ["Context.Finder"] = "Finder",
+        ["Context.Files"] = "{0} files",
 
         ["Action.NewProject"] = "New Project",
         ["Action.NewWithPrompt"] = "New + Prompt",
@@ -38,6 +39,7 @@ static class Strings
         ["Action.Ask"] = "Ask",
         ["Action.AskHere"] = "Ask Here",
         ["Action.AskFile"] = "Ask About This File",
+        ["Action.AskFiles"] = "Ask About These Files",
         ["Action.ActiveAgents"] = "Active Agents",
         ["Agents.None"] = "None running",
         ["Agents.One"] = "1 agent",
@@ -316,6 +318,7 @@ static class Strings
         ["Context.Desktop"] = "Masaüstü",
         ["Context.Explorer"] = "Dosya Gezgini",
         ["Context.Finder"] = "Finder",
+        ["Context.Files"] = "{0} dosya",
 
         ["Action.NewProject"] = "Yeni Proje",
         ["Action.NewWithPrompt"] = "Yeni + Prompt",
@@ -329,6 +332,7 @@ static class Strings
         ["Action.Ask"] = "Sor",
         ["Action.AskHere"] = "Burada Sor",
         ["Action.AskFile"] = "Bu Dosyayı Sor",
+        ["Action.AskFiles"] = "Bu Dosyaları Sor",
         ["Action.ActiveAgents"] = "Aktif Ajanlar",
         ["Agents.None"] = "Çalışan yok",
         ["Agents.One"] = "1 ajan",

@@ -2,6 +2,7 @@ using Rondel.Core.Activity;
 using Rondel.Core.Context;
 using Rondel.Core.Flow;
 using Rondel.Core.Launch;
+using Rondel.Core.Localization;
 using Rondel.Core.Menus;
 using Rondel.Core.Platform;
 using Rondel.Core.Projects;
@@ -126,6 +127,41 @@ public class MenuFlowTests
         var plan = Assert.Single(_launcher.Plans);
         Assert.Equal(folder, plan.Directory);
         Assert.Equal(["@\"Proje Notları.md\" summarize this"], plan.Arguments);
+    }
+
+    [Fact]
+    public void AskingAboutSeveralSelectedFilesMentionsEachOfThem()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "work");
+        string[] files = [Path.Combine(folder, "Program.cs"), Path.Combine(folder, "Proje Notları.md")];
+        var context = new TriggerContext(ContextKind.FileItem, folder, "Program.cs", "test") { FilePath = files[0], SelectedFiles = files };
+        var model = _flow.Build(context)!;
+
+        Assert.Equal(Loc.Format("Context.Files", 2), model.Title);
+        var ask = model.Items.Single(i => i.Action.Id == "ask-file");
+        Assert.Equal(Loc.Get("Action.AskFiles"), ask.Label);
+        _flow.Invoke(model, ask);
+        var input = Assert.IsType<InputSpec>(_host.Input);
+        Assert.Equal($"{folder} · Program.cs, Proje Notları.md", input.Location);
+
+        Assert.Null(input.Submit("", "compare these"));
+        var plan = Assert.Single(_launcher.Plans);
+        Assert.Equal(folder, plan.Directory);
+        Assert.Equal(["@Program.cs @\"Proje Notları.md\" compare these"], plan.Arguments);
+    }
+
+    [Fact]
+    public void OnlyTheSelectedFilesBesideTheHeldOneAreAskedAbout()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "work");
+        string a = Path.Combine(folder, "a.cs"), b = Path.Combine(folder, "b.md"), sub = Path.Combine(folder, "sub");
+        string elsewhere = Path.Combine(Path.GetTempPath(), "Public", "c.txt");
+        bool IsFile(string path) => path != sub;
+
+        Assert.Equal([a, b], FileSelection.Around(b, [sub, a, elsewhere, b], IsFile)); // in the selection's order
+        Assert.Empty(FileSelection.Around(a, [b, sub], IsFile)); // the held file is not selected: it alone
+        Assert.Empty(FileSelection.Around(a, [a, sub, elsewhere], IsFile)); // no other file beside it
+        Assert.Equal([a], new TriggerContext(ContextKind.FileItem, folder, "a.cs", "test") { FilePath = a }.Files);
     }
 
     [Fact]

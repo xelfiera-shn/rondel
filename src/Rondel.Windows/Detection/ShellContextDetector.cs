@@ -13,12 +13,15 @@ namespace Rondel.Windows.Detection;
 /// <item>Shell.Application turns that into a folder: the active Explorer tab's folder for empty
 /// space, or the item matched by display name (Belgeler/Documents both work), a folder or a file.</item>
 /// </list>
-/// A file gives its folder plus the file. Virtual locations and items that are neither folders nor files give
-/// None, so the click is passed through.
+/// A file gives its folder plus the file, and the other selected files when it is one of them. Virtual locations
+/// and items that are neither folders nor files give None, so the click is passed through.
 /// Runs on the STA detection thread.
 /// </summary>
 internal sealed class ShellContextDetector(Func<AppSettings> settings) : IContextDetector
 {
+    /// <summary>Above this many selected items the selection is not read (every item is a cross-process call).</summary>
+    const int MaxSelectedItems = 300;
+
     readonly ShellNamespace _shell = new();
     UiaProbe? _uia;
 
@@ -99,9 +102,37 @@ internal sealed class ShellContextDetector(Func<AppSettings> settings) : IContex
             { } file => new TriggerContext(ContextKind.FileItem, Path.GetDirectoryName(file.Path), Path.GetFileName(file.Path), reason)
             {
                 FilePath = file.Path,
+                SelectedFiles = SelectedFilesAround(file.Path, desktop ? null : container, trace),
             },
             null => TriggerContext.None(reason),
         };
+    }
+
+    /// <summary>
+    /// The selected files when <paramref name="file"/> is one of several (<see cref="FileSelection.Around"/>).
+    /// Holding does not reach Explorer, so the selection is still the one the user made.
+    /// </summary>
+    /// <param name="explorer">The Explorer tab's folder; null on the desktop.</param>
+    IReadOnlyList<string> SelectedFilesAround(string file, ShellFolder? explorer, List<string>? trace)
+    {
+        try
+        {
+            if ((explorer is null ? _shell.GetDesktopView() : explorer.View) is not { } view)
+                return [];
+            if (ShellNamespace.GetSelectedPaths(view, MaxSelectedItems) is not { } selected)
+            {
+                Log.Info($"More than {MaxSelectedItems} items are selected; the menu is about the held file only");
+                return [];
+            }
+            var files = FileSelection.Around(file, selected, File.Exists);
+            trace?.Add($"Selection: {selected.Count} item(s), {files.Count} file(s) asked about together");
+            return files;
+        }
+        catch (Exception ex) when (ShellNamespace.IsComFailure(ex))
+        {
+            Log.Warn("Reading the selection failed; the menu is about the held file only", ex);
+            return [];
+        }
     }
 
     static string DisplayNameOf(string path) =>

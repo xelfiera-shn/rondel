@@ -10,6 +10,9 @@ internal sealed record ShellFolder(dynamic Folder, string DisplayName, string Pa
     public bool IsRealDirectory => IsFileSystem && Directory.Exists(Path);
 
     public bool IsRecycleBin => Path.StartsWith("::{645FF040-5081-101B-9F08-00AA002F954E}", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The Explorer tab's view (its <c>Document</c>), which knows the selection; null for the desktop.</summary>
+    public object? View { get; init; }
 }
 
 /// <summary>
@@ -19,6 +22,8 @@ internal sealed class ShellNamespace
 {
     /// <summary>Above this many items we stop scanning a folder for a display name (every item is a cross-process call).</summary>
     const int MaxScannedItems = 2000;
+
+    const int SWC_DESKTOP = 8, SWFO_NEEDDISPATCH = 1;
 
     static readonly Guid SID_STopLevelBrowser = new("4C96BE40-915C-11CF-99D3-00AA004AE837");
     static readonly Guid IID_IShellBrowser = new("000214E2-0000-0000-C000-000000000046");
@@ -69,8 +74,42 @@ internal sealed class ShellNamespace
             chosen = active;
         }
 
-        object folder = ((dynamic)chosen).Document.Folder;
-        return Describe(folder);
+        object view = ((dynamic)chosen).Document;
+        return Describe((object)((dynamic)view).Folder) with { View = view };
+    }
+
+    /// <summary>The desktop's view, whose selection is the desktop's (IShellWindows.FindWindowSW with SWC_DESKTOP).</summary>
+    public object? GetDesktopView()
+    {
+        int hwnd = 0;
+        object? window = Shell.Windows().FindWindowSW(0, null, SWC_DESKTOP, ref hwnd, SWFO_NEEDDISPATCH);
+        return window is null ? null : (object)((dynamic)window).Document;
+    }
+
+    /// <summary>
+    /// The paths of the items selected in <paramref name="view"/>, in the view's order; null when more than
+    /// <paramref name="max"/> are selected (every item is a cross-process call).
+    /// </summary>
+    public static IReadOnlyList<string>? GetSelectedPaths(object view, int max)
+    {
+        dynamic items = ((dynamic)view).SelectedItems();
+        int count = items.Count;
+        if (count > max)
+            return null;
+        var paths = new List<string>(count);
+        for (int i = 0; i < count; i++)
+        {
+            try
+            {
+                if (items.Item(i) is { } item && (string)((dynamic)item).Path is { Length: > 0 } path)
+                    paths.Add(path);
+            }
+            catch (Exception ex) when (IsComFailure(ex))
+            {
+                // An item deleted while we look; leave it out.
+            }
+        }
+        return paths;
     }
 
     /// <summary>The merged desktop namespace (user desktop + Public Desktop + virtual items).</summary>
