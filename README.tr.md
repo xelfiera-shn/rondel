@@ -101,7 +101,7 @@ Tray ikonu → **Ayarlar…**: dil (Otomatik / English / Türkçe), menünün g�
 
 macOS'ta menü çubuğu ikonu → **Ayarlar…** aynısını sunar; klavye kısayolu ve aktif ajanlar yoktur, terminal olarak Terminal ya da iTerm2 seçilir. Ajan giriş kabuğunuzda çalışır, bu yüzden `~/.zprofile` ve `~/.zshrc` içindeki `PATH` ve alias'lar geçerlidir. **İzinler** bölümü Erişilebilirlik ve Finder izinlerinin verilip verilmediğini gösterir; **Oturum açılınca başlat** Rondel'i giriş öğelerinize ekler.
 
-**Görünüm**: beş tema — Rondel, İnce Halka, Vurgu, Yörünge ve Yaprak — her biri koyu ve açık; menünün resimlerinden seçilir. Koyu ya da açık mod Windows'u (ya da macOS'u) izleyebilir ya da sabit kalabilir; vurgu rengi temanın kendi rengi, hazır bir çift ya da kendi `#RRGGBB` renkleriniz olabilir. Değişiklikler menüye hemen yansır.
+**Görünüm**: beş tema — Rondel, İnce Halka, Vurgu, Yörünge ve Yaprak — her biri koyu ve açık; menünün resimlerinden seçilir. Koyu ya da açık mod Windows'u (ya da macOS'u) izleyebilir ya da sabit kalabilir; vurgu rengi temanın kendi rengi, hazır bir çift ya da kendi renkleriniz olabilir; bunları `#RRGGBB` olarak yazabilir ya da kutularındaki noktayla renk seçiciden seçebilirsiniz (şimdilik Windows'ta). Değişiklikler menüye hemen yansır.
 
 <p align="center">
   <img src="docs/images/themes-tr.png" width="720" alt="Aynı klasör menüsü beş temada: Rondel, İnce Halka, Vurgu, Yörünge ve Yaprak">

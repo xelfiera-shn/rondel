@@ -56,6 +56,31 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- A custom accent color in its hex box: the dot shows it (Background) and opens the color picker. -->
+        <Style x:Key="ColorDot" TargetType="Button">
+            <Setter Property="Width" Value="18" />
+            <Setter Property="Height" Value="18" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid Background="Transparent">
+                            <Ellipse x:Name="Ring" Margin="-3" StrokeThickness="1.5" Stroke="Transparent" />
+                            <Ellipse Fill="{TemplateBinding Background}" Stroke="{DynamicResource ControlStrokeColorDefaultBrush}" StrokeThickness="1" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Ring" Property="Stroke" Value="{DynamicResource ControlStrokeColorSecondaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Ring" Property="Stroke" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <!-- An accent pair to choose: a round swatch of its gradient (Background), ringed while chosen. -->
         <Style x:Key="Swatch" TargetType="RadioButton">
             <Setter Property="Margin" Value="0,0,6,0" />
@@ -184,11 +209,30 @@
                         </StackPanel>
                         <StackPanel x:Name="CustomAccent" Orientation="Horizontal" Margin="0,10,0,0" Visibility="Collapsed">
                             <TextBlock Text="{l:Loc Settings.Accent.From}" VerticalAlignment="Center" />
-                            <TextBox x:Name="AccentFromBox" Width="110" Margin="8,0,20,0" VerticalContentAlignment="Center"
-                                     LostKeyboardFocus="OnCustomAccentCommitted" KeyDown="OnTextBoxKeyDown" />
+                            <Grid Margin="8,0,20,0">
+                                <TextBox x:Name="AccentFromBox" Width="130" Padding="36,5,6,6" VerticalContentAlignment="Center"
+                                         LostKeyboardFocus="OnCustomAccentCommitted" KeyDown="OnTextBoxKeyDown" TextChanged="OnAccentTextChanged" />
+                                <Button x:Name="AccentFromDot" Style="{StaticResource ColorDot}" HorizontalAlignment="Left" Margin="11,0,0,0"
+                                        ToolTip="{l:Loc Settings.Accent.Pick}" Click="OnPickAccentColor" />
+                            </Grid>
                             <TextBlock Text="{l:Loc Settings.Accent.To}" VerticalAlignment="Center" />
-                            <TextBox x:Name="AccentToBox" Width="110" Margin="8,0,0,0" VerticalContentAlignment="Center"
-                                     LostKeyboardFocus="OnCustomAccentCommitted" KeyDown="OnTextBoxKeyDown" />
+                            <Grid Margin="8,0,0,0">
+                                <TextBox x:Name="AccentToBox" Width="130" Padding="36,5,6,6" VerticalContentAlignment="Center"
+                                         LostKeyboardFocus="OnCustomAccentCommitted" KeyDown="OnTextBoxKeyDown" TextChanged="OnAccentTextChanged" />
+                                <Button x:Name="AccentToDot" Style="{StaticResource ColorDot}" HorizontalAlignment="Left" Margin="11,0,0,0"
+                                        ToolTip="{l:Loc Settings.Accent.Pick}" Click="OnPickAccentColor" />
+                            </Grid>
+                            <!-- Under the box whose dot opened it; it closes with a click outside it or Esc. -->
+                            <Popup x:Name="AccentPicker" StaysOpen="False" AllowsTransparency="True" Placement="Bottom"
+                                   HorizontalOffset="-10" VerticalOffset="-4" PopupAnimation="Fade">
+                                <Border Margin="10" Padding="12" CornerRadius="8" BorderThickness="1"
+                                        Background="{DynamicResource FlyoutBackground}" BorderBrush="{DynamicResource FlyoutBorderBrush}">
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="14" ShadowDepth="3" Direction="270" Opacity="0.28" />
+                                    </Border.Effect>
+                                    <l:ColorPicker x:Name="AccentPickerPanel" />
+                                </Border>
+                            </Popup>
                         </StackPanel>
                         <TextBlock x:Name="AccentStatus" Style="{StaticResource Status}" />
                     </StackPanel>

@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Rondel.Core.Localization;
@@ -169,6 +171,71 @@ public partial class SettingsWindow
     }
 
     void OnCustomAccentCommitted(object sender, RoutedEventArgs e) => CommitCustomAccent();
+
+
+
+    /// <summary>
+    /// The color picker of a custom accent color: it edits the hex box as it is dragged and saves the color once the
+    /// mouse is released, as Enter in the box does.
+    /// </summary>
+    void SetUpAccentPicker()
+    {
+        AccentPickerPanel.Changing += color =>
+        {
+            if (_pickingBox is not null)
+                _pickingBox.Text = AppearanceOptions.FormatColor(color);
+        };
+        AccentPickerPanel.Committed += color =>
+        {
+            if (_pickingBox is null)
+                return;
+            _pickingBox.Text = AppearanceOptions.FormatColor(color);
+            CommitCustomAccent();
+        };
+        AccentPicker.Closed += (_, _) => _pickingBox = null;
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape && AccentPicker.IsOpen)
+            {
+                AccentPicker.IsOpen = false;
+                e.Handled = true;
+            }
+        };
+    }
+
+    /// <summary>The hex box the open color picker edits.</summary>
+    TextBox? _pickingBox;
+
+    void OnPickAccentColor(object sender, RoutedEventArgs e)
+    {
+        var box = sender == AccentToDot ? AccentToBox : AccentFromBox;
+        // An empty end is the start color once more: the picker starts from it.
+        uint color = AppearanceOptions.ParseColor(box.Text) ?? AppearanceOptions.ParseColor(AccentFromBox.Text) ?? 0xFF6B7280;
+        _pickingBox = box;
+        AccentPickerPanel.SetColor(color);
+        AccentPicker.PlacementTarget = (UIElement)box.Parent;
+        AccentPicker.IsOpen = true;
+    }
+
+    /// <summary>Developer aid (--render-settings picker): the picker open under the start color, without its fade.</summary>
+    internal Popup ShowAccentPicker()
+    {
+        AccentPicker.PopupAnimation = PopupAnimation.None;
+        OnPickAccentColor(AccentFromDot, new RoutedEventArgs());
+        return AccentPicker;
+    }
+
+    /// <summary>The dots show the colors as they are typed; an empty end shows the start color it repeats.</summary>
+    void OnAccentTextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (AccentFromDot is null || AccentToDot is null)
+            return; // during InitializeComponent
+        uint? from = AppearanceOptions.ParseColor(AccentFromBox.Text);
+        AccentFromDot.Background = DotFill(from);
+        AccentToDot.Background = DotFill(AppearanceOptions.ParseColor(AccentToBox.Text) ?? (AccentToBox.Text.Trim().Length == 0 ? from : null));
+    }
+
+    static Brush DotFill(uint? color) => color is { } value ? new SolidColorBrush(ToColor(value)) : Brushes.Transparent;
 
     void CommitCustomAccent()
     {
