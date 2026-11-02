@@ -102,6 +102,28 @@ public class SettingsTests
     }
 
     [Fact]
+    public void TheAgentsCardIsOffUntilTurnedOnAndKeepsTheUsersChoices()
+    {
+        var fresh = new AppSettings();
+        fresh.Normalize();
+        Assert.False(fresh.ActiveAgents.Card.Show);
+        Assert.Equal(CardPlacement.OnTop, fresh.ActiveAgents.Card.Placement);
+        Assert.True(fresh.ActiveAgents.Card.MuteNotifications);
+
+        var saved = SettingsJson.Deserialize("""
+            { "ActiveAgents": { "Card": { "Show": true, "Placement": "OnDesktop", "Pinned": true, "Hotkey": " Ctrl+Alt+K " } } }
+            """)!;
+        saved.Normalize();
+        var card = SettingsJson.Deserialize(SettingsJson.Serialize(saved))!.ActiveAgents.Card; // as after a restart
+        Assert.True(card.Show && card.Pinned);
+        Assert.Equal(CardPlacement.OnDesktop, card.Placement);
+        Assert.Equal("Ctrl+Alt+K", card.Hotkey);
+
+        var unknown = SettingsJson.Deserialize("""{ "ActiveAgents": { "Card": { "Placement": "Sideways" } } }""")!;
+        Assert.Equal(CardPlacement.OnTop, unknown.ActiveAgents.Card.Placement); // a newer version's place
+    }
+
+    [Fact]
     public void ProjectsRootExpandsTheHomeFolder()
     {
         string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

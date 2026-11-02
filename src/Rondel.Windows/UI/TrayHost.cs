@@ -7,7 +7,7 @@ using static Rondel.Windows.Interop.Native;
 
 namespace Rondel.Windows.UI;
 
-internal sealed record TrayMenuItem(string Text, Action? Invoke, bool Checked = false, bool IsDefault = false)
+internal sealed record TrayMenuItem(string Text, Action? Invoke, bool Checked = false, bool IsDefault = false, bool Enabled = true)
 {
     public static readonly TrayMenuItem Separator = new("-", null);
 }
@@ -22,6 +22,7 @@ internal sealed unsafe class TrayHost : IDisposable
     const uint IconId = 1;
     const int HotkeyId = 1;
     const int AgentsHotkeyId = 2;
+    const int CardHotkeyId = 3;
 
     readonly HwndSource _source;
     readonly Func<IReadOnlyList<TrayMenuItem>> _menuItems;
@@ -31,6 +32,7 @@ internal sealed unsafe class TrayHost : IDisposable
     string _tooltip = AppInfo.Name;
     bool _hotkeyRegistered;
     bool _agentsHotkeyRegistered;
+    bool _cardHotkeyRegistered;
 
     /// <summary>Notification icons by kind and size, kept until the app exits: Windows may still show one.</summary>
     readonly Dictionary<(NoticeIcon, int), nint> _noticeIcons = [];
@@ -63,6 +65,9 @@ internal sealed unsafe class TrayHost : IDisposable
 
     /// <summary>The Active Agents shortcut was pressed.</summary>
     public event Action? AgentsHotkeyPressed;
+
+    /// <summary>The agents card's shortcut was pressed.</summary>
+    public event Action? CardHotkeyPressed;
 
     /// <summary>The last notification shown was clicked.</summary>
     public event Action? BalloonClicked;
@@ -135,6 +140,20 @@ internal sealed unsafe class TrayHost : IDisposable
         if (_agentsHotkeyRegistered)
             UnregisterHotKey(Handle, AgentsHotkeyId);
         _agentsHotkeyRegistered = false;
+    }
+
+    /// <summary>The shortcut that shows or hides the agents card.</summary>
+    public bool SetCardHotkey(uint modifiers, uint virtualKey)
+    {
+        ClearCardHotkey();
+        return _cardHotkeyRegistered = Register(CardHotkeyId, modifiers, virtualKey);
+    }
+
+    public void ClearCardHotkey()
+    {
+        if (_cardHotkeyRegistered)
+            UnregisterHotKey(Handle, CardHotkeyId);
+        _cardHotkeyRegistered = false;
     }
 
     bool Register(int id, uint modifiers, uint virtualKey)
@@ -221,6 +240,10 @@ internal sealed unsafe class TrayHost : IDisposable
                 AgentsHotkeyPressed?.Invoke();
                 handled = true;
                 break;
+            case WM_HOTKEY when wParam == CardHotkeyId:
+                CardHotkeyPressed?.Invoke();
+                handled = true;
+                break;
             case WM_SETTINGCHANGE when lParam != 0 && Marshal.PtrToStringUni(lParam) == "ImmersiveColorSet":
             case WM_DWMCOLORIZATIONCOLORCHANGED:
             case WM_THEMECHANGED:
@@ -249,7 +272,7 @@ internal sealed unsafe class TrayHost : IDisposable
                     AppendMenuW(menu, MF_SEPARATOR, 0, null);
                     continue;
                 }
-                AppendMenuW(menu, MF_STRING | (item.Checked ? MF_CHECKED : 0), (nuint)(i + 1), item.Text);
+                AppendMenuW(menu, MF_STRING | (item.Checked ? MF_CHECKED : 0) | (item.Enabled ? 0 : MF_GRAYED), (nuint)(i + 1), item.Text);
                 if (item.IsDefault)
                     SetMenuDefaultItem(menu, (uint)(i + 1), 0);
             }
@@ -259,7 +282,7 @@ internal sealed unsafe class TrayHost : IDisposable
             uint align = GetSystemMetrics(SM_MENUDROPALIGNMENT) != 0 ? TPM_RIGHTALIGN : TPM_LEFTALIGN;
             int command = TrackPopupMenuEx(menu, align | TPM_BOTTOMALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD | TPM_NONOTIFY, x, y, Handle, 0);
             PostMessageW(Handle, WM_NULL, 0, 0);
-            if (command > 0 && command <= items.Count)
+            if (command > 0 && command <= items.Count && items[command - 1].Enabled)
                 items[command - 1].Invoke?.Invoke();
         }
         finally
@@ -272,6 +295,7 @@ internal sealed unsafe class TrayHost : IDisposable
     {
         ClearHotkey();
         ClearAgentsHotkey();
+        ClearCardHotkey();
         var data = NewData(0);
         Shell_NotifyIconW(NIM_DELETE, &data);
         if (_icon != 0)

@@ -342,6 +342,51 @@
                     </StackPanel>
                 </Border>
 
+                <Border Style="{StaticResource Card}">
+                    <StackPanel x:Name="AgentsCardPanel">
+                        <CheckBox x:Name="CardShowBox" Content="{l:Loc Settings.ActiveAgents.Card.Show}" Click="OnAgentsCardClicked" />
+                        <TextBlock Style="{StaticResource Description}" Margin="28,2,0,0" Text="{l:Loc Settings.ActiveAgents.Card.Show.Desc}" />
+                        <StackPanel x:Name="CardOptions" Margin="28,12,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock VerticalAlignment="Center" Text="{l:Loc Card.Placement}" />
+                                <ComboBox x:Name="CardPlacementBox" Grid.Column="1" Width="240" VerticalAlignment="Center" SelectionChanged="OnCardPlacementChanged">
+                                    <ComboBoxItem Tag="OnTop" Content="{l:Loc Card.OnTop}" />
+                                    <ComboBoxItem Tag="OnDesktop" Content="{l:Loc Card.OnDesktop}" />
+                                </ComboBox>
+                            </Grid>
+                            <CheckBox x:Name="CardFullScreenBox" Margin="0,12,0,0" Content="{l:Loc Settings.ActiveAgents.Card.OverFullScreen}" Click="OnAgentsCardClicked" />
+                            <TextBlock Style="{StaticResource Description}" Margin="28,2,0,0" Text="{l:Loc Settings.ActiveAgents.Card.OverFullScreen.Desc}" />
+                            <CheckBox x:Name="CardMuteBox" Margin="0,10,0,0" Content="{l:Loc Card.Mute}" Click="OnAgentsCardClicked" />
+                            <TextBlock Style="{StaticResource Description}" Margin="28,2,0,0" Text="{l:Loc Settings.ActiveAgents.Card.Mute.Desc}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                                <TextBlock Text="{l:Loc Settings.ActiveAgents.Card.Hotkey}" />
+                                <TextBlock Style="{StaticResource Description}" Text="{l:Loc Settings.ActiveAgents.Card.Hotkey.Desc}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBox x:Name="CardHotkeyBox" Width="170" IsReadOnly="True" IsReadOnlyCaretVisible="False"
+                                         VerticalContentAlignment="Center" PreviewKeyDown="OnCardHotkeyKeyDown" />
+                                <Button Margin="8,0,0,0" Padding="12,5" Content="{l:Loc Settings.Hotkey.Clear}" Click="OnClearCardHotkey" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock x:Name="CardHotkeyStatus" Style="{StaticResource Status}" />
+                    </StackPanel>
+                </Border>
+
                 <!-- New project -->
                 <TextBlock Style="{StaticResource SectionHeader}" Text="{l:Loc Settings.NewProject}" />
 

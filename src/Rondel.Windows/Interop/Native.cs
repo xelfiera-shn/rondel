@@ -186,6 +186,15 @@ internal static unsafe partial class Native
     public const uint MONITOR_DEFAULTTONEAREST = 2;
     public const int MDT_EFFECTIVE_DPI = 0;
     public static readonly nint HWND_TOPMOST = -1;
+    public static readonly nint HWND_TOP = 0;
+    public static readonly nint HWND_BOTTOM = 1;
+    public const int WS_EX_TRANSPARENT = 0x00000020;
+    public const int WS_EX_NOACTIVATE = 0x08000000;
+    public const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
+    public const uint WINEVENT_OUTOFCONTEXT = 0x0000;
+
+    /// <summary>SHQueryUserNotificationState: a full-screen app, a Direct3D game in full screen, presentation mode.</summary>
+    public const int QUNS_BUSY = 2, QUNS_RUNNING_D3D_FULL_SCREEN = 3, QUNS_PRESENTATION_MODE = 4;
     public const uint SWP_NOSIZE = 0x0001;
     public const uint SWP_NOMOVE = 0x0002;
     public const uint SWP_NOZORDER = 0x0004;
@@ -220,6 +229,7 @@ internal static unsafe partial class Native
 
     // Menus
     public const uint MF_STRING = 0x0000;
+    public const uint MF_GRAYED = 0x0001;
     public const uint MF_CHECKED = 0x0008;
     public const uint MF_SEPARATOR = 0x0800;
     public const uint TPM_LEFTALIGN = 0x0000;
@@ -364,6 +374,29 @@ internal static unsafe partial class Native
 
     public static nint SetWindowLongPtr(nint hWnd, int nIndex, nint value) =>
         IntPtr.Size == 8 ? SetWindowLongPtr64(hWnd, nIndex, value) : SetWindowLong32(hWnd, nIndex, (int)value);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetWindowRect(nint hWnd, RECT* lpRect);
+
+    public const uint GW_HWNDNEXT = 2, GW_HWNDPREV = 3;
+
+    [LibraryImport("user32.dll")]
+    public static partial nint GetWindow(nint hWnd, uint uCmd);
+
+    [LibraryImport("user32.dll")]
+    public static partial nint GetTopWindow(nint hWnd);
+
+    [LibraryImport("user32.dll")]
+    public static partial nint SetWinEventHook(uint eventMin, uint eventMax, nint hmodWinEventProc,
+        delegate* unmanaged<nint, uint, nint, int, int, uint, uint, void> lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool UnhookWinEvent(nint hWinEventHook);
+
+    [LibraryImport("shell32.dll")]
+    public static partial int SHQueryUserNotificationState(int* pquns);
 
     // ---- user32 / shcore: monitors and DPI ----
 

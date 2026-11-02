@@ -128,6 +128,8 @@ public sealed class AppSettings
         ActiveAgents ??= new();
         Updates ??= new();
         ActiveAgents.Hotkey = ActiveAgents.Hotkey?.Trim() ?? "";
+        ActiveAgents.Card ??= new();
+        ActiveAgents.Card.Hotkey = ActiveAgents.Card.Hotkey?.Trim() ?? "";
         Appearance ??= new();
         Appearance.Normalize();
         NewProject.Templates = (NewProject.Templates ?? []).Where(t => !string.IsNullOrWhiteSpace(t))

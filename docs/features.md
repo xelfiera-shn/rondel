@@ -43,6 +43,7 @@ Which features Rondel has on Windows and on macOS, and since which version. Down
 |---|---|---|
 | A notification when an agent asks for something, is done or stops with an error; a click brings its terminal to the front | ✅ 0.6.0 | ⬜ |
 | **Active Agents** on the desktop menu, with a status dot for each agent, and a shortcut that opens it | ✅ 0.6.0 | ⬜ |
+| The agents card: the running agents in sight, above other windows or on the desktop, collapsed to a badge with the number that need you | ✅ 0.9.0 | ⬜ |
 
 ## The app
 
