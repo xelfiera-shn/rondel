@@ -8,6 +8,7 @@ static class Strings
         ["Tray.Tooltip"] = "Rondel - hold Ctrl + left mouse button",
         ["Tray.TooltipPaused"] = "Rondel (paused)",
         ["Tray.Settings"] = "Settings…",
+        ["Tray.HowToUse"] = "How to use…",
         ["Tray.Pause"] = "Pause",
         ["Tray.Resume"] = "Resume",
         ["Tray.Autostart"] = "Start with Windows",
@@ -309,6 +310,13 @@ static class Strings
         ["Update.Notice.Text"] = "Click to see what's new and update.",
         ["Update.Done.Title"] = "Rondel was updated to {0}",
         ["Update.Done.Text"] = "Click to see what's new.",
+        ["Welcome.Title"] = "Welcome to Rondel",
+        ["Welcome.Step1"] = "Hold down Ctrl",
+        ["Welcome.Step2"] = "Press and hold the left mouse button on the desktop or in a folder",
+        ["Welcome.Step3"] = "Move onto a slice and let go, or click one",
+        ["Welcome.Note"] = "Rondel keeps running in the notification area, next to the clock. Its icon opens Settings, where you can also choose a keyboard shortcut for the menu.",
+        ["Welcome.Settings"] = "Open Settings",
+        ["Welcome.Start"] = "Get started",
     };
 
     public static readonly IReadOnlyDictionary<string, string> Tr = new Dictionary<string, string>
@@ -316,6 +324,7 @@ static class Strings
         ["Tray.Tooltip"] = "Rondel - Ctrl + sol tuşu basılı tutun",
         ["Tray.TooltipPaused"] = "Rondel (duraklatıldı)",
         ["Tray.Settings"] = "Ayarlar…",
+        ["Tray.HowToUse"] = "Nasıl kullanılır…",
         ["Tray.Pause"] = "Duraklat",
         ["Tray.Resume"] = "Devam ettir",
         ["Tray.Autostart"] = "Windows ile başlat",
@@ -617,5 +626,12 @@ static class Strings
         ["Update.Notice.Text"] = "Yenilikleri görmek ve güncellemek için tıklayın.",
         ["Update.Done.Title"] = "Rondel {0} sürümüne güncellendi",
         ["Update.Done.Text"] = "Yenilikleri görmek için tıklayın.",
+        ["Welcome.Title"] = "Rondel'e hoş geldiniz",
+        ["Welcome.Step1"] = "Ctrl'yi basılı tutun",
+        ["Welcome.Step2"] = "Masaüstünde ya da bir klasörde farenin sol tuşunu basılı tutun",
+        ["Welcome.Step3"] = "Bir dilimin üzerine gelip bırakın ya da birine tıklayın",
+        ["Welcome.Note"] = "Rondel, saatin yanındaki bildirim alanında çalışmaya devam eder. Simgesi Ayarlar'ı açar; menü için bir klavye kısayolunu da oradan seçebilirsiniz.",
+        ["Welcome.Settings"] = "Ayarları aç",
+        ["Welcome.Start"] = "Başlayalım",
     };
 }

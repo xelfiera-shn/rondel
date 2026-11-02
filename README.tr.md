@@ -10,6 +10,10 @@
 
 Windows masaüstünde veya Dosya Gezgini'nde **Ctrl + sol fare tuşunu** (Mac masaüstünde veya Finder'da **⌥ Option + sol fare tuşunu**) kısa bir süre basılı tutun: imlecin altında dairesel bir menü açılır. Bir dilim seçtiğinizde kodlama ajanınız, doğru klasörde açılmış bir terminalde başlar.
 
+<p align="center">
+  <img src="docs/images/gesture-tr.gif" width="530" alt="Bir Dosya Gezgini penceresinde menü açılana kadar Ctrl ve sol fare tuşu basılı tutuluyor; imleç Burada Aç dilimine gidip bırakıyor ve Claude Code bir terminalde başlıyor">
+</p>
+
 Rondel Windows'ta ve macOS'ta çalışır. Hangi platformda hangi özelliklerin bulunduğunu ve hangi sürümle geldiğini **[Platformlara göre özellikler](docs/features.tr.md)** sayfasında, her sürümde nelerin değiştiğini **[CHANGELOG.md](CHANGELOG.md)** dosyasında görebilirsiniz.
 
 ## Kurulum
@@ -17,7 +21,7 @@ Rondel Windows'ta ve macOS'ta çalışır. Hangi platformda hangi özelliklerin 
 ### Windows
 
 1. [Claude Code](https://docs.anthropic.com/en/docs/claude-code)'u kurun ve terminalde `claude` komutunun çalıştığını görün.
-2. [Son sürümden](https://github.com/xelfiera-shn/rondel/releases/latest) `Rondel-<sürüm>-win-x64.exe` dosyasını (ARM bilgisayarlar için `-win-arm64.exe`) indirin, istediğiniz bir klasöre koyup çalıştırın. Bildirim alanında Rondel ikonu belirir.
+2. [Son sürümden](https://github.com/xelfiera-shn/rondel/releases/latest) `Rondel-<sürüm>-win-x64.exe` dosyasını (ARM bilgisayarlar için `-win-arm64.exe`) indirin, istediğiniz bir klasöre koyup çalıştırın. Bir hoş geldiniz penceresi menünün nasıl açıldığını gösterir (ikondaki **Nasıl kullanılır…** onu yeniden açar) ve bildirim alanında Rondel ikonu belirir.
    - Dosya henüz kod imzalı olmadığı için ilk açılışta SmartScreen uyarısı çıkabilir: **Ek bilgi → Yine de çalıştır**. Her sürümde SHA-256 özetleri ve derleme kaynağı doğrulaması (build provenance) bulunur.
 3. İkona sağ tıklayıp **Windows ile başlat**'ı işaretleyin.
 

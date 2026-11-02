@@ -36,6 +36,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
     readonly MouseHook _hook;
     readonly MenuFlow _flow;
     SettingsWindow? _settingsWindow;
+    WelcomeWindow? _welcomeWindow;
 
     /// <param name="settingsDirectory">Folder of settings.json; the real one when null (developer aids pass a copy).</param>
     public AppHost(string? settingsDirectory = null)
@@ -110,8 +111,34 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         StartUpdates();
         if (Store.LoadError is not null)
             ShowBalloon(AppInfo.Name, Loc.Get("Tray.SettingsInvalid"), warning: true);
+        // The first time, nothing shows that Rondel runs (its icon may even be hidden in the notification area): welcome
+        // the user and show how the menu opens. Not when the mouse hook failed: that warning matters more.
+        if (Store.CreatedNew && _hook.IsInstalled)
+            ShowWelcome();
 
         Log.Info($"{AppInfo.Name} {AppInfo.Version} started (Windows {Environment.OSVersion.Version}, UI culture {System.Globalization.CultureInfo.CurrentUICulture.Name}, language {Loc.Language})");
+    }
+
+    /// <summary>
+    /// The welcome window, which shows how the menu opens: by itself the first time Rondel runs, and from the tray menu
+    /// (How to use) whenever asked.
+    /// </summary>
+    public void ShowWelcome()
+    {
+        if (_welcomeWindow is { } open)
+        {
+            if (open.WindowState == WindowState.Minimized)
+                open.WindowState = WindowState.Normal;
+            open.Activate();
+            return;
+        }
+        Log.Info(Store.CreatedNew ? "First run: showing the welcome window" : "Showing the welcome window");
+        var window = new WelcomeWindow(Store.Current.Appearance, SystemTheme.Read());
+        window.SettingsRequested += OpenSettings;
+        window.Closed += (_, _) => _welcomeWindow = null;
+        _welcomeWindow = window;
+        window.Show();
+        window.Activate();
     }
 
     /// <summary>Another copy of the app was started: show the settings instead.</summary>
@@ -311,6 +338,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         [
             .. update is null ? [] : new[] { update, TrayMenuItem.Separator },
             new(Loc.Get("Tray.Settings"), OpenSettings, IsDefault: true),
+            new(Loc.Get("Tray.HowToUse"), ShowWelcome),
             .. CardTrayItems(settings),
             new(Loc.Get(settings.Paused ? "Tray.Resume" : "Tray.Pause"), () => Store.Update(s => s.Paused = !s.Paused)),
             new(Loc.Get("Tray.Autostart"), () => Autostart.Set(!Autostart.IsEnabled), Checked: Autostart.IsEnabled),

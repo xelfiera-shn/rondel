@@ -10,6 +10,10 @@ English · [Türkçe](README.tr.md)
 
 Hold **Ctrl + the left mouse button** for a moment on the Windows desktop or in File Explorer (**⌥ Option + the left mouse button** on the Mac desktop or in Finder), and a radial menu opens under the cursor. Pick a slice and your coding agent starts in a terminal, already in the right folder.
 
+<p align="center">
+  <img src="docs/images/gesture-en.gif" width="530" alt="In a File Explorer window, Ctrl and the left mouse button are held until the menu opens; the pointer moves onto Open Here and lets go, and Claude Code starts in a terminal">
+</p>
+
 Rondel runs on Windows and macOS. **[Features by platform](docs/features.md)** shows what each one has, and since which version; **[CHANGELOG.md](CHANGELOG.md)** lists what changed in each version.
 
 ## Install
@@ -17,7 +21,7 @@ Rondel runs on Windows and macOS. **[Features by platform](docs/features.md)** s
 ### Windows
 
 1. Install [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and check that `claude` runs in a terminal.
-2. Download `Rondel-<version>-win-x64.exe` (or `-win-arm64.exe` for ARM PCs) from the [latest release](https://github.com/xelfiera-shn/rondel/releases/latest), put it anywhere and run it. The Rondel icon appears in the notification area.
+2. Download `Rondel-<version>-win-x64.exe` (or `-win-arm64.exe` for ARM PCs) from the [latest release](https://github.com/xelfiera-shn/rondel/releases/latest), put it anywhere and run it. A welcome window shows how the menu opens (**How to use…** on the icon shows it again), and the Rondel icon appears in the notification area.
    - The executable is not code-signed yet, so SmartScreen may warn on first start: **More info → Run anyway**. Each release lists SHA-256 checksums and carries a build provenance attestation.
 3. Right-click the icon and tick **Start with Windows**.
 

@@ -60,6 +60,7 @@ Which features Rondel has on Windows and on macOS, and since which version. Down
 | English and Turkish | ✅ 0.1.0 | ✅ 0.8.0 |
 | Updates from within the app, verified with Rondel's release key | ✅ 0.7.0 | ⬜ download the new zip from the release page |
 | Diagnostics: debug logging and `--probe` | ✅ 0.1.0 | ✅ 0.8.0 |
+| A welcome window at the first start that shows how the menu opens, again from the tray menu | ✅ 0.11.0 | ⬜ |
 
 ## Planned
 
@@ -68,6 +69,5 @@ On neither platform yet; see the [roadmap](roadmap.md).
 | Feature | Windows | macOS |
 |---|---|---|
 | A modifier key for another mode, for example Shift for plan mode | ⬜ | ⬜ |
-| A first-run hint that shows the gesture | ⬜ | ⬜ |
 
 The ARM64 Windows build and the Intel Mac build are released, but neither has been tried on such a computer yet. If you use one, please [report](https://github.com/xelfiera-shn/rondel/issues/new/choose) how it goes.
