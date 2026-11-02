@@ -43,6 +43,9 @@ namespace Rondel.Windows;
 ///                                            draw the Ask card with made-up saved prompts (empty: none in the folder;
 ///                                            picked: one of them picked)
 /// --render-update out.png [dark|light] [en|tr] [working|failed]   draw the update window for a made-up release
+/// --render-welcome out.png [dark|light] [en|tr] [stage] [t=SECONDS] [frames=N]   draw the welcome window at a moment
+///                                            of its picture (the still one by default); stage: the picture alone;
+///                                            frames=N: N moments over one loop, as out-000.png, out-001.png, …
 /// --render-card out.png [dark|light] [en|tr] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]   draw the agents card with made-up
 ///                                            agents: open, collapsed, its quick settings and with no agent
 /// --card-demo [dark|light] [en|tr] [desktop] [report.txt]   the live agents card with made-up agents, its options in
@@ -107,6 +110,10 @@ internal static class DevTools
 
             case ["--render-update", var output, .. var options]:
                 RenderUpdate(output, options);
+                return true;
+
+            case ["--render-welcome", var output, .. var options]:
+                RenderWelcome(output, options);
                 return true;
 
             case ["--render-card", var output, .. var options]:
@@ -563,6 +570,66 @@ internal static class DevTools
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using (var file = File.Create(output))
             encoder.Save(file);
+        window.Close();
+    }
+
+    /// <summary>
+    /// Draws the welcome window, at one moment of its picture or at <c>frames=N</c> moments over one loop, for checking the
+    /// design and for making an animation of it.
+    /// </summary>
+    static void RenderWelcome(string output, string[] options)
+    {
+        bool dark = !options.Contains("light", StringComparer.OrdinalIgnoreCase);
+        Loc.SetLanguage(options.Contains("tr", StringComparer.OrdinalIgnoreCase) ? "tr" : "en");
+        string? Value(string name) => options.FirstOrDefault(o => o.StartsWith(name + "=", StringComparison.OrdinalIgnoreCase))?[(name.Length + 1)..];
+        var appearance = new Rondel.Core.Themes.AppearanceOptions { Mode = dark ? Rondel.Core.Themes.ColorMode.Dark : Rondel.Core.Themes.ColorMode.Light };
+        var window = new WelcomeWindow(appearance, new ThemeColors(dark), dark ? System.Windows.ThemeMode.Dark : System.Windows.ThemeMode.Light)
+        {
+            WindowStartupLocation = System.Windows.WindowStartupLocation.Manual,
+            Left = -32000,
+            Top = -32000,
+            ShowActivated = false,
+        };
+        window.Show();
+        // "stage": only the picture, for the README's animation.
+        var content = options.Contains("stage", StringComparer.OrdinalIgnoreCase)
+            ? (System.Windows.FrameworkElement)window.FindName("Stage")
+            : (System.Windows.FrameworkElement)window.Content;
+        var background = new SolidColorBrush(dark ? Color.FromRgb(0x20, 0x20, 0x20) : Color.FromRgb(0xF3, 0xF3, 0xF3));
+
+        void Save(double seconds, string path)
+        {
+            window.ShowMoment(seconds);
+            window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            var size = new System.Windows.Size(content.ActualWidth, content.ActualHeight);
+            var backdrop = new DrawingVisual();
+            using (var dc = backdrop.RenderOpen())
+                dc.DrawRectangle(background, null, new System.Windows.Rect(size));
+            var bitmap = new RenderTargetBitmap((int)(size.Width * 2), (int)(size.Height * 2), 192, 192, PixelFormats.Pbgra32);
+            bitmap.Render(backdrop);
+            bitmap.Render(content);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using var file = File.Create(path);
+            encoder.Save(file);
+        }
+
+        // Each moment is drawn where the picture would be then, not where a running clock has it.
+        window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        window.StopPlaying();
+        if (int.TryParse(Value("frames"), out int frames) && frames > 0)
+        {
+            string stem = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(output))!, Path.GetFileNameWithoutExtension(output));
+            for (int i = 0; i < frames; i++)
+                Save(i * WelcomeWindow.Period / frames, $"{stem}-{i:000}.png");
+        }
+        else
+        {
+            double moment = double.TryParse(Value("t"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double t)
+                ? t
+                : WelcomeWindow.StillMoment;
+            Save(moment, output);
+        }
         window.Close();
     }
 

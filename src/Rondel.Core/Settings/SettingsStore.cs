@@ -35,6 +35,9 @@ public sealed class SettingsStore : IDisposable
     /// <summary>Message of the last failed parse; null when the file on disk is valid.</summary>
     public string? LoadError { get; private set; }
 
+    /// <summary>There was no settings.json, so <see cref="Load"/> created it: Rondel runs for the first time.</summary>
+    public bool CreatedNew { get; private set; }
+
     /// <summary>Raised on the UI thread. The flag is true when the change came from the file (not from <see cref="Update"/>).</summary>
     public event Action<AppSettings, bool>? Changed;
 
@@ -47,6 +50,7 @@ public sealed class SettingsStore : IDisposable
         {
             _current = Normalized(new AppSettings());
             Save();
+            CreatedNew = true;
             Log.Info($"Created default settings at {FilePath}");
         }
         else if (TryRead(out var settings, out string? json, out string? error))

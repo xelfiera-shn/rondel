@@ -124,6 +124,28 @@ public class SettingsTests
     }
 
     [Fact]
+    public void OnlyTheFirstRunCreatesTheSettingsFile()
+    {
+        var folder = Directory.CreateTempSubdirectory("rondel-tests-");
+        try
+        {
+            bool CreatedNew()
+            {
+                using var store = new SettingsStore(new SynchronizationContext(), folder.FullName);
+                store.Load();
+                return store.CreatedNew;
+            }
+
+            Assert.True(CreatedNew()); // no settings.json yet: the first run, which shows how to open the menu
+            Assert.False(CreatedNew()); // every later start finds the file
+        }
+        finally
+        {
+            folder.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public void SavedPromptsAreOffUntilTurnedOnAndAtMostFiveArePinned()
     {
         var fresh = new AppSettings();
