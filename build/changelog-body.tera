@@ -1,0 +1,8 @@
+{# One version of CHANGELOG.md (git-cliff body template). The release notes use the body in cliff.toml, which has no version heading. #}
+{% if version %}## {{ version | trim_start_matches(pat="v") }} ({{ timestamp | date(format="%Y-%m-%d") }}){% else %}## Unreleased{% endif %}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message | upper_first }}{% if commit.breaking %} (**breaking**){% endif %}
+{%- endfor %}
+{% endfor %}

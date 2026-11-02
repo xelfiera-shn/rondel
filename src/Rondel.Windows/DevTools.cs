@@ -36,6 +36,11 @@ namespace Rondel.Windows;
 ///                                            for FOLDER (default: current folder), its folder-icon menu with "item", or the menu of FILE
 /// --render-settings out.png [en|tr] [bottom|scroll=DIP]   draw the settings window (in the current Windows theme), scrolled down
 /// --render-update out.png [dark|light] [en|tr] [working|failed]   draw the update window for a made-up release
+/// --render-card out.png [dark|light] [en|tr] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]   draw the agents card with made-up
+///                                            agents: open, collapsed, its quick settings and with no agent
+/// --card-demo [dark|light] [en|tr] [desktop] [report.txt]   the live agents card with made-up agents, its options in
+///                                            memory and its place in a temporary file; ends with Settings… on the card.
+///                                            With report.txt it runs a short script instead and writes what it saw
 /// --render-new out.png [dark|light] [en|tr] [prompt] [empty] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]
 ///                                            draw the New Project card with sample templates
 ///                                            (prompt: with the Prompt option on; empty: with no templates)
@@ -91,6 +96,14 @@ internal static class DevTools
 
             case ["--render-update", var output, .. var options]:
                 RenderUpdate(output, options);
+                return true;
+
+            case ["--render-card", var output, .. var options]:
+                RenderCard(output, options);
+                return true;
+
+            case ["--card-demo", .. var options]:
+                CardDemo(options);
                 return true;
 
             default:
@@ -465,6 +478,181 @@ internal static class DevTools
         using (var file = File.Create(output))
             encoder.Save(file);
         window.Close();
+    }
+
+    /// <summary>
+    /// Draws the agents card with made-up agents in every state, side by side on one picture: open, collapsed to its
+    /// badge, its quick settings, and open with no agent.
+    /// </summary>
+    static void RenderCard(string output, string[] options)
+    {
+        bool dark = !options.Contains("light", StringComparer.OrdinalIgnoreCase);
+        Loc.SetLanguage(options.Contains("tr", StringComparer.OrdinalIgnoreCase) ? "tr" : "en");
+        var palette = PaletteFrom(options, dark);
+        var window = new AgentsCardWindow
+        {
+            WindowStartupLocation = System.Windows.WindowStartupLocation.Manual,
+            Left = -32000,
+            Top = -32000,
+        };
+        window.ApplyLook(palette);
+        var agents = MadeUpAgents();
+
+        BitmapSource Snapshot()
+        {
+            // The whole window: its content has a margin for the shadow, which a picture of the content alone would cut off.
+            window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            window.UpdateLayout();
+            var bitmap = new RenderTargetBitmap((int)(window.ActualWidth * 2), (int)(window.ActualHeight * 2), 192, 192, PixelFormats.Pbgra32);
+            bitmap.Render(window);
+            return bitmap;
+        }
+
+        window.ShowAgents(agents);
+        window.Show();
+        var open = Snapshot();
+        window.SetCollapsed(true);
+        var badge = Snapshot();
+        window.SetCollapsed(false);
+        window.ShowAgents([]);
+        var empty = Snapshot();
+
+        var settings = new AgentsCardOptions { Placement = CardPlacement.OnTop, MuteNotifications = true };
+        var panel = window.QuickSettings(settings, "Ctrl+Alt+K", _ => { }, () => { }, () => { });
+        var holder = new System.Windows.Controls.Border { Padding = new System.Windows.Thickness(14), Child = panel };
+        holder.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+        holder.Arrange(new System.Windows.Rect(holder.DesiredSize));
+        holder.UpdateLayout();
+        var quick = new RenderTargetBitmap((int)(holder.ActualWidth * 2), (int)(holder.ActualHeight * 2), 192, 192, PixelFormats.Pbgra32);
+        quick.Render(holder);
+        window.Close();
+
+        // "open": the open card alone (the README's picture); otherwise the open card on the left, the quick settings, the
+        // badge and the empty card stacked on the right.
+        bool openOnly = options.Contains("open", StringComparer.OrdinalIgnoreCase);
+        double gap = openOnly ? 0 : 24;
+        double right = openOnly ? 0 : Math.Max(quick.PixelWidth, Math.Max(badge.PixelWidth, empty.PixelWidth)) + gap;
+        int width = (int)(open.PixelWidth + right + 2 * gap);
+        int height = (int)(openOnly ? open.PixelHeight : Math.Max(open.PixelHeight, quick.PixelHeight + badge.PixelHeight + empty.PixelHeight + 2 * gap) + 2 * gap);
+        var visual = new DrawingVisual();
+        using (var dc = visual.RenderOpen())
+        {
+            dc.DrawRectangle(new SolidColorBrush(dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6)), null, new System.Windows.Rect(0, 0, width, height));
+            dc.DrawImage(open, new System.Windows.Rect(gap, gap, open.PixelWidth, open.PixelHeight));
+            if (!openOnly)
+            {
+                double x = gap + open.PixelWidth + gap, y = gap;
+                dc.DrawImage(quick, new System.Windows.Rect(x, y, quick.PixelWidth, quick.PixelHeight));
+                y += quick.PixelHeight + gap;
+                dc.DrawImage(badge, new System.Windows.Rect(x, y, badge.PixelWidth, badge.PixelHeight));
+                y += badge.PixelHeight + gap;
+                dc.DrawImage(empty, new System.Windows.Rect(x, y, empty.PixelWidth, empty.PixelHeight));
+            }
+        }
+        var picture = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        picture.Render(visual);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(picture));
+        using var file = File.Create(output);
+        encoder.Save(file);
+    }
+
+    /// <summary>
+    /// The live agents card with made-up agents, without the tray app: its options live in memory and its place in a
+    /// temporary file, so the real settings are never touched. Settings… on the card ends it. With a report file it
+    /// runs a short script (collapsed, pinned open, on the desktop, hidden) and writes the window's state at each step.
+    /// </summary>
+    static void CardDemo(string[] options)
+    {
+        bool dark = !options.Contains("light", StringComparer.OrdinalIgnoreCase);
+        Loc.SetLanguage(options.Contains("tr", StringComparer.OrdinalIgnoreCase) ? "tr" : "en");
+        string? report = options.FirstOrDefault(o => o.EndsWith(".txt", StringComparison.OrdinalIgnoreCase));
+        var card = new AgentsCardOptions
+        {
+            Show = true,
+            Placement = options.Contains("desktop", StringComparer.OrdinalIgnoreCase) ? CardPlacement.OnDesktop : CardPlacement.OnTop,
+        };
+        var agents = MadeUpAgents();
+        string state = Path.Combine(Path.GetTempPath(), "rondel-card-demo.json");
+        var frame = new System.Windows.Threading.DispatcherFrame();
+        AgentsCard? live = null;
+        live = new AgentsCard(() => card, change =>
+        {
+            change(card);
+            live!.Update(agents, enabled: true);
+        }, report is null ? state : null);
+        live.ApplyLook(PaletteFrom(options, dark));
+        live.AgentClicked += id => Log.Info($"Card demo: agent {id} clicked");
+        live.SettingsRequested += () => frame.Continue = false;
+        // The demo has no tray icon and no shortcut: a card the user hides comes back after two seconds, as the tray
+        // menu's "Show the agents card" would bring it back.
+        live.HiddenByUser += () =>
+        {
+            if (report is not null)
+                return;
+            var back = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            back.Tick += (_, _) =>
+            {
+                back.Stop();
+                live.ShowAgain();
+            };
+            back.Start();
+        };
+        live.HideShortcut = "Ctrl+Alt+K";
+        live.Update(agents, enabled: true);
+
+        if (report is not null)
+        {
+            var text = new StringBuilder();
+            void Step(string name, Action action)
+            {
+                action();
+                System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                text.AppendLine($"{name}: {live.Describe()}{(live.IsShown ? "; " + InFront() : "")}");
+            }
+            // A plain window over the card, activated: is the card still in front of it?
+            string InFront()
+            {
+                RECT rect;
+                unsafe
+                {
+                    Native.GetWindowRect(live.Handle, &rect);
+                }
+                var cover = new System.Windows.Window
+                {
+                    WindowStartupLocation = System.Windows.WindowStartupLocation.Manual,
+                    Left = rect.Left - 20,
+                    Top = rect.Top - 20,
+                    Width = rect.Width + 40,
+                    Height = rect.Height + 40,
+                    Title = "cover",
+                };
+                cover.Show();
+                cover.Activate();
+                System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                var center = new POINT(rect.Left + rect.Width / 2, rect.Top + rect.Height / 2);
+                bool card = Native.GetAncestor(Native.WindowFromPoint(center), Native.GA_ROOT) == live.Handle;
+                cover.Close();
+                return card ? "card in front of an active window" : "card behind an active window";
+            }
+            Step("collapsed", () => { });
+            Step("pinned open", () => { card.Pinned = true; live.Update(agents, enabled: true); });
+            Step("on the desktop", () => { card.Placement = CardPlacement.OnDesktop; live.Update(agents, enabled: true); });
+            Step("above other windows again", () => { card.Placement = CardPlacement.OnTop; live.Update(agents, enabled: true); });
+            Step("on the desktop again", () => { card.Placement = CardPlacement.OnDesktop; live.Update(agents, enabled: true); });
+            Step("no agents", () => live.Update([], enabled: true));
+            Step("shortcut, no agents", live.Toggle);
+            Step("shortcut again", live.Toggle);
+            text.AppendLine($"tray item available: {live.CanShowAgain}");
+            Step("tray: show the agents card", live.ShowAgain);
+            text.AppendLine($"tray item available: {live.CanShowAgain}");
+            Step("turned off", () => { card.Show = false; live.Update(agents, enabled: true); });
+            Write(report, text.ToString());
+            live.Dispose();
+            return;
+        }
+        System.Windows.Threading.Dispatcher.PushFrame(frame);
+        live.Dispose();
     }
 
     static void Write(string path, string text) => File.WriteAllText(path, text, new UTF8Encoding(true));

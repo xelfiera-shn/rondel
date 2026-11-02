@@ -83,6 +83,14 @@ public partial class SettingsWindow : Window
             NotifyAsksBox.IsChecked = s.ActiveAgents.NotifyAsks;
             NotifyFinishedBox.IsChecked = s.ActiveAgents.NotifyFinished;
             AgentNotificationsPanel.IsEnabled = s.ActiveAgents.Follow;
+            var card = s.ActiveAgents.Card;
+            CardShowBox.IsChecked = card.Show;
+            Select(CardPlacementBox, card.Placement.ToString());
+            CardFullScreenBox.IsChecked = card.OverFullScreen;
+            CardMuteBox.IsChecked = card.MuteNotifications;
+            CardHotkeyBox.Text = string.IsNullOrEmpty(card.Hotkey) ? Loc.Get("Settings.Hotkey.Off") : card.Hotkey;
+            AgentsCardPanel.IsEnabled = s.ActiveAgents.Follow;
+            CardOptions.IsEnabled = card.Show;
             CardPromptBox.IsChecked = s.NewProjectCard.Prompt;
             CardGitBox.IsChecked = s.NewProjectCard.Git;
             CardPlanBox.IsChecked = s.NewProjectCard.Plan;
@@ -139,6 +147,7 @@ public partial class SettingsWindow : Window
 
         SetStatus(HotkeyStatus, _host.HotkeyError);
         SetStatus(AgentsHotkeyStatus, _host.AgentsHotkeyError);
+        SetStatus(CardHotkeyStatus, _host.CardHotkeyError);
     }
 
     void RefreshAutostart()
@@ -233,6 +242,38 @@ public partial class SettingsWindow : Window
         save(binding.ToString());
     }
 
+    void OnCardHotkeyKeyDown(object sender, KeyEventArgs e) => ReadHotkey(e, CardHotkeyStatus, SaveCardHotkey);
+
+    void OnClearCardHotkey(object sender, RoutedEventArgs e) => SaveCardHotkey("");
+
+    void SaveCardHotkey(string value)
+    {
+        if (value != Store.Current.ActiveAgents.Card.Hotkey)
+            Store.Update(s => s.ActiveAgents.Card.Hotkey = value);
+        CardHotkeyBox.Text = string.IsNullOrEmpty(value) ? Loc.Get("Settings.Hotkey.Off") : value;
+        UpdateStatus();
+    }
+
+    void OnAgentsCardClicked(object sender, RoutedEventArgs e)
+    {
+        if (_loading)
+            return;
+        bool show = CardShowBox.IsChecked == true, fullScreen = CardFullScreenBox.IsChecked == true, mute = CardMuteBox.IsChecked == true;
+        CardOptions.IsEnabled = show;
+        Store.Update(s =>
+        {
+            s.ActiveAgents.Card.Show = show;
+            s.ActiveAgents.Card.OverFullScreen = fullScreen;
+            s.ActiveAgents.Card.MuteNotifications = mute;
+        });
+    }
+
+    void OnCardPlacementChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_loading && Enum.TryParse(SelectedTag(CardPlacementBox), out CardPlacement placement))
+            Store.Update(s => s.ActiveAgents.Card.Placement = placement);
+    }
+
     void SaveAgentsHotkey(string value)
     {
         if (value != Store.Current.ActiveAgents.Hotkey)
@@ -324,6 +365,7 @@ public partial class SettingsWindow : Window
             return;
         bool follow = FollowAgentsBox.IsChecked == true, asks = NotifyAsksBox.IsChecked == true, finished = NotifyFinishedBox.IsChecked == true;
         AgentNotificationsPanel.IsEnabled = follow;
+        AgentsCardPanel.IsEnabled = follow;
         Store.Update(s =>
         {
             s.ActiveAgents.Follow = follow;

@@ -10,7 +10,7 @@
 
 Windows masaüstünde veya Dosya Gezgini'nde **Ctrl + sol fare tuşunu** (Mac masaüstünde veya Finder'da **⌥ Option + sol fare tuşunu**) kısa bir süre basılı tutun: imlecin altında dairesel bir menü açılır. Bir dilim seçtiğinizde kodlama ajanınız, doğru klasörde açılmış bir terminalde başlar.
 
-Rondel Windows'ta ve macOS'ta çalışır. Hangi platformda hangi özelliklerin bulunduğunu ve hangi sürümle geldiğini **[Platformlara göre özellikler](docs/features.tr.md)** sayfasında görebilirsiniz.
+Rondel Windows'ta ve macOS'ta çalışır. Hangi platformda hangi özelliklerin bulunduğunu ve hangi sürümle geldiğini **[Platformlara göre özellikler](docs/features.tr.md)** sayfasında, her sürümde nelerin değiştiğini **[CHANGELOG.md](CHANGELOG.md)** dosyasında görebilirsiniz.
 
 ## Kurulum
 
@@ -78,9 +78,11 @@ Rondel başlattığı ajanları takip eder; terminallerine göz kulak olmanız g
 - **Bildirimler.** Bir ajan izin istediğinde ya da size bir soru sorduğunda, işini bitirdiğinde veya bir hatayla durduğunda gelen bildirim projenin adını ve ne gerektiğini söyler. Bildirime tıklayınca ajanın terminali öne gelir. O terminaldeyken bildirim gösterilmez.
 - **Aktif Ajanlar** (masaüstü menüsü) Rondel'den başlattığınız ajanlara açılır; sizi bekleyenler önce gelir. Her birinin yanındaki nokta ne yaptığını gösterir: sarı, izin ya da cevap bekliyor; yeşil, bitti; kırmızı, bir hatayla durdu; temanın vurgu rengi, çalışıyor. Birini seçince terminali öne gelir. Dilimin kendisi kaç ajanın beklediğini söyler.
 - İsteğe bağlı bir kısayol (Ayarlar → **Aktif ajanlar**) bu yayı, nerede olursanız olun fare imlecinin olduğu yerde açar.
+- **Ajan kartı** (isteğe bağlı, Ayarlar → **Aktif ajanlar**) çalışan ajanları aynı noktalarla göz önünde tutar. İlk ajan başlayınca belirir, ajan kalmayınca gizlenir. Küçükken Rondel işaretidir ve üstünde size bakan ajanların sayısı yazar; bir ajan bile hatayla durduysa rozet kırmızıdır. Fare üstüne gelince açılır. İstediğiniz yere sürükleyebilirsiniz: raptiye onu açık tutar, **⋯** menüsü diğer pencerelerin üstüne ya da masaüstüne alır. Tam ekran uygulamaların üstünde gizlenir; orada da kalmasını isterseniz açık durur ve tıklamaları arkasına geçirir. Kendi kısayolu onu gösterir ya da gizler; gizlenen kart tray ikonundan da geri gelir (**Ajan kartını göster**). Kart görünürken bildirimler susabilir.
 
 <p align="center">
   <img src="docs/images/agents-tr.png" width="440" alt="Masaüstü menüsünde Aktif Ajanlar beş ajana açılmış: ikisi kullanıcıyı bekliyor, biri hatayla durmuş, biri bitmiş, biri çalışıyor">
+  <img src="docs/images/card-tr.png" width="300" alt="Beş ajanı listeleyen ajan kartı: ikisi kullanıcıyı bekliyor, biri hatayla durmuş, biri bitmiş, biri çalışıyor">
 </p>
 
 Rondel Claude Code'u ek bir ayar dosyasıyla (`--settings`) başlatır; bu dosyadaki hook'lar her olayı yalnızca bilgisayarınızın içinde (127.0.0.1) Rondel'e bildirir. Kendi Claude Code ayarlarınız değişmez. Her ajan kendi Windows Terminal penceresinde açılır, böylece o pencere öne getirilebilir. Bir ajan çalışırken Rondel'i kapatırsanız Claude Code, Rondel yeniden açılana kadar her prompt'un altında bir hook hatası gösterir; Rondel açılınca ajanı kaldığı yerden takip eder. Ajanları eskisi gibi başlatmak için Ayarlar'da **Rondel'in başlattığı ajanları takip et** seçeneğini kapatın.
@@ -95,7 +97,7 @@ Ayarlar'daki **Güncellemeleri otomatik denetle** seçeneği günlük denetimi k
 
 ## Ayarlar ve özelleştirme
 
-Tray ikonu → **Ayarlar…**: dil (Otomatik / English / Türkçe), menünün görünümü, proje klasörü, basılı tutma süresi, klavye kısayolu, ajanın komutu (`claude` ya da `cc` gibi bir alias), terminal (Windows Terminal veya konsol penceresi), kabuk (PowerShell 7 veya Windows PowerShell), ajanların takibi ile bildirimleri ve kısayolu, güncelleme denetimi, Yeni Proje kartındaki seçenekler ve şablon klasörü.
+Tray ikonu → **Ayarlar…**: dil (Otomatik / English / Türkçe), menünün görünümü, proje klasörü, basılı tutma süresi, klavye kısayolu, ajanın komutu (`claude` ya da `cc` gibi bir alias), terminal (Windows Terminal veya konsol penceresi), kabuk (PowerShell 7 veya Windows PowerShell), ajanların takibi ile bildirimleri, kısayolu ve kartı, güncelleme denetimi, Yeni Proje kartındaki seçenekler ve şablon klasörü.
 
 macOS'ta menü çubuğu ikonu → **Ayarlar…** aynısını sunar; klavye kısayolu ve aktif ajanlar yoktur, terminal olarak Terminal ya da iTerm2 seçilir. Ajan giriş kabuğunuzda çalışır, bu yüzden `~/.zprofile` ve `~/.zshrc` içindeki `PATH` ve alias'lar geçerlidir. **İzinler** bölümü Erişilebilirlik ve Finder izinlerinin verilip verilmediğini gösterir; **Oturum açılınca başlat** Rondel'i giriş öğelerinize ekler.
 

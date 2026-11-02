@@ -10,7 +10,7 @@ English · [Türkçe](README.tr.md)
 
 Hold **Ctrl + the left mouse button** for a moment on the Windows desktop or in File Explorer (**⌥ Option + the left mouse button** on the Mac desktop or in Finder), and a radial menu opens under the cursor. Pick a slice and your coding agent starts in a terminal, already in the right folder.
 
-Rondel runs on Windows and macOS. **[Features by platform](docs/features.md)** shows what each one has, and since which version.
+Rondel runs on Windows and macOS. **[Features by platform](docs/features.md)** shows what each one has, and since which version; **[CHANGELOG.md](CHANGELOG.md)** lists what changed in each version.
 
 ## Install
 
@@ -78,9 +78,11 @@ Rondel follows the agents it starts, so you don't have to keep an eye on their t
 - **Notifications.** When an agent asks for a permission or asks you a question, finishes its turn, or stops with an error, a notification names the project and says what it needs. Click it to bring the agent's terminal to the front. No notification appears while you are in that terminal.
 - **Active Agents** (desktop menu) opens into the agents you started from Rondel, those waiting for you first. A dot shows what each is doing: amber, waiting for a permission or an answer; green, done; red, stopped with an error; the theme's accent, working. Pick one to bring its terminal to the front. The slice itself says how many are waiting.
 - An optional shortcut (Settings → **Active agents**) opens this arc at the mouse cursor, wherever you are.
+- The **agents card** (optional, Settings → **Active agents**) keeps the running agents in sight, with the same dots. It appears when the first agent starts and hides when none is left. Collapsed, it is Rondel's mark with the number of agents that need you, red as soon as one stopped with an error; it opens while the mouse is over it. Drag it anywhere: the pin keeps it open, and its **⋯** menu puts it above other windows or on the desktop. Over full-screen apps it hides, unless you keep it there; then it stays open and lets clicks through. Its own shortcut shows or hides it, and a hidden card comes back from the tray icon (**Show the agents card**); notifications can stay quiet while it is shown.
 
 <p align="center">
   <img src="docs/images/agents-en.png" width="440" alt="The desktop menu with Active Agents opened into five agents: two waiting for the user, one stopped with an error, one done and one working">
+  <img src="docs/images/card-en.png" width="300" alt="The agents card listing five agents: two waiting for the user, one stopped with an error, one done and one working">
 </p>
 
 Rondel starts Claude Code with an extra settings file (`--settings`) whose hooks report each event to Rondel, on your computer only (127.0.0.1); your own Claude Code settings are not changed. Each agent opens in a Windows Terminal window of its own, so that window can be brought to the front. If you quit Rondel while an agent is still running, Claude Code shows a hook error under each prompt until Rondel runs again, and Rondel then picks the agent up. To start agents as before, turn off **Follow the agents Rondel starts** in Settings.
@@ -95,7 +97,7 @@ Settings → **Check for updates automatically** turns the daily check off; **Ch
 
 ## Settings and customization
 
-Tray icon → **Settings…**: language (Automatic / English / Türkçe), the menu's look, projects folder, hold duration, keyboard shortcut, the agent's command (`claude`, or an alias such as `cc`), terminal (Windows Terminal or console window), shell (PowerShell 7 or Windows PowerShell), following agents with their notifications and shortcut, update checks, the options on the New Project card and the templates folder.
+Tray icon → **Settings…**: language (Automatic / English / Türkçe), the menu's look, projects folder, hold duration, keyboard shortcut, the agent's command (`claude`, or an alias such as `cc`), terminal (Windows Terminal or console window), shell (PowerShell 7 or Windows PowerShell), following agents with their notifications, shortcut and card, update checks, the options on the New Project card and the templates folder.
 
 On macOS, menu bar icon → **Settings…** has the same, except the keyboard shortcut and active agents, with Terminal or iTerm2 as the terminal; the agent runs in your login shell, so `PATH` and aliases from `~/.zprofile` and `~/.zshrc` work. Its **Permissions** section shows whether Accessibility and Finder are allowed, and **Open at login** adds Rondel to your login items.
 
