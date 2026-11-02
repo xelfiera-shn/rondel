@@ -77,7 +77,7 @@ Detection starts as soon as a Ctrl+press is swallowed, while the hold timer runs
 
 ## Contexts
 
-`ContextKind` is one of `None`, `DesktopEmpty`, `ExplorerEmpty`, `FolderItem` or `FileItem`. A `TriggerContext` carries the kind, the target folder (for a file, the folder it is in, with the file in `FilePath`), the name shown in the menu center, a short reason for the log and, in debug mode, the detection trace. `None` means "not ours": the click is passed through unchanged.
+`ContextKind` is one of `None`, `DesktopEmpty`, `ExplorerEmpty`, `FolderItem` or `FileItem`. A `TriggerContext` carries the kind, the target folder (for a file, the folder it is in, with the file in `FilePath`, and with `SelectedFiles` when it was held in a selection of several files: the selected files in its folder, see `FileSelection`), the name shown in the menu center, a short reason for the log and, in debug mode, the detection trace. `None` means "not ours": the click is passed through unchanged.
 
 ## Agent profiles
 

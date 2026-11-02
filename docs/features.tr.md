@@ -65,7 +65,7 @@ Henüz iki platformda da yok; bkz. [yol haritası](roadmap.md).
 | Özellik | Windows | macOS |
 |---|---|---|
 | Başka bir mod için değiştirici tuş, örneğin plan modu için Shift | ⬜ | ⬜ |
-| Seçili birden fazla dosya hakkında sorma | ⬜ | ⬜ |
+| Seçili birden fazla dosya hakkında sorma | ✅ 0.10.0 | ⬜ |
 | İlk açılışta hareketi gösteren ipucu | ⬜ | ⬜ |
 
 ARM64 Windows sürümü ve Intel Mac sürümü yayımlanıyor, ancak ikisi de henüz böyle bir bilgisayarda denenmedi. Bunlardan birini kullanıyorsanız nasıl çalıştığını [bildirirseniz](https://github.com/xelfiera-shn/rondel/issues/new/choose) seviniriz.

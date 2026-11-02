@@ -32,8 +32,9 @@ namespace Rondel.Windows;
 /// --render-notice-icons out.png              the icons of notifications about agents, dark and light
 ///    (--render-menu … agents: made-up followed agents, with the Active Agents slice open)
 /// --render-menu out.png [dark|light] [en|tr] [desktop|item] [idle] [deep] [edge] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]
-///              [hover=N] [FOLDER|FILE]                 draw the Explorer menu
+///              [hover=N] [FOLDER|FILE...]              draw the Explorer menu
 ///                                            for FOLDER (default: current folder), its folder-icon menu with "item", or the menu of FILE
+///                                            (several FILEs: held in a selection of them)
 /// --render-settings out.png [en|tr] [bottom|scroll=DIP]   draw the settings window (in the current Windows theme), scrolled down
 /// --render-update out.png [dark|light] [en|tr] [working|failed]   draw the update window for a made-up release
 /// --render-card out.png [dark|light] [en|tr] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]   draw the agents card with made-up
@@ -143,6 +144,7 @@ internal static class DevTools
             .AppendLine($"kind={context.Kind}")
             .AppendLine($"dir={context.TargetDir}")
             .AppendLine($"name={context.DisplayName}")
+            .AppendLine($"files={string.Join(" | ", context.Files)}")
             .AppendLine($"reason={context.Reason}");
         foreach (string line in context.Trace)
             text.AppendLine("  " + line);
@@ -270,14 +272,19 @@ internal static class DevTools
     {
         bool dark = !options.Contains("light", StringComparer.OrdinalIgnoreCase);
         Loc.SetLanguage(options.Contains("tr", StringComparer.OrdinalIgnoreCase) ? "tr" : "en");
-        string target = options.FirstOrDefault(o => o.Contains('\\') || o.Contains('/')) ?? Environment.CurrentDirectory;
+        string[] paths = [.. options.Where(o => o.Contains('\\') || o.Contains('/'))];
+        string target = paths.FirstOrDefault() ?? Environment.CurrentDirectory;
         var settings = new AppSettings();
         settings.Normalize();
         var kind = options.Contains("desktop", StringComparer.OrdinalIgnoreCase) ? ContextKind.DesktopEmpty
             : options.Contains("item", StringComparer.OrdinalIgnoreCase) ? ContextKind.FolderItem
             : ContextKind.ExplorerEmpty;
         var context = File.Exists(target)
-            ? new TriggerContext(ContextKind.FileItem, Path.GetDirectoryName(target), Path.GetFileName(target), "render-menu") { FilePath = target }
+            ? new TriggerContext(ContextKind.FileItem, Path.GetDirectoryName(target), Path.GetFileName(target), "render-menu")
+            {
+                FilePath = target,
+                SelectedFiles = paths.Length > 1 ? paths : [],
+            }
             : new TriggerContext(kind, target, Path.GetFileName(target), "render-menu");
         var model = MenuBuilder.Build(context, settings);
         // "agents": made-up followed agents, with the Active Agents slice open.

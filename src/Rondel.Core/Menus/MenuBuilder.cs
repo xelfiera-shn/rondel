@@ -192,11 +192,12 @@ public static class MenuBuilder
                 if (action.MentionFile && (context.FilePath is null || string.IsNullOrEmpty(agent.FileMention)))
                     continue;
                 if (agent.Supports(action.Capability))
-                    items.Add(new MenuItemModel(action, agent, Loc.Resolve(action.Label), action.Glyph, null, false));
+                    items.Add(new MenuItemModel(action, agent, LabelOf(action, context), action.Glyph, null, false));
             }
         }
 
-        string title = context.DisplayName
+        // Several selected files: how many, in the folder they are in (the subtitle).
+        string title = (context.Files.Count > 1 ? Loc.Format("Context.Files", context.Files.Count) : context.DisplayName)
             ?? (context.TargetDir is { } dir ? Path.GetFileName(Path.TrimEndingDirectorySeparator(dir)) : null)
             ?? "";
         if (title.Length == 0 && context.TargetDir is { } root)
@@ -219,4 +220,10 @@ public static class MenuBuilder
         };
         return new MenuModel(context, title, subtitle, items);
     }
+
+    /// <summary>The action's label; the built-in Ask About This File speaks of several files when several are selected.</summary>
+    static string LabelOf(ActionDefinition action, TriggerContext context) =>
+        action.MentionFile && context.Files.Count > 1 && action.Label == "@Action.AskFile"
+            ? Loc.Get("Action.AskFiles")
+            : Loc.Resolve(action.Label);
 }

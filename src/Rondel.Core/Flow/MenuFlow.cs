@@ -96,7 +96,7 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
 
         if (action.Input == ActionInput.Prompt)
         {
-            string? file = action.MentionFile ? model.Context.FilePath : null;
+            IReadOnlyList<string> files = action.MentionFile ? model.Context.Files : [];
             host.StartInput(new InputSpec(
                 item.Label,
                 item.Glyph,
@@ -107,10 +107,18 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
                 Submit: (_, prompt) =>
                 {
                     host.CloseMenu(restoreFocus: false);
-                    Start(item.Agent, action, directory, WithMention(item.Agent, file, prompt));
+                    Start(item.Agent, action, directory, WithMentions(item.Agent, files, prompt));
                     return null;
                 })
-            { AskName = false, Location = file ?? directory });
+            {
+                AskName = false,
+                Location = files.Count switch
+                {
+                    0 => directory,
+                    1 => files[0],
+                    _ => $"{directory} · {string.Join(", ", files.Select(Path.GetFileName))}",
+                },
+            });
             return;
         }
 
@@ -211,11 +219,14 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
         return null;
     }
 
-    /// <summary>The prompt, after a mention of <paramref name="file"/> in the agent's syntax ("@Program.cs explain this").</summary>
-    static string? WithMention(AgentProfile agent, string? file, string? prompt) =>
-        file is null || string.IsNullOrEmpty(agent.FileMention)
+    /// <summary>
+    /// The prompt, after a mention of each of <paramref name="files"/> in the agent's syntax
+    /// ("@Program.cs @README.md explain these").
+    /// </summary>
+    static string? WithMentions(AgentProfile agent, IReadOnlyList<string> files, string? prompt) =>
+        files.Count == 0 || string.IsNullOrEmpty(agent.FileMention)
             ? prompt
-            : $"{FileMention.Format(agent.FileMention, Path.GetFileName(file))} {prompt}".TrimEnd();
+            : $"{string.Join(" ", files.Select(file => FileMention.Format(agent.FileMention, Path.GetFileName(file))))} {prompt}".TrimEnd();
 
     void Start(AgentProfile agent, ActionDefinition action, string directory, string? prompt, string? sessionId = null,
         bool planMode = false, bool initGit = false)
