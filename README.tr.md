@@ -45,7 +45,7 @@ Rondel macOS 15 ve sonrasında çalışır, Dock'ta ikonu yoktur. Çalışırken
 macOS'ta da aynısıdır; Ctrl yerine ⌥ Option, Dosya Gezgini yerine Finder, varsayılan proje klasörü olarak `~/Projects` kullanılır. Masaüstü menüsünde henüz Aktif Ajanlar yoktur.
 
 - **Aç** yeni bir oturum başlatır, **Devam Et** en son oturumu sürdürür, **Oturum Seç** listeden seçtirir (`claude`, `claude --continue`, `claude --resume`).
-- **Sor** ve **Burada Sor** yalnızca bir prompt sorar ve yeni oturumu onunla başlatır. **Bu Dosyayı Sor** aynısını dosyanın klasöründe yapar ve dosyayı prompt'un başına ekler (`@Program.cs`, boşluklu adlarda `@"Proje Notları.md"`); Claude Code dosyayı hemen okur.
+- **Sor** ve **Burada Sor** yalnızca bir prompt sorar ve yeni oturumu onunla başlatır. **Bu Dosyayı Sor** aynısını dosyanın klasöründe yapar ve dosyayı prompt'un başına ekler (`@Program.cs`, boşluklu adlarda `@"Proje Notları.md"`); Claude Code dosyayı hemen okur. Birkaç dosya seçip birinin üzerinde basılı tutarsanız **Bu Dosyaları Sor** olur ve seçili dosyaların hepsi prompt'a eklenir (şimdilik Windows'ta).
 - **Oturum Seç dışa doğru açılır** (klasörde iki veya daha fazla oturum varsa): son beş oturum dilimin etrafındaki bir yayda belirir, en yenisi tam dilimin dışında. Birini seçerek o oturumu doğrudan açabilirsiniz.
 - **Son Projeler** (masaüstü menüsü) en son çalıştığınız beş klasöre açılır. Birini seçince o projenin son oturumu açılır; iki veya daha fazla oturumu olan bir proje de aynı şekilde oturumlarına açılır.
 
@@ -67,7 +67,7 @@ macOS'ta da aynısıdır; Ctrl yerine ⌥ Option, Dosya Gezgini yerine Finder, v
 </p>
 
 - Sor dilimleri doğrudan prompt'a geçer (**Ctrl+Enter** ya da **⌘↩** başlatır, **Esc** vazgeçer).
-- Dilime tıklayın, **1–N** tuşlarına basın ya da ok tuşları ve **Enter** kullanın; **Tab** seçili dilimin ya da projenin öğelerine (en yeniden başlayarak) geçer, **Esc** bir seviye geri çıkar ve en sonunda menüyü kapatır. Basılı tutmaya devam edip bir dilimin üzerine gelerek bırakmak da seçer.
+- Dilime tıklayın, **1–N** tuşlarına basın ya da **Tab** veya ok tuşlarıyla gezinip seçili dilimi **Enter** ile çalıştırın. **Boşluk** seçili dilimin ya da projenin öğelerini (en yeniden başlayarak) açar, **Esc** bir seviye geri çıkar ve en sonunda menüyü kapatır. macOS'ta şimdilik **Tab** öğelere geçmeye devam ediyor. Basılı tutmaya devam edip bir dilimin üzerine gelerek bırakmak da seçer.
 - Normal Ctrl+tık ve Ctrl+sürükle her yerde eskisi gibi çalışır (macOS'ta ⌥+tık ve ⌥+sürükle). Gezinti bölmesi, adres çubuğu, Bu Bilgisayar gibi sanal konumlar ve yönetici olarak çalışan Dosya Gezgini pencereleri menüyü açmaz.
 - İsteğe bağlı bir klavye kısayolu (Ayarlar) menüyü fare imlecinin olduğu yerde açar. Şimdilik yalnızca Windows'ta.
 
@@ -101,7 +101,7 @@ Tray ikonu → **Ayarlar…**: dil (Otomatik / English / Türkçe), menünün g�
 
 macOS'ta menü çubuğu ikonu → **Ayarlar…** aynısını sunar; klavye kısayolu ve aktif ajanlar yoktur, terminal olarak Terminal ya da iTerm2 seçilir. Ajan giriş kabuğunuzda çalışır, bu yüzden `~/.zprofile` ve `~/.zshrc` içindeki `PATH` ve alias'lar geçerlidir. **İzinler** bölümü Erişilebilirlik ve Finder izinlerinin verilip verilmediğini gösterir; **Oturum açılınca başlat** Rondel'i giriş öğelerinize ekler.
 
-**Görünüm**: beş tema — Rondel, İnce Halka, Vurgu, Yörünge ve Yaprak — her biri koyu ve açık; menünün resimlerinden seçilir. Koyu ya da açık mod Windows'u (ya da macOS'u) izleyebilir ya da sabit kalabilir; vurgu rengi temanın kendi rengi, hazır bir çift ya da kendi `#RRGGBB` renkleriniz olabilir. Değişiklikler menüye hemen yansır.
+**Görünüm**: beş tema — Rondel, İnce Halka, Vurgu, Yörünge ve Yaprak — her biri koyu ve açık; menünün resimlerinden seçilir. Koyu ya da açık mod Windows'u (ya da macOS'u) izleyebilir ya da sabit kalabilir; vurgu rengi temanın kendi rengi, hazır bir çift ya da kendi renkleriniz olabilir; bunları `#RRGGBB` olarak yazabilir ya da kutularındaki noktayla renk seçiciden seçebilirsiniz (şimdilik Windows'ta). Değişiklikler menüye hemen yansır.
 
 <p align="center">
   <img src="docs/images/themes-tr.png" width="720" alt="Aynı klasör menüsü beş temada: Rondel, İnce Halka, Vurgu, Yörünge ve Yaprak">

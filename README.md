@@ -45,7 +45,7 @@ Rondel runs on macOS 15 and later and has no Dock icon. Opening it again while i
 On macOS it is the same with ⌥ Option instead of Ctrl, Finder instead of File Explorer and `~/Projects` as the default projects folder; the desktop menu has no Active Agents yet.
 
 - **Open** starts a new session, **Continue** the most recent one, **Resume** lets you pick (`claude`, `claude --continue`, `claude --resume`).
-- **Ask** and **Ask Here** ask only for a prompt and start a new session with it. **Ask About This File** does the same in the file's folder and puts the file first in the prompt (`@Program.cs`, or `@"My Notes.md"` for a name with spaces), so Claude Code reads it right away.
+- **Ask** and **Ask Here** ask only for a prompt and start a new session with it. **Ask About This File** does the same in the file's folder and puts the file first in the prompt (`@Program.cs`, or `@"My Notes.md"` for a name with spaces), so Claude Code reads it right away. Select several files and hold one of them, and it becomes **Ask About These Files**, with every selected file in the prompt (Windows for now).
 - **Resume opens outward** when the folder has two or more sessions: the five newest appear on an arc around it, the newest right outside the slice. Pick one to resume it directly.
 - **Recent Projects** (desktop menu) opens into the five folders you worked in most recently. Pick one to resume its latest session; a project with two or more sessions opens further into them, the same way.
 
@@ -67,7 +67,7 @@ On macOS it is the same with ⌥ Option instead of Ctrl, Finder instead of File 
 </p>
 
 - The Ask slices go straight to the prompt (**Ctrl+Enter** or **⌘↩** starts, **Esc** cancels).
-- Click a slice, press **1–N**, or use the arrow keys and **Enter**; **Tab** steps into the items of the selected slice or project (newest first), **Esc** steps back out and finally closes. You can also keep holding, move onto a slice and release.
+- Click a slice, press **1–N**, or move with **Tab** or the arrow keys and press **Enter** to run the selected slice. **Space** opens the items of the selected slice or project (newest first), and **Esc** steps back out and finally closes. On macOS, **Tab** still steps into the items for now. You can also keep holding, move onto a slice and release.
 - Ordinary Ctrl+click and Ctrl+drag keep working everywhere (⌥+click and ⌥+drag on macOS). The navigation pane, the address bar, virtual locations such as This PC, and File Explorer windows running as administrator don't open the menu.
 - An optional keyboard shortcut (Settings) opens the menu at the mouse cursor. Windows only for now.
 
@@ -101,7 +101,7 @@ Tray icon → **Settings…**: language (Automatic / English / Türkçe), the me
 
 On macOS, menu bar icon → **Settings…** has the same, except the keyboard shortcut and active agents, with Terminal or iTerm2 as the terminal; the agent runs in your login shell, so `PATH` and aliases from `~/.zprofile` and `~/.zshrc` work. Its **Permissions** section shows whether Accessibility and Finder are allowed, and **Open at login** adds Rondel to your login items.
 
-**Appearance**: five themes — Rondel, Line, Spotlight, Orbit and Petal — each in dark and light, chosen from pictures of the menu; dark or light can follow Windows (or macOS) or stay fixed, and the accent color is the theme's own, a ready-made pair or your own `#RRGGBB` colors. Changes show in the menu at once.
+**Appearance**: five themes — Rondel, Line, Spotlight, Orbit and Petal — each in dark and light, chosen from pictures of the menu; dark or light can follow Windows (or macOS) or stay fixed, and the accent color is the theme's own, a ready-made pair or your own colors, typed as `#RRGGBB` or picked with the dot in their box (Windows for now). Changes show in the menu at once.
 
 <p align="center">
   <img src="docs/images/themes-en.png" width="720" alt="The same folder menu in the five themes: Rondel, Line, Spotlight, Orbit and Petal">

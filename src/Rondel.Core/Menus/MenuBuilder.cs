@@ -64,6 +64,17 @@ public static class MenuBuilder
     public static bool ListsActiveAgents(MenuItemModel item) => item.Action.Source == ActionSource.ActiveAgents;
 
     /// <summary>
+    /// Whether running the item does something (Enter): the Recent Projects and Active Agents slices only hold their
+    /// items, while a project in them continues it and an agent comes to the front.
+    /// </summary>
+    public static bool RunsItself(MenuItemModel item) => item.Action.Source switch
+    {
+        ActionSource.RecentProjects => item.Directory is not null,
+        ActionSource.ActiveAgents => item.ActivityId is not null,
+        _ => true,
+    };
+
+    /// <summary>
     /// The items an Active Agents slice opens into, in <paramref name="agents"/>' order (those waiting for the user
     /// first): the project's name, and under it what the agent is doing and since when.
     /// </summary>
@@ -181,11 +192,12 @@ public static class MenuBuilder
                 if (action.MentionFile && (context.FilePath is null || string.IsNullOrEmpty(agent.FileMention)))
                     continue;
                 if (agent.Supports(action.Capability))
-                    items.Add(new MenuItemModel(action, agent, Loc.Resolve(action.Label), action.Glyph, null, false));
+                    items.Add(new MenuItemModel(action, agent, LabelOf(action, context), action.Glyph, null, false));
             }
         }
 
-        string title = context.DisplayName
+        // Several selected files: how many, in the folder they are in (the subtitle).
+        string title = (context.Files.Count > 1 ? Loc.Format("Context.Files", context.Files.Count) : context.DisplayName)
             ?? (context.TargetDir is { } dir ? Path.GetFileName(Path.TrimEndingDirectorySeparator(dir)) : null)
             ?? "";
         if (title.Length == 0 && context.TargetDir is { } root)
@@ -208,4 +220,10 @@ public static class MenuBuilder
         };
         return new MenuModel(context, title, subtitle, items);
     }
+
+    /// <summary>The action's label; the built-in Ask About This File speaks of several files when several are selected.</summary>
+    static string LabelOf(ActionDefinition action, TriggerContext context) =>
+        action.MentionFile && context.Files.Count > 1 && action.Label == "@Action.AskFile"
+            ? Loc.Get("Action.AskFiles")
+            : Loc.Resolve(action.Label);
 }

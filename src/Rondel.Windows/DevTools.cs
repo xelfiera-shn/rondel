@@ -32,9 +32,11 @@ namespace Rondel.Windows;
 /// --render-notice-icons out.png              the icons of notifications about agents, dark and light
 ///    (--render-menu … agents: made-up followed agents, with the Active Agents slice open)
 /// --render-menu out.png [dark|light] [en|tr] [desktop|item] [idle] [deep] [edge] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]
-///              [hover=N] [FOLDER|FILE]                 draw the Explorer menu
+///              [hover=N] [FOLDER|FILE...]              draw the Explorer menu
 ///                                            for FOLDER (default: current folder), its folder-icon menu with "item", or the menu of FILE
-/// --render-settings out.png [en|tr] [bottom|scroll=DIP]   draw the settings window (in the current Windows theme), scrolled down
+///                                            (several FILEs: held in a selection of them)
+/// --render-settings out.png [en|tr] [bottom|scroll=DIP] [picker]   draw the settings window (in the current Windows theme),
+///                                            scrolled down; picker: with a custom accent and its color picker open
 /// --render-update out.png [dark|light] [en|tr] [working|failed]   draw the update window for a made-up release
 /// --render-card out.png [dark|light] [en|tr] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]   draw the agents card with made-up
 ///                                            agents: open, collapsed, its quick settings and with no agent
@@ -143,6 +145,7 @@ internal static class DevTools
             .AppendLine($"kind={context.Kind}")
             .AppendLine($"dir={context.TargetDir}")
             .AppendLine($"name={context.DisplayName}")
+            .AppendLine($"files={string.Join(" | ", context.Files)}")
             .AppendLine($"reason={context.Reason}");
         foreach (string line in context.Trace)
             text.AppendLine("  " + line);
@@ -270,14 +273,19 @@ internal static class DevTools
     {
         bool dark = !options.Contains("light", StringComparer.OrdinalIgnoreCase);
         Loc.SetLanguage(options.Contains("tr", StringComparer.OrdinalIgnoreCase) ? "tr" : "en");
-        string target = options.FirstOrDefault(o => o.Contains('\\') || o.Contains('/')) ?? Environment.CurrentDirectory;
+        string[] paths = [.. options.Where(o => o.Contains('\\') || o.Contains('/'))];
+        string target = paths.FirstOrDefault() ?? Environment.CurrentDirectory;
         var settings = new AppSettings();
         settings.Normalize();
         var kind = options.Contains("desktop", StringComparer.OrdinalIgnoreCase) ? ContextKind.DesktopEmpty
             : options.Contains("item", StringComparer.OrdinalIgnoreCase) ? ContextKind.FolderItem
             : ContextKind.ExplorerEmpty;
         var context = File.Exists(target)
-            ? new TriggerContext(ContextKind.FileItem, Path.GetDirectoryName(target), Path.GetFileName(target), "render-menu") { FilePath = target }
+            ? new TriggerContext(ContextKind.FileItem, Path.GetDirectoryName(target), Path.GetFileName(target), "render-menu")
+            {
+                FilePath = target,
+                SelectedFiles = paths.Length > 1 ? paths : [],
+            }
             : new TriggerContext(kind, target, Path.GetFileName(target), "render-menu");
         var model = MenuBuilder.Build(context, settings);
         // "agents": made-up followed agents, with the Active Agents slice open.
@@ -395,6 +403,15 @@ internal static class DevTools
     {
         using var host = new AppHost(settingsDirectory);
         Loc.SetLanguage(options.Contains("tr", StringComparer.OrdinalIgnoreCase) ? "tr" : "en");
+        bool picker = options.Contains("picker", StringComparer.OrdinalIgnoreCase);
+        if (picker)
+        {
+            host.Store.Update(s =>
+            {
+                s.Appearance.AccentFrom = "#7C3AED";
+                s.Appearance.AccentTo = "#22D3EE";
+            });
+        }
         var window = new SettingsWindow(host)
         {
             WindowStartupLocation = System.Windows.WindowStartupLocation.Manual,
@@ -416,6 +433,24 @@ internal static class DevTools
         }
 
         var content = (System.Windows.FrameworkElement)window.Content;
+        // The picker is a window of its own: drawn over the settings where it opens, with its shadow.
+        var overlay = new DrawingVisual();
+        if (picker && window.FindName("CustomAccent") is System.Windows.FrameworkElement row
+            && FindChild<System.Windows.Controls.ScrollViewer>(window) is { } rows)
+        {
+            rows.ScrollToVerticalOffset(row.TransformToAncestor(rows).Transform(default).Y + rows.VerticalOffset - 240);
+            window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            var popup = window.ShowAccentPicker();
+            window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            var card = (System.Windows.FrameworkElement)popup.Child;
+            var target = (System.Windows.UIElement)popup.PlacementTarget;
+            var at = target.TranslatePoint(new System.Windows.Point(popup.HorizontalOffset, target.RenderSize.Height + popup.VerticalOffset), content);
+            var margin = card.Margin;
+            var area = new System.Windows.Rect(-margin.Left, -margin.Top, card.ActualWidth + margin.Left + margin.Right, card.ActualHeight + margin.Top + margin.Bottom);
+            using var dc = overlay.RenderOpen();
+            dc.DrawRectangle(new VisualBrush(card) { Viewbox = area, ViewboxUnits = BrushMappingMode.Absolute, Stretch = Stretch.None }, null,
+                new System.Windows.Rect(at, area.Size));
+        }
         var size = new System.Windows.Size(content.ActualWidth, content.ActualHeight);
         var backdrop = new DrawingVisual();
         using (var dc = backdrop.RenderOpen())
@@ -423,6 +458,7 @@ internal static class DevTools
         var bitmap = new RenderTargetBitmap((int)(size.Width * 2), (int)(size.Height * 2), 192, 192, PixelFormats.Pbgra32);
         bitmap.Render(backdrop);
         bitmap.Render(content);
+        bitmap.Render(overlay);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using (var file = File.Create(output))

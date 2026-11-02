@@ -125,6 +125,8 @@ public partial class RadialMenuWindow : Window
     Effect _glow;
     double _span = 360, _offset;
     int _hoverLevel = -1, _hoverIndex = -1;
+    /// <summary>False while the keyboard made the selection: its items wait for Space, even when they arrive later.</summary>
+    bool _hoverOpensItems = true;
     /// <summary>Room around the ring center up to the monitor's work area (DIPs): left, top, right, bottom.</summary>
     (double Left, double Top, double Right, double Bottom) _room = (double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity);
     bool _isOpen;
@@ -606,25 +608,28 @@ public partial class RadialMenuWindow : Window
                 Invoke(level, level == 0 ? number : band.PositionOfRank[number]);
             return;
         }
+        // One key, one job: Tab and the arrows only move, Space only opens a tile's items and steps in,
+        // Enter only runs the tile. Moving never opens items; where a key has nothing to do, it does nothing.
         switch (key)
         {
             case Key.Escape or Key.Back when _hoverLevel > 0:
-                SetHover(_hoverLevel - 1, _bands[_hoverLevel - 1].Opened);
+                SetHover(_hoverLevel - 1, _bands[_hoverLevel - 1].Opened, openItems: false);
                 break;
             case Key.Escape:
                 CloseMenu(restoreFocus: true);
                 break;
-            case Key.Enter or Key.Space:
-                if (_hoverLevel >= 0)
+            case Key.Enter:
+                if (_hoverLevel >= 0 && MenuBuilder.RunsItself(_bands[_hoverLevel].Tiles[_hoverIndex].Item))
                     Invoke(_hoverLevel, _hoverIndex);
                 break;
-            case Key.Tab when !shift && StepIn():
+            case Key.Space:
+                StepIn(openItems: false);
                 break;
             case Key.Right or Key.Down or Key.Tab when !shift:
-                SetHover(level, _hoverLevel < 0 ? 0 : (_hoverIndex + 1) % count);
+                SetHover(level, _hoverLevel < 0 ? 0 : (_hoverIndex + 1) % count, openItems: false);
                 break;
             case Key.Left or Key.Up or Key.Tab:
-                SetHover(level, _hoverLevel < 0 ? count - 1 : (_hoverIndex - 1 + count) % count);
+                SetHover(level, _hoverLevel < 0 ? count - 1 : (_hoverIndex - 1 + count) % count, openItems: false);
                 break;
             default:
                 e.Handled = false;
@@ -632,19 +637,15 @@ public partial class RadialMenuWindow : Window
         }
     }
 
-    /// <summary>Moves the selection into the items of the selected tile, starting with the newest.</summary>
-    /// <returns>False when the selected tile has no items.</returns>
-    bool StepIn()
+    /// <summary>Opens the items of the selected tile and selects the newest.</summary>
+    /// <param name="openItems">Whether the newest opens its own items in turn, as hovering it would.</param>
+    void StepIn(bool openItems = true)
     {
-        if (_hoverLevel < 0 || _hoverLevel + 1 >= _bands.Length)
-            return false;
-        var band = _bands[_hoverLevel];
-        if (band.Tiles[_hoverIndex].Children.Count == 0)
-            return false;
-        if (band.Opened != _hoverIndex)
+        if (_hoverLevel < 0 || !CanOpen(_hoverLevel, _hoverIndex))
+            return;
+        if (_bands[_hoverLevel].Opened != _hoverIndex)
             Open(_hoverLevel, _hoverIndex);
-        SetHover(_hoverLevel + 1, _bands[_hoverLevel + 1].PositionOfRank[0]);
-        return true;
+        SetHover(_hoverLevel + 1, _bands[_hoverLevel + 1].PositionOfRank[0], openItems);
     }
 
     void Invoke(int level, int index)
@@ -791,7 +792,7 @@ public partial class RadialMenuWindow : Window
             AddArrow(0, slice);
             Paint(slice, IsHot(0, i), _bands[0].Opened == i);
         }
-        if (_hoverLevel == 0 && _bands[0].Opened != _hoverIndex && Slices[_hoverIndex].Children.Count > 0)
+        if (_hoverLevel == 0 && _hoverOpensItems && _bands[0].Opened != _hoverIndex && Slices[_hoverIndex].Children.Count > 0)
             Open(0, _hoverIndex);
     }
 
@@ -1452,10 +1453,19 @@ public partial class RadialMenuWindow : Window
     /// opened itself; everything further out closes, and a tile with items opens them. Selecting nothing
     /// (the pointer left the menu, or rests in the center) keeps everything open, so the pointer can travel.
     /// </summary>
-    void SetHover(int level, int index)
+    /// <param name="openItems">
+    /// Whether a tile with items opens them, as the mouse does; the keyboard leaves that to Space.
+    /// </param>
+    void SetHover(int level, int index, bool openItems = true)
     {
+        _hoverOpensItems = openItems;
         if (level == _hoverLevel && index == _hoverIndex)
+        {
+            // The mouse onto the tile the keyboard selected opens its items.
+            if (openItems && level >= 0 && _bands[level].Opened != index && CanOpen(level, index))
+                Open(level, index);
             return;
+        }
         var (previousLevel, previousIndex) = (_hoverLevel, _hoverIndex);
         (_hoverLevel, _hoverIndex) = level >= 0 && index >= 0 ? (level, index) : (-1, -1);
         if (previousLevel >= 0 && previousIndex < _bands[previousLevel].Tiles.Count)
@@ -1471,11 +1481,14 @@ public partial class RadialMenuWindow : Window
         else
         {
             CloseFrom(level + 1);
-            if (band.Tiles[index].Children.Count > 0 && level + 1 < _bands.Length)
+            if (openItems && CanOpen(level, index))
                 Open(level, index);
         }
         Paint(band.Tiles[index], hot: true, band.Opened == index);
     }
+
+    /// <summary>Whether the tile has items and a band further out to open them on.</summary>
+    bool CanOpen(int level, int index) => _bands[level].Tiles[index].Children.Count > 0 && level + 1 < _bands.Length;
 
     void Paint(Tile tile, bool hot, bool expanded)
     {

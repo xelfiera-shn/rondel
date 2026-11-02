@@ -36,6 +36,7 @@ public partial class SettingsWindow : Window
         Icon = AppIconRenderer.Render(64);
         HeaderIcon.Source = AppIconRenderer.Render(72);
         ApplyBrand(SystemTheme.Read());
+        SetUpAccentPicker();
 
         Loc.Changed += LoadValues;
         Closed += (_, _) =>
