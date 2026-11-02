@@ -32,24 +32,24 @@ What every platform gets, with a mark per platform. A Linux column is added when
 
 | ID | Feature | Windows | macOS | Notes |
 |---|---|---|---|---|
-| C-1 | Holding the mouse with the modifier opens the menu on the desktop and in folder windows; ordinary clicks and drags with the modifier keep working | ✅ 0.1.0 | ⬜ | Ctrl + hold on Windows, Option + hold on macOS |
-| C-2 | Menus by place: desktop, folder window, folder, file | ✅ 0.3.0 | ⬜ | The file menu came in 0.3.0 |
-| C-3 | Open, Continue and Resume, with session hints (when, how many; dimmed when there are none) | ✅ 0.1.0 | ⬜ | |
-| C-4 | Resume opens into the five newest sessions | ✅ 0.1.0 | ⬜ | Only with two or more sessions |
-| C-5 | Recent Projects on the desktop, opening into projects and their sessions | ✅ 0.2.0 | ⬜ | |
-| C-6 | Ask, Ask Here and Ask About This File (`@file` mention) | ✅ 0.3.0 | ⬜ | |
-| C-7 | New Project card: prompt, `git init`, plan mode and combinable templates; remembers the last choice | ✅ 0.4.0 | ⬜ | |
-| C-8 | Themes, dark and light mode, accent colors | ✅ 0.5.0 | ⬜ | |
-| C-9 | Keyboard in the menu: 1–N, arrows, Enter, Tab, Esc | ✅ 0.1.0 | ⬜ | |
-| C-10 | Long project names fit their tiles | ✅ 0.3.0 | ⬜ | |
-| C-11 | Tray icon; starting Rondel again opens Settings | ✅ 0.1.0 | ⬜ | A menu bar icon without a Dock icon on macOS |
-| C-12 | Settings window | ✅ 0.1.0 | ⬜ | |
-| C-13 | Keyboard shortcut that opens the menu at the mouse cursor | ✅ 0.1.0 | ⬜ | |
-| C-14 | Start at sign-in | ✅ 0.1.0 | ⬜ | Run key on Windows, `SMAppService` on macOS |
-| C-15 | Choice of terminal | ✅ 0.1.0 | ⬜ | Windows Terminal or console window; Terminal.app or iTerm2 |
-| C-16 | Menus, actions and agents in `settings.json`, applied when the file is saved | ✅ 0.1.0 | ⬜ | |
-| C-17 | English and Turkish | ✅ 0.1.0 | ⬜ | |
-| C-18 | Diagnostics: debug log, `--probe`, `--render-menu` | ✅ 0.1.0 | ⬜ | |
+| C-1 | Holding the mouse with the modifier opens the menu on the desktop and in folder windows; ordinary clicks and drags with the modifier keep working | ✅ 0.1.0 | ✅ 0.8.0 | Ctrl + hold on Windows, Option + hold on macOS |
+| C-2 | Menus by place: desktop, folder window, folder, file | ✅ 0.3.0 | ✅ 0.8.0 | The file menu came in 0.3.0 |
+| C-3 | Open, Continue and Resume, with session hints (when, how many; dimmed when there are none) | ✅ 0.1.0 | ✅ 0.8.0 | |
+| C-4 | Resume opens into the five newest sessions | ✅ 0.1.0 | ✅ 0.8.0 | Only with two or more sessions |
+| C-5 | Recent Projects on the desktop, opening into projects and their sessions | ✅ 0.2.0 | ✅ 0.8.0 | |
+| C-6 | Ask, Ask Here and Ask About This File (`@file` mention) | ✅ 0.3.0 | ✅ 0.8.0 | |
+| C-7 | New Project card: prompt, `git init`, plan mode and combinable templates; remembers the last choice | ✅ 0.4.0 | ✅ 0.8.0 | |
+| C-8 | Themes, dark and light mode, accent colors | ✅ 0.5.0 | ✅ 0.8.0 | |
+| C-9 | Keyboard in the menu: 1–N, arrows, Enter, Tab, Esc | ✅ 0.1.0 | ✅ 0.8.0 | |
+| C-10 | Long project names fit their tiles | ✅ 0.3.0 | ✅ 0.8.0 | |
+| C-11 | Tray icon; starting Rondel again opens Settings | ✅ 0.1.0 | ✅ 0.8.0 | A menu bar icon without a Dock icon on macOS |
+| C-12 | Settings window | ✅ 0.1.0 | ✅ 0.8.0 | |
+| C-13 | Keyboard shortcut that opens the menu at the mouse cursor | ✅ 0.1.0 | ⏸️ | On hold on macOS: left for later |
+| C-14 | Start at sign-in | ✅ 0.1.0 | ✅ 0.8.0 | Run key on Windows, `SMAppService` on macOS |
+| C-15 | Choice of terminal | ✅ 0.1.0 | ✅ 0.8.0 | Windows Terminal or console window; Terminal.app or iTerm2 |
+| C-16 | Menus, actions and agents in `settings.json`, applied when the file is saved | ✅ 0.1.0 | ✅ 0.8.0 | |
+| C-17 | English and Turkish | ✅ 0.1.0 | ✅ 0.8.0 | |
+| C-18 | Diagnostics: debug log, `--probe`, `--render-menu` | ✅ 0.1.0 | ✅ 0.8.0 | |
 | C-19 | A modifier key for an alternate mode (for example Shift for plan mode) | ⬜ | ⬜ | |
 | C-20 | Ask about several selected files | ⬜ | ⬜ | |
 | C-21 | Updates: a daily check (on by default, also when the connection comes back), asking before updating, and the update itself from within the app, verified with Rondel's release key | ✅ 0.7.0 | ⬜ | Windows: the exe replaces itself and restarts. macOS picks its own way with M-7 |
