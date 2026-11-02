@@ -157,6 +157,21 @@ public class SettingsTests
     }
 
     [Fact]
+    public void OnlyTheSlicesThatHoldItemsRunNothingThemselves()
+    {
+        var settings = new AppSettings();
+        settings.Normalize();
+        var menu = MenuBuilder.Build(new TriggerContext(ContextKind.DesktopEmpty, @"C:\Projects", null, "test"), settings);
+        var recents = menu.Items.Single(i => i.Action.Id == "recents");
+        string alpha = Path.Combine(Path.GetTempPath(), "work", "alpha");
+        var project = MenuBuilder.ProjectItems(recents, [new FolderActivity(alpha, DateTime.UtcNow, 1, "a1")], _ => [])[0];
+
+        Assert.Equal(["new-project"], menu.Items.Where(MenuBuilder.RunsItself).Select(i => i.Action.Id));
+        Assert.True(MenuBuilder.RunsItself(project)); // continues the project
+        Assert.True(MenuBuilder.RunsItself(menu.Items.Single(MenuBuilder.ListsActiveAgents) with { ActivityId = "agent" }));
+    }
+
+    [Fact]
     public void MenuHidesActionsTheAgentCannotDo()
     {
         var settings = new AppSettings();

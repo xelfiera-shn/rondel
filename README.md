@@ -67,7 +67,7 @@ On macOS it is the same with ⌥ Option instead of Ctrl, Finder instead of File 
 </p>
 
 - The Ask slices go straight to the prompt (**Ctrl+Enter** or **⌘↩** starts, **Esc** cancels).
-- Click a slice, press **1–N**, or use the arrow keys and **Enter**; **Tab** steps into the items of the selected slice or project (newest first), **Esc** steps back out and finally closes. You can also keep holding, move onto a slice and release.
+- Click a slice, press **1–N**, or move with **Tab** or the arrow keys and press **Enter** to run the selected slice. **Space** opens the items of the selected slice or project (newest first), and **Esc** steps back out and finally closes. On macOS, **Tab** still steps into the items for now. You can also keep holding, move onto a slice and release.
 - Ordinary Ctrl+click and Ctrl+drag keep working everywhere (⌥+click and ⌥+drag on macOS). The navigation pane, the address bar, virtual locations such as This PC, and File Explorer windows running as administrator don't open the menu.
 - An optional keyboard shortcut (Settings) opens the menu at the mouse cursor. Windows only for now.
 
