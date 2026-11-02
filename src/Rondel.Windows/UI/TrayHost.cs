@@ -22,6 +22,7 @@ internal sealed unsafe class TrayHost : IDisposable
     const uint IconId = 1;
     const int HotkeyId = 1;
     const int AgentsHotkeyId = 2;
+    const int CardHotkeyId = 3;
 
     readonly HwndSource _source;
     readonly Func<IReadOnlyList<TrayMenuItem>> _menuItems;
@@ -31,6 +32,7 @@ internal sealed unsafe class TrayHost : IDisposable
     string _tooltip = AppInfo.Name;
     bool _hotkeyRegistered;
     bool _agentsHotkeyRegistered;
+    bool _cardHotkeyRegistered;
 
     /// <summary>Notification icons by kind and size, kept until the app exits: Windows may still show one.</summary>
     readonly Dictionary<(NoticeIcon, int), nint> _noticeIcons = [];
@@ -63,6 +65,9 @@ internal sealed unsafe class TrayHost : IDisposable
 
     /// <summary>The Active Agents shortcut was pressed.</summary>
     public event Action? AgentsHotkeyPressed;
+
+    /// <summary>The agents card's shortcut was pressed.</summary>
+    public event Action? CardHotkeyPressed;
 
     /// <summary>The last notification shown was clicked.</summary>
     public event Action? BalloonClicked;
@@ -135,6 +140,20 @@ internal sealed unsafe class TrayHost : IDisposable
         if (_agentsHotkeyRegistered)
             UnregisterHotKey(Handle, AgentsHotkeyId);
         _agentsHotkeyRegistered = false;
+    }
+
+    /// <summary>The shortcut that shows or hides the agents card.</summary>
+    public bool SetCardHotkey(uint modifiers, uint virtualKey)
+    {
+        ClearCardHotkey();
+        return _cardHotkeyRegistered = Register(CardHotkeyId, modifiers, virtualKey);
+    }
+
+    public void ClearCardHotkey()
+    {
+        if (_cardHotkeyRegistered)
+            UnregisterHotKey(Handle, CardHotkeyId);
+        _cardHotkeyRegistered = false;
     }
 
     bool Register(int id, uint modifiers, uint virtualKey)
@@ -221,6 +240,10 @@ internal sealed unsafe class TrayHost : IDisposable
                 AgentsHotkeyPressed?.Invoke();
                 handled = true;
                 break;
+            case WM_HOTKEY when wParam == CardHotkeyId:
+                CardHotkeyPressed?.Invoke();
+                handled = true;
+                break;
             case WM_SETTINGCHANGE when lParam != 0 && Marshal.PtrToStringUni(lParam) == "ImmersiveColorSet":
             case WM_DWMCOLORIZATIONCOLORCHANGED:
             case WM_THEMECHANGED:
@@ -272,6 +295,7 @@ internal sealed unsafe class TrayHost : IDisposable
     {
         ClearHotkey();
         ClearAgentsHotkey();
+        ClearCardHotkey();
         var data = NewData(0);
         Shell_NotifyIconW(NIM_DELETE, &data);
         if (_icon != 0)

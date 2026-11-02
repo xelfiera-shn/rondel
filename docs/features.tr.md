@@ -43,6 +43,7 @@ Rondel'in Windows'ta ve macOS'ta hangi özelliklere sahip olduğu ve her birinin
 |---|---|---|
 | Bir ajan bir şey sorduğunda, işini bitirdiğinde ya da hatayla durduğunda bildirim; tıklayınca terminali öne gelir | ✅ 0.6.0 | ⬜ |
 | Masaüstü menüsünde her ajan için durum noktasıyla **Aktif Ajanlar** ve onu açan kısayol | ✅ 0.6.0 | ⬜ |
+| Ajan kartı: çalışan ajanlar göz önünde; diğer pencerelerin üstünde ya da masaüstünde, küçülünce size bakanların sayısını gösteren bir rozet | ✅ 0.9.0 | ⬜ |
 
 ## Uygulama
 

@@ -17,4 +17,7 @@ public sealed class ActiveAgentsOptions
 
     /// <summary>Opens the Active Agents arc at the mouse cursor, e.g. "Ctrl+Alt+A"; empty = none.</summary>
     public string Hotkey { get; set; } = "";
+
+    /// <summary>The agents card, which keeps the followed agents in sight.</summary>
+    public AgentsCardOptions Card { get; set; } = new();
 }

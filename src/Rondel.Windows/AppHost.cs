@@ -86,6 +86,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         _tray.Activated += OpenSettings;
         _tray.HotkeyPressed += OnHotkey;
         _tray.AgentsHotkeyPressed += OnAgentsHotkey;
+        _tray.CardHotkeyPressed += () => _card?.Toggle();
         _tray.ThemeChanged += () =>
         {
             ApplyLook(Store.Current, force: true);
@@ -97,6 +98,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         if (!_hook.IsInstalled)
             ShowBalloon(AppInfo.Name, Loc.Get("Tray.HookFailed"), warning: true);
 
+        StartCard();
         ApplySettings(Store.Current);
         StartFollowingAgents();
         StartUpdates();
@@ -136,7 +138,9 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         if (!force && look == _look)
             return;
         _look = look;
-        _menu.ApplyLook(RondelPalette.For(appearance, SystemTheme.Read()));
+        var palette = RondelPalette.For(appearance, SystemTheme.Read());
+        _menu.ApplyLook(palette);
+        _card?.ApplyLook(palette);
     }
 
     void ApplySettings(AppSettings settings)
@@ -148,6 +152,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         _tray.Update(settings.Paused, TrayTooltip(settings));
         ApplyHotkey(settings.Hotkey);
         ApplyAgentsHotkey(settings.ActiveAgents.Hotkey);
+        ApplyCard(settings);
     }
 
     void ApplyHotkey(string text)
@@ -357,6 +362,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 
     public void Dispose()
     {
+        _card?.Dispose();
         StopUpdates();
         StopFollowingAgents();
         _hook.Dispose();

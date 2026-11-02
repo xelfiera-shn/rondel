@@ -29,6 +29,7 @@ public static class SettingsJson
         {
             new LenientEnumConverter<TerminalKind>(),
             new LenientEnumConverter<ShellKind>(),
+            new LenientEnumConverter<CardPlacement>(),
             new LenientEnumConverter<ColorMode>(),
             new LenientEnumConverter<ActionInput>(),
             new LenientEnumConverter<ActionSource>(),
