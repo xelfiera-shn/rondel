@@ -1,0 +1,119 @@
+<Window x:Class="Rondel.Windows.UI.SessionsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="clr-namespace:Rondel.Windows.UI"
+        Title="{l:Loc Sessions.Title}"
+        Width="780" Height="720" MinWidth="640" MinHeight="460"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <Style x:Key="Description" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Padding" Value="16,12" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header: the mark, the title and how much the sessions take, over a thin line in the brand gradient. -->
+        <StackPanel Margin="24,20,24,0">
+            <StackPanel Orientation="Horizontal">
+                <Image x:Name="HeaderIcon" Width="36" Height="36" VerticalAlignment="Center" />
+                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                    <TextBlock FontSize="18" FontWeight="SemiBold" Text="{l:Loc Sessions.Title}" />
+                    <TextBlock x:Name="SummaryText" Style="{StaticResource Description}" />
+                </StackPanel>
+            </StackPanel>
+            <Border x:Name="BrandLine" Height="2" Margin="0,14,0,0" CornerRadius="1" />
+        </StackPanel>
+
+        <!-- Search, what to show and in which order. -->
+        <StackPanel Grid.Row="1" Margin="24,14,24,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid>
+                    <TextBox x:Name="SearchBox" VerticalContentAlignment="Center" TextChanged="OnFilterChanged" />
+                    <TextBlock x:Name="SearchHint" Margin="12,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" Text="{l:Loc Sessions.Search}" />
+                </Grid>
+                <ComboBox x:Name="ShowBox" Grid.Column="1" Width="230" Margin="10,0,0,0" SelectionChanged="OnFilterChanged">
+                    <ComboBoxItem Tag="All" Content="{l:Loc Sessions.Show.All}" IsSelected="True" />
+                    <ComboBoxItem Tag="Day" Content="{l:Loc Sessions.Show.Day}" />
+                    <ComboBoxItem Tag="Week" Content="{l:Loc Sessions.Show.Week}" />
+                    <ComboBoxItem Tag="Gone" Content="{l:Loc Sessions.Show.Gone}" />
+                </ComboBox>
+                <ComboBox x:Name="SortBox" Grid.Column="2" Width="170" Margin="10,0,0,0" SelectionChanged="OnFilterChanged">
+                    <ComboBoxItem Tag="Size" Content="{l:Loc Sessions.Sort.Size}" IsSelected="True" />
+                    <ComboBoxItem Tag="Newest" Content="{l:Loc Sessions.Sort.Newest}" />
+                    <ComboBoxItem Tag="Oldest" Content="{l:Loc Sessions.Sort.Oldest}" />
+                </ComboBox>
+            </Grid>
+            <TextBlock x:Name="StatusText" Margin="2,10,0,0" Style="{StaticResource Description}" Visibility="Collapsed" />
+        </StackPanel>
+
+        <!-- One card per project: its sessions, and its memory when it has one. -->
+        <ScrollViewer x:Name="ListScroller" Grid.Row="2" Padding="24,0,24,8" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <StackPanel x:Name="ProjectList" />
+                <TextBlock x:Name="EmptyText" Margin="0,40,0,0" HorizontalAlignment="Center" Style="{StaticResource Description}" Visibility="Collapsed" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="3" Padding="24,12" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                    <TextBlock x:Name="SelectedText" FontWeight="SemiBold" />
+                    <TextBlock x:Name="CleanupText" Style="{StaticResource Description}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="RefreshButton" Padding="16,5" Content="{l:Loc Sessions.Refresh}" Click="OnRefresh" />
+                    <Button x:Name="DeleteButton" Margin="8,0,0,0" Padding="16,5" MinWidth="130" Style="{DynamicResource AccentButtonStyle}"
+                            Content="{l:Loc Sessions.Delete}" Click="OnDelete" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- The question before deleting, over the window. -->
+        <Grid x:Name="ConfirmLayer" Grid.RowSpan="4" Background="#66000000" Visibility="Collapsed">
+            <Border Width="440" Padding="24,20" CornerRadius="8" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Background="{DynamicResource SolidBackgroundFillColorBaseBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="24" ShadowDepth="6" Direction="270" Opacity="0.35" />
+                </Border.Effect>
+                <StackPanel>
+                    <TextBlock x:Name="ConfirmTitle" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock x:Name="ConfirmText" Margin="0,10,0,0" FontSize="13" TextWrapping="Wrap" />
+                    <TextBlock x:Name="ConfirmMemory" Margin="0,8,0,0" FontSize="13" TextWrapping="Wrap" Visibility="Collapsed" />
+                    <CheckBox x:Name="ForGoodBox" Margin="0,16,0,0" Content="{l:Loc Sessions.Confirm.DeleteForGood}" Click="OnForGoodChanged" />
+                    <StackPanel Margin="0,20,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Padding="16,5" MinWidth="90" IsCancel="True" Content="{l:Loc Sessions.Confirm.Cancel}" Click="OnCancelDelete" />
+                        <Button x:Name="ConfirmButton" Margin="8,0,0,0" Padding="16,5" MinWidth="90" Style="{DynamicResource AccentButtonStyle}"
+                                Content="{l:Loc Sessions.Confirm.Delete}" Click="OnConfirmDelete" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

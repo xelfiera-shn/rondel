@@ -398,6 +398,8 @@ public partial class SettingsWindow : Window
 
     void OnOpenTemplates(object sender, RoutedEventArgs e) => _host.OpenTemplatesFolder();
 
+    void OnOpenSessions(object sender, RoutedEventArgs e) => _host.OpenSessions();
+
     void OnEditJson(object sender, RoutedEventArgs e) => _host.OpenSettingsFile();
 
     void OnOpenLogs(object sender, RoutedEventArgs e) => _host.OpenLogFolder();

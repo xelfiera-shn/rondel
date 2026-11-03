@@ -92,6 +92,10 @@ Rondel follows the agents it starts, so you don't have to keep an eye on their t
 
 Rondel starts Claude Code with an extra settings file (`--settings`) whose hooks report each event to Rondel, on your computer only (127.0.0.1); your own Claude Code settings are not changed. Each agent opens in a Windows Terminal window of its own, so that window can be brought to the front. If you quit Rondel while an agent is still running, Claude Code shows a hook error under each prompt until Rondel runs again, and Rondel then picks the agent up. To start agents as before, turn off **Follow the agents Rondel starts** in Settings.
 
+## Sessions
+
+Claude Code keeps every session on disk, with the screenshots and images it took and the files it kept, and deletes them only after 30 days. Tray icon → **Sessions…** (or Settings → **Saved sessions**) lists them by project with the space each one takes, the largest first; search them, or show only those older than a day or a week, or the projects whose folder is gone. Tick the ones you no longer need and **Delete selected**: they go to the Recycle Bin, or are gone for good with **Delete permanently** in the question. Everything Claude Code kept for a session goes with it: its subagents, tool results, file history and temporary files. Sessions in use can't be deleted, and Claude's memory of a project stays unless you tick **Delete the memory too**. ▷ resumes a session in a terminal. Deleted sessions leave the menu at once. Windows only for now.
+
 ## Updates
 
 Once a day, and when the connection comes back, Rondel asks GitHub for its latest release. When a newer one is out, a notification says so. Click it, or tray icon → **Update to …**, to see what is new and choose **Update now**, **Later** or **Skip this version**.
@@ -137,7 +141,7 @@ Please include the log lines or the probe output when you [report a bug](https:/
 
 ## Privacy
 
-Rondel has no telemetry. It reads the agent's local session data only to show the hints and the recent sessions, and it receives the events of the agents it starts on 127.0.0.1 only. Once a day the Windows app asks GitHub for its latest release (this can be turned off in Settings); the request carries nothing but Rondel's version. It writes nothing except its own settings (with the hooks file for the agents it starts), its logs, the list of its agents' windows, the update checks' state and downloads and, if you enable it, the start-with-Windows entry (the login item on macOS).
+Rondel has no telemetry. It reads the agent's local session data only to show the hints and the recent sessions, and it receives the events of the agents it starts on 127.0.0.1 only. Once a day the Windows app asks GitHub for its latest release (this can be turned off in Settings); the request carries nothing but Rondel's version. It deletes Claude Code's session files only when you ask for it in the Sessions window, and it writes nothing except its own settings (with the hooks file for the agents it starts), its logs, the list of its agents' windows, the update checks' state and downloads and, if you enable it, the start-with-Windows entry (the login item on macOS).
 
 ## Build from source
 

@@ -43,6 +43,8 @@ namespace Rondel.Windows;
 ///                                            draw the Ask card with made-up saved prompts (empty: none in the folder;
 ///                                            picked: one of them picked)
 /// --render-update out.png [dark|light] [en|tr] [working|failed]   draw the update window for a made-up release
+/// --render-sessions out.png [dark|light] [en|tr] [confirm] [forgood]   draw the Sessions window with made-up sessions,
+///                                            some selected; confirm: with the question before deleting open
 /// --render-welcome out.png [dark|light] [en|tr] [stage] [t=SECONDS] [frames=N]   draw the welcome window at a moment
 ///                                            of its picture (the still one by default); stage: the picture alone;
 ///                                            frames=N: N moments over one loop, as out-000.png, out-001.png, …
@@ -114,6 +116,10 @@ internal static class DevTools
 
             case ["--render-welcome", var output, .. var options]:
                 RenderWelcome(output, options);
+                return true;
+
+            case ["--render-sessions", var output, .. var options]:
+                RenderSessions(output, options);
                 return true;
 
             case ["--render-card", var output, .. var options]:
@@ -566,6 +572,73 @@ internal static class DevTools
         bitmap.Render(backdrop);
         bitmap.Render(content);
         bitmap.Render(overlay);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using (var file = File.Create(output))
+            encoder.Save(file);
+        window.Close();
+    }
+
+    /// <summary>
+    /// Draws the Sessions window with made-up projects and sessions (never the real ones: their titles are private),
+    /// some of them selected, and with <c>confirm</c> the question before deleting.
+    /// </summary>
+    static void RenderSessions(string output, string[] options)
+    {
+        bool dark = !options.Contains("light", StringComparer.OrdinalIgnoreCase);
+        bool tr = options.Contains("tr", StringComparer.OrdinalIgnoreCase);
+        Loc.SetLanguage(tr ? "tr" : "en");
+        var now = DateTime.UtcNow;
+        const long Kb = 1024, Mb = Kb * 1024;
+        string Folder(string name) => Path.Combine("C:" + Path.DirectorySeparatorChar, "Users", "dev", "Projects", name);
+        StoredSession Session(int n, string en, string trTitle, long bytes, TimeSpan age, bool running = false) =>
+            new($"{n:00000000}-0000-4000-8000-000000000000", tr ? trTitle : en, now - age, bytes, running);
+        IReadOnlyList<StoredProject> projects =
+        [
+            new("C--Users-dev-Projects-acme-docs", Folder("acme-docs"), true, 14 * Kb,
+            [
+                Session(1, "Draw the architecture diagrams from the screenshots", "Ekran görüntülerinden mimari çizimlerini çıkar", 760 * Mb, TimeSpan.FromDays(2)),
+                Session(2, "Fix the broken links in the guide", "Kılavuzdaki kırık bağlantıları düzelt", 18 * Mb, TimeSpan.FromDays(5)),
+            ]),
+            new("C--Users-dev-Projects-weather-api", Folder("weather-api"), true, 6 * Kb,
+            [
+                Session(3, "Add tests for the forecast endpoint", "Tahmin uç noktası için testler ekle", 114 * Mb, TimeSpan.FromMinutes(3), running: true),
+                Session(4, "Set up a small REST API for the weather", "Hava durumu için küçük bir REST API kur", 9 * Mb + 600 * Kb, TimeSpan.FromDays(3)),
+                Session(5, "Explain how the cache works", "Önbelleğin nasıl çalıştığını açıkla", 48 * Kb, TimeSpan.FromDays(12)),
+            ]),
+            new("C--Users-dev-Projects-game-prototype", Folder("game-prototype"), false, 32 * Kb,
+            [
+                Session(6, "Make the enemy AI smarter", "Düşman yapay zekâsını akıllandır", 104 * Mb, TimeSpan.FromDays(9)),
+            ]),
+        ];
+        var window = new SessionsWindow(() => projects, (_, _) => new CleanupResult(0, 0, 0, []), (_, _) => { }, 30,
+            new ThemeColors(dark), dark ? System.Windows.ThemeMode.Dark : System.Windows.ThemeMode.Light)
+        {
+            WindowStartupLocation = System.Windows.WindowStartupLocation.Manual,
+            Left = -32000,
+            Top = -32000,
+            ShowActivated = false,
+        };
+        window.Show();
+        window.Show(projects);
+        window.SelectForPreview([(0, 0), (0, 1), (2, 0)], [2]);
+        if (options.Contains("confirm", StringComparer.OrdinalIgnoreCase))
+            window.ShowConfirm(forGood: options.Contains("forgood", StringComparer.OrdinalIgnoreCase));
+        window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        // The list is read again once the window has loaded: wait for that, and keep the selection made above.
+        for (int i = 0; i < 20; i++)
+        {
+            Thread.Sleep(25);
+            window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        }
+        var content = (System.Windows.FrameworkElement)window.Content;
+        var size = new System.Windows.Size(content.ActualWidth, content.ActualHeight);
+        var backdrop = new DrawingVisual();
+        using (var dc = backdrop.RenderOpen())
+            dc.DrawRectangle(new SolidColorBrush(dark ? Color.FromRgb(0x20, 0x20, 0x20) : Color.FromRgb(0xF3, 0xF3, 0xF3)), null, new System.Windows.Rect(size));
+        var bitmap = new RenderTargetBitmap((int)(size.Width * 2), (int)(size.Height * 2), 192, 192, PixelFormats.Pbgra32);
+        bitmap.Render(backdrop);
+        bitmap.Render(content);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using (var file = File.Create(output))

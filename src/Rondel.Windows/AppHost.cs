@@ -37,6 +37,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
     readonly MenuFlow _flow;
     SettingsWindow? _settingsWindow;
     WelcomeWindow? _welcomeWindow;
+    SessionsWindow? _sessionsWindow;
 
     /// <param name="settingsDirectory">Folder of settings.json; the real one when null (developer aids pass a copy).</param>
     public AppHost(string? settingsDirectory = null)
@@ -137,6 +138,25 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         window.SettingsRequested += OpenSettings;
         window.Closed += (_, _) => _welcomeWindow = null;
         _welcomeWindow = window;
+        window.Show();
+        window.Activate();
+    }
+
+    /// <summary>The Sessions window: Claude Code's saved sessions, to see what they take and delete those not needed.</summary>
+    public void OpenSessions()
+    {
+        if (_sessionsWindow is { } open)
+        {
+            if (open.WindowState == WindowState.Minimized)
+                open.WindowState = WindowState.Normal;
+            open.Activate();
+            open.Refresh();
+            return;
+        }
+        var storage = new Rondel.Core.Agents.ClaudeCode.ClaudeCodeStorage();
+        var window = new SessionsWindow(storage.List, storage.Delete, _flow.Resume, storage.CleanupPeriodDays(), SystemTheme.Read());
+        window.Closed += (_, _) => _sessionsWindow = null;
+        _sessionsWindow = window;
         window.Show();
         window.Activate();
     }
@@ -338,6 +358,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         [
             .. update is null ? [] : new[] { update, TrayMenuItem.Separator },
             new(Loc.Get("Tray.Settings"), OpenSettings, IsDefault: true),
+            new(Loc.Get("Tray.Sessions"), OpenSessions),
             new(Loc.Get("Tray.HowToUse"), ShowWelcome),
             .. CardTrayItems(settings),
             new(Loc.Get(settings.Paused ? "Tray.Resume" : "Tray.Pause"), () => Store.Update(s => s.Paused = !s.Paused)),
