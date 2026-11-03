@@ -171,13 +171,16 @@ public sealed partial class ClaudeCodeSessionStore : ISessionStore
         }
     }
 
-    static string DefaultProjectsDirectory()
+    static string DefaultProjectsDirectory() => Path.Combine(DefaultConfigDirectory(), "projects");
+
+    /// <summary>Claude Code's own folder: ~/.claude, or CLAUDE_CONFIG_DIR when it is set.</summary>
+    internal static string DefaultConfigDirectory()
     {
         string? configured = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
         string root = string.IsNullOrWhiteSpace(configured)
             ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude")
             : Environment.ExpandEnvironmentVariables(configured.Trim());
-        return Path.Combine(root, "projects");
+        return root;
     }
 
     static string Normalize(string path)
@@ -193,7 +196,7 @@ public sealed partial class ClaudeCodeSessionStore : ISessionStore
     }
 
     /// <summary>The first "cwd" recorded in a session file (only the first few lines are read).</summary>
-    string? ReadCwd(FileInfo file)
+    internal string? ReadCwd(FileInfo file)
     {
         if (_cwdByFile.TryGetValue(file.FullName, out string? cached))
             return cached;
@@ -232,7 +235,7 @@ public sealed partial class ClaudeCodeSessionStore : ISessionStore
     /// newest one wins), else an old-style summary, else the first prompt. Only the beginning and the
     /// end of the file are read, because transcripts grow to many megabytes.
     /// </summary>
-    string? ReadTitle(FileInfo file)
+    internal string? ReadTitle(FileInfo file)
     {
         if (_titleByFile.TryGetValue(file.FullName, out var cached) && cached.Length == file.Length)
             return cached.Title;

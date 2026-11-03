@@ -92,6 +92,10 @@ Rondel başlattığı ajanları takip eder; terminallerine göz kulak olmanız g
 
 Rondel Claude Code'u ek bir ayar dosyasıyla (`--settings`) başlatır; bu dosyadaki hook'lar her olayı yalnızca bilgisayarınızın içinde (127.0.0.1) Rondel'e bildirir. Kendi Claude Code ayarlarınız değişmez. Her ajan kendi Windows Terminal penceresinde açılır, böylece o pencere öne getirilebilir. Bir ajan çalışırken Rondel'i kapatırsanız Claude Code, Rondel yeniden açılana kadar her prompt'un altında bir hook hatası gösterir; Rondel açılınca ajanı kaldığı yerden takip eder. Ajanları eskisi gibi başlatmak için Ayarlar'da **Rondel'in başlattığı ajanları takip et** seçeneğini kapatın.
 
+## Oturumlar
+
+Claude Code her oturumu, aldığı ekran görüntüleri ve görsellerle, sakladığı dosyalarla birlikte diskte tutar ve ancak 30 gün sonra siler. Tray ikonu → **Oturumlar…** (ya da Ayarlar → **Kayıtlı oturumlar**) onları projelere göre, her birinin kapladığı yerle ve en büyüğü başta olmak üzere listeler; arayabilir, yalnızca bir günden ya da bir haftadan eskileri veya klasörü silinmiş projeleri gösterebilirsiniz. Artık gerekmeyenleri işaretleyip **Seçilenleri sil**'e basın: Geri Dönüşüm Kutusu'na gider ya da sorudaki **Kalıcı olarak sil** ile tamamen silinirler. Claude Code'un bir oturum için sakladığı her şey onunla gider: alt ajanları, araç çıktıları, dosya geçmişi ve geçici dosyaları. Kullanımdaki oturumlar silinemez; Claude'un bir projeye dair hafızası da **Hafızasını da sil**'i işaretlemezseniz korunur. ▷ bir oturumu terminalde sürdürür. Silinen oturumlar menüden hemen kalkar. Şimdilik yalnızca Windows'ta.
+
 ## Güncellemeler
 
 Rondel günde bir kez ve internet bağlantısı geldiğinde GitHub'a son sürümünü sorar. Daha yeni bir sürüm çıkmışsa bir bildirim bunu söyler. Bildirime ya da tepsi ikonu → **… sürümüne güncelle** satırına tıklayınca yenilikleri görür; **Şimdi güncelle**, **Sonra** veya **Bu sürümü atla** seçeneklerinden birini seçersiniz.
@@ -137,7 +141,7 @@ Menüler, aksiyonlar ve ajanlar `%APPDATA%\Rondel\settings.json` (macOS'ta `~/Li
 
 ## Gizlilik
 
-Rondel telemetri içermez. Ajanın yerel oturum verisini yalnızca ipuçlarını ve son oturumları göstermek için okur; başlattığı ajanların olaylarını yalnızca 127.0.0.1 üzerinden alır. Windows uygulaması günde bir kez GitHub'a son sürümünü sorar (Ayarlar'dan kapatılabilir); bu istek Rondel'in sürümü dışında hiçbir bilgi taşımaz. Kendi ayarları (başlattığı ajanlar için hook dosyasıyla birlikte), logları, ajanlarının pencere listesi, güncelleme denetiminin durumu ile indirdiği güncellemeler ve (açarsanız) Windows ile başlatma kaydı (macOS'ta giriş öğesi) dışında hiçbir şey yazmaz.
+Rondel telemetri içermez. Ajanın yerel oturum verisini yalnızca ipuçlarını ve son oturumları göstermek için okur; başlattığı ajanların olaylarını yalnızca 127.0.0.1 üzerinden alır. Windows uygulaması günde bir kez GitHub'a son sürümünü sorar (Ayarlar'dan kapatılabilir); bu istek Rondel'in sürümü dışında hiçbir bilgi taşımaz. Claude Code'un oturum dosyalarını yalnızca siz Oturumlar penceresinde isterseniz siler. Kendi ayarları (başlattığı ajanlar için hook dosyasıyla birlikte), logları, ajanlarının pencere listesi, güncelleme denetiminin durumu ile indirdiği güncellemeler ve (açarsanız) Windows ile başlatma kaydı (macOS'ta giriş öğesi) dışında hiçbir şey yazmaz.
 
 ## Kaynaktan derleme
 
