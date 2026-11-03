@@ -153,6 +153,7 @@ public partial class RadialMenuWindow
         PromptBox.Tag = spec.Placeholder ?? Loc.Format("Input.PromptPlaceholder", spec.AgentName);
         PromptBox.Text = "";
         SetUpSavedPrompts(spec);
+        SetUpShot(spec);
         ShowPromptStage(name: null);
         int index = picked is null ? -1 : spec.PromptNames.ToList().IndexOf(picked);
         if (index >= 0)

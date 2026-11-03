@@ -23,6 +23,7 @@ internal sealed unsafe class TrayHost : IDisposable
     const int HotkeyId = 1;
     const int AgentsHotkeyId = 2;
     const int CardHotkeyId = 3;
+    const int ScreenshotHotkeyId = 4;
 
     readonly HwndSource _source;
     readonly Func<IReadOnlyList<TrayMenuItem>> _menuItems;
@@ -33,6 +34,7 @@ internal sealed unsafe class TrayHost : IDisposable
     bool _hotkeyRegistered;
     bool _agentsHotkeyRegistered;
     bool _cardHotkeyRegistered;
+    bool _screenshotHotkeyRegistered;
 
     /// <summary>Notification icons by kind and size, kept until the app exits: Windows may still show one.</summary>
     readonly Dictionary<(NoticeIcon, int), nint> _noticeIcons = [];
@@ -68,6 +70,9 @@ internal sealed unsafe class TrayHost : IDisposable
 
     /// <summary>The agents card's shortcut was pressed.</summary>
     public event Action? CardHotkeyPressed;
+
+    /// <summary>The shortcut of Ask About a Screenshot was pressed.</summary>
+    public event Action? ScreenshotHotkeyPressed;
 
     /// <summary>The last notification shown was clicked.</summary>
     public event Action? BalloonClicked;
@@ -154,6 +159,20 @@ internal sealed unsafe class TrayHost : IDisposable
         if (_cardHotkeyRegistered)
             UnregisterHotKey(Handle, CardHotkeyId);
         _cardHotkeyRegistered = false;
+    }
+
+    /// <summary>The shortcut of Ask About a Screenshot.</summary>
+    public bool SetScreenshotHotkey(uint modifiers, uint virtualKey)
+    {
+        ClearScreenshotHotkey();
+        return _screenshotHotkeyRegistered = Register(ScreenshotHotkeyId, modifiers, virtualKey);
+    }
+
+    public void ClearScreenshotHotkey()
+    {
+        if (_screenshotHotkeyRegistered)
+            UnregisterHotKey(Handle, ScreenshotHotkeyId);
+        _screenshotHotkeyRegistered = false;
     }
 
     bool Register(int id, uint modifiers, uint virtualKey)
@@ -244,6 +263,10 @@ internal sealed unsafe class TrayHost : IDisposable
                 CardHotkeyPressed?.Invoke();
                 handled = true;
                 break;
+            case WM_HOTKEY when wParam == ScreenshotHotkeyId:
+                ScreenshotHotkeyPressed?.Invoke();
+                handled = true;
+                break;
             case WM_SETTINGCHANGE when lParam != 0 && Marshal.PtrToStringUni(lParam) == "ImmersiveColorSet":
             case WM_DWMCOLORIZATIONCOLORCHANGED:
             case WM_THEMECHANGED:
@@ -296,6 +319,7 @@ internal sealed unsafe class TrayHost : IDisposable
         ClearHotkey();
         ClearAgentsHotkey();
         ClearCardHotkey();
+        ClearScreenshotHotkey();
         var data = NewData(0);
         Shell_NotifyIconW(NIM_DELETE, &data);
         if (_icon != 0)

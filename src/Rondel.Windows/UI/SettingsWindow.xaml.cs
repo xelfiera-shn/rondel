@@ -155,6 +155,7 @@ public partial class SettingsWindow : Window
         SetStatus(HotkeyStatus, _host.HotkeyError);
         SetStatus(AgentsHotkeyStatus, _host.AgentsHotkeyError);
         SetStatus(CardHotkeyStatus, _host.CardHotkeyError);
+        SetStatus(ScreenshotHotkeyStatus, _host.ScreenshotHotkeyError);
     }
 
     void RefreshAutostart()

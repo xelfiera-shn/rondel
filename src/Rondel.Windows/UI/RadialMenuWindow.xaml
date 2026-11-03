@@ -161,6 +161,11 @@
                                TextTrimming="CharacterEllipsis" MaxWidth="290" />
                 </StackPanel>
                 <TextBlock x:Name="InputLocation" FontSize="11" Margin="0,3,0,10" TextTrimming="CharacterEllipsis" />
+                <!-- Ask About a Screenshot: the picture the prompt is about, exactly as it will be sent. -->
+                <Border x:Name="ShotFrame" CornerRadius="8" BorderThickness="1" Margin="0,0,0,10" Padding="1" Visibility="Collapsed"
+                        HorizontalAlignment="Left">
+                    <Image x:Name="ShotImage" Stretch="Uniform" MaxWidth="326" MaxHeight="180" HorizontalAlignment="Left" />
+                </Border>
                 <TextBox x:Name="NameBox" Style="{StaticResource InputBox}" />
                 <!-- New Project only: how the project starts, and the templates copied into it. -->
                 <StackPanel x:Name="NewOptions" Margin="0,12,0,0" Visibility="Collapsed">

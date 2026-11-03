@@ -95,6 +95,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         _tray.HotkeyPressed += OnHotkey;
         _tray.AgentsHotkeyPressed += OnAgentsHotkey;
         _tray.CardHotkeyPressed += () => _card?.Toggle();
+        _tray.ScreenshotHotkeyPressed += AskAboutScreenshot;
         _tray.ThemeChanged += () =>
         {
             ApplyLook(Store.Current, force: true);
@@ -209,6 +210,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         _tray.Update(settings.Paused, TrayTooltip(settings));
         ApplyHotkey(settings.Hotkey);
         ApplyAgentsHotkey(settings.ActiveAgents.Hotkey);
+        ApplyScreenshotHotkey(settings.Quick.ScreenshotHotkey);
         ApplyCard(settings);
     }
 
@@ -346,6 +348,8 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 
     void IMenuHost.StartInput(InputSpec spec) => _menu.StartInput(spec);
 
+    void IMenuHost.ShowCard(InputSpec spec) => _menu.ShowCard(spec, Native.GetCursorPosition());
+
     void IMenuHost.StartNewProject(NewProjectSpec spec) => _menu.StartNewProject(spec);
 
     void IMenuHost.ShowWarning(string message) => ShowBalloon(AppInfo.Name, message, warning: true);
@@ -362,6 +366,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         [
             .. update is null ? [] : new[] { update, TrayMenuItem.Separator },
             new(Loc.Get("Tray.Settings"), OpenSettings, IsDefault: true),
+            new(Loc.Get("Tray.Screenshot"), AskAboutScreenshot, Enabled: !settings.Paused),
             new(Loc.Get("Tray.Sessions"), OpenSessions),
             new(Loc.Get("Tray.HowToUse"), ShowWelcome),
             .. CardTrayItems(settings),

@@ -39,9 +39,12 @@ namespace Rondel.Windows;
 /// --render-settings out.png [en|tr] [bottom|scroll=DIP] [picker] [prompts]   draw the settings window (in the current Windows
 ///                                            theme), scrolled down; picker: with a custom accent and its color picker open;
 ///                                            prompts: with made-up saved prompts, scrolled to them
-/// --render-ask out.png [dark|light] [en|tr] [empty] [picked] [quick] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]
+/// --render-ask out.png [dark|light] [en|tr] [empty] [picked] [quick] [shot] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]
 ///                                            draw the Ask card with made-up saved prompts (empty: none in the folder;
-///                                            picked: one of them picked; quick: Quick Conversation's card)
+///                                            picked: one of them picked; quick: Quick Conversation's card; shot: Ask About
+///                                            a Screenshot's card with a made-up picture)
+/// --render-shot-picker out.png [dark|light] [en|tr] [drag]   draw the screen picker over a made-up desktop, a window
+///                                            outlined (drag: an area being dragged)
 /// --render-update out.png [dark|light] [en|tr] [working|failed]   draw the update window for a made-up release
 /// --render-sessions out.png [dark|light] [en|tr] [confirm] [forgood]   draw the Sessions window with made-up sessions,
 ///                                            some selected; confirm: with the question before deleting open
@@ -104,6 +107,10 @@ internal static class DevTools
 
             case ["--render-ask", var output, .. var options]:
                 RenderAsk(output, options);
+                return true;
+
+            case ["--render-shot-picker", var output, .. var options]:
+                RenderShotPicker(output, options);
                 return true;
 
             case ["--render-notice-icons", var output]:
@@ -409,13 +416,16 @@ internal static class DevTools
         using var prompts = new MadeUpPrompts(tr, empty: options.Contains("empty", StringComparer.OrdinalIgnoreCase));
         // A made-up location: these pictures may end up in the README.
         string folder = Path.Combine("C:" + Path.DirectorySeparatorChar, "Users", "dev", "Projects", "weather-api");
-        bool quick = options.Contains("quick", StringComparer.OrdinalIgnoreCase);
-        var spec = new InputSpec(Loc.Get(quick ? "Action.Quick" : "Action.AskHere"), quick ? '\uE945' : '\uE8F2', folder, "Claude Code",
-            AskPrompt: true, ValidateName: _ => null, Submit: (_, _) => null)
+        bool shot = options.Contains("shot", StringComparer.OrdinalIgnoreCase);
+        bool quick = shot || options.Contains("quick", StringComparer.OrdinalIgnoreCase);
+        string title = Loc.Get(shot ? "Action.Screenshot" : quick ? "Action.Quick" : "Action.AskHere");
+        char glyph = shot ? '\uE722' : quick ? '\uE945' : '\uE8F2';
+        var spec = new InputSpec(title, glyph, folder, "Claude Code", AskPrompt: true, ValidateName: _ => null, Submit: (_, _) => null)
         {
             AskName = false,
+            Image = shot ? MadeUpShot(tr, 520, 230) : null,
             Location = quick ? Loc.Get("Quick.Location") : folder,
-            Placeholder = quick ? Loc.Get("Quick.Placeholder") : null,
+            Placeholder = shot ? Loc.Get("Screenshot.Placeholder") : quick ? Loc.Get("Quick.Placeholder") : null,
             SavedPrompts = prompts.Prompts,
             PromptNames = prompts.Prompts.List(),
         };
@@ -424,6 +434,86 @@ internal static class DevTools
             : dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6);
         string? picked = options.Contains("picked", StringComparer.OrdinalIgnoreCase) ? prompts.Pinned[0] : null;
         var bitmap = window.RenderAskPreview(spec, PaletteFrom(options, dark), background, picked);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using (var file = File.Create(output))
+            encoder.Save(file);
+        window.Close();
+    }
+
+    /// <summary>A made-up app window with an error, as PNG bytes: what a screenshot on the card could show.</summary>
+    static byte[] MadeUpShot(bool tr, int width, int height)
+    {
+        var visual = new DrawingVisual();
+        using (var dc = visual.RenderOpen())
+            DrawMadeUpApp(dc, new System.Windows.Rect(0, 0, width, height), tr);
+        var bitmap = new RenderTargetBitmap(width * 2, height * 2, 192, 192, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = new MemoryStream();
+        encoder.Save(stream);
+        return stream.ToArray();
+    }
+
+    /// <summary>A made-up app window with an error dialog in <paramref name="r"/>.</summary>
+    static void DrawMadeUpApp(DrawingContext dc, System.Windows.Rect r, bool tr)
+    {
+        var face = new Typeface("Segoe UI");
+        double dpi = 2;
+        void Text(string text, double size, Color color, double x, double y, bool bold = false) =>
+            dc.DrawText(new FormattedText(text, Loc.Culture, System.Windows.FlowDirection.LeftToRight,
+                bold ? new Typeface(face.FontFamily, System.Windows.FontStyles.Normal, System.Windows.FontWeights.SemiBold, System.Windows.FontStretches.Normal) : face,
+                size, new SolidColorBrush(color), dpi), new System.Windows.Point(x, y));
+        dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0xF3, 0xF4, 0xF6)), new Pen(new SolidColorBrush(Color.FromRgb(0xC8, 0xCC, 0xD4)), 1), r);
+        dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0x25, 0x63, 0xEB)), null, new System.Windows.Rect(r.Left, r.Top, r.Width, 34));
+        Text(tr ? "Hava Durumu API · Kurulum" : "Weather API · Setup", 13, Colors.White, r.Left + 14, r.Top + 8);
+        var dialog = new System.Windows.Rect(r.Left + 28, r.Top + 56, r.Width - 56, r.Height - 84);
+        dc.DrawRoundedRectangle(Brushes.White, new Pen(new SolidColorBrush(Color.FromRgb(0xD5, 0xD8, 0xDE)), 1), dialog, 6, 6);
+        Text(tr ? "Bağlantı kurulamadı" : "Could not connect", 15, Color.FromRgb(0x1F, 0x29, 0x37), dialog.Left + 18, dialog.Top + 14, bold: true);
+        Text(tr ? "Hata kodu: ORCHID-58 (zaman aşımı, 30 sn)" : "Error code: ORCHID-58 (timed out after 30 s)", 12.5,
+            Color.FromRgb(0xC8, 0x1E, 0x1E), dialog.Left + 18, dialog.Top + 44);
+        Text("https://api.example.com/v2/forecast", 12, Color.FromRgb(0x6B, 0x72, 0x80), dialog.Left + 18, dialog.Top + 68);
+        var button = new System.Windows.Rect(dialog.Right - 104, dialog.Bottom - 40, 86, 28);
+        dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(0x25, 0x63, 0xEB)), null, button, 4, 4);
+        Text(tr ? "Tekrar dene" : "Try again", 12, Colors.White, button.Left + 12, button.Top + 6);
+    }
+
+    /// <summary>
+    /// Developer aid: the screen picker over a made-up desktop of 1600 × 900 with two windows, one of them outlined
+    /// as under the pointer, or (drag) an area being dragged.
+    /// </summary>
+    static void RenderShotPicker(string output, string[] options)
+    {
+        bool dark = !options.Contains("light", StringComparer.OrdinalIgnoreCase);
+        bool tr = options.Contains("tr", StringComparer.OrdinalIgnoreCase);
+        Loc.SetLanguage(tr ? "tr" : "en");
+        const int width = 1600, height = 900;
+        var desktop = new DrawingVisual();
+        using (var dc = desktop.RenderOpen())
+        {
+            dc.DrawRectangle(new LinearGradientBrush(Color.FromRgb(0x1E, 0x3A, 0x5F), Color.FromRgb(0x4C, 0x1D, 0x95), 45), null,
+                new System.Windows.Rect(0, 0, width, height));
+            var editor = new System.Windows.Rect(80, 90, 760, 560);
+            dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E)), null, editor);
+            dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0x32, 0x32, 0x32)), null, new System.Windows.Rect(editor.Left, editor.Top, editor.Width, 30));
+            var line = new SolidColorBrush(Color.FromRgb(0x5A, 0x8F, 0xC8));
+            for (int i = 0; i < 16; i++)
+                dc.DrawRectangle(i % 3 == 0 ? line : new SolidColorBrush(Color.FromRgb(0x9C, 0xA3, 0xAF)), null,
+                    new System.Windows.Rect(editor.Left + 30 + (i % 4) * 18, editor.Top + 54 + i * 28, 180 + (i * 53 % 260), 10));
+            DrawMadeUpApp(dc, new System.Windows.Rect(900, 240, 560, 300), tr);
+            dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(0xE0, 0x20, 0x20, 0x28)), null, new System.Windows.Rect(0, height - 48, width, 48));
+        }
+        var picture = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        picture.Render(desktop);
+        picture.Freeze();
+        var bounds = new RECT { Left = 0, Top = 0, Right = width, Bottom = height };
+        var app = new RECT { Left = 900, Top = 240, Right = 1460, Bottom = 540 };
+        var palette = PaletteFrom(options, dark);
+        var window = new ScreenshotWindow(picture, bounds, [bounds], [app, new RECT { Left = 80, Top = 90, Right = 840, Bottom = 650 }], palette, _ => { });
+        var bitmap = window.RenderPreview(options.Contains("drag", StringComparer.OrdinalIgnoreCase)
+            ? new RECT { Left = 930, Top = 300, Right = 1400, Bottom = 410 } : app,
+            dragging: options.Contains("drag", StringComparer.OrdinalIgnoreCase));
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using (var file = File.Create(output))
@@ -543,7 +633,8 @@ internal static class DevTools
         if (savedPrompts && window.FindName("PromptsBox") is System.Windows.FrameworkElement section
             && FindChild<System.Windows.Controls.ScrollViewer>(window) is { } list)
         {
-            list.ScrollToVerticalOffset(section.TransformToAncestor(list).Transform(default).Y + list.VerticalOffset - 120);
+            // Quick Conversation's section, right above, comes into the picture too.
+            list.ScrollToVerticalOffset(section.TransformToAncestor(list).Transform(default).Y + list.VerticalOffset - 420);
             window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         }
 

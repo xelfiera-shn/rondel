@@ -317,8 +317,8 @@ public partial class RadialMenuWindow : Window
         _palette = palette;
         _glow = _palette.Glow;
         ApplyPalette();
-        if (!_isOpen)
-            return;
+        if (!_isOpen || _model is null)
+            return; // closed, or the card by itself
         // Rebuild with the new colors, keeping what arrived after the menu opened and what is open.
         var hints = Slices.Select(s => (s.Hint.Visibility == Visibility.Visible ? s.Hint.Text : null, s.Dimmed)).ToList();
         var children = Slices.Select(s => s.Children).ToList();
@@ -393,6 +393,36 @@ public partial class RadialMenuWindow : Window
         bitmap.Render(Surface);
         bitmap.Freeze();
         return bitmap;
+    }
+
+    /// <summary>The picture the prompt is about, when there is one (Ask About a Screenshot).</summary>
+    void SetUpShot(InputSpec spec)
+    {
+        ResetShot();
+        if (spec.Image is not { Length: > 0 } png)
+            return;
+        try
+        {
+            var picture = new BitmapImage();
+            using var stream = new MemoryStream(png);
+            picture.BeginInit();
+            picture.CacheOption = BitmapCacheOption.OnLoad;
+            picture.StreamSource = stream;
+            picture.EndInit();
+            picture.Freeze();
+            ShotImage.Source = picture;
+            ShotFrame.Visibility = Visibility.Visible;
+        }
+        catch (Exception ex) when (ex is NotSupportedException or IOException or ArgumentException)
+        {
+            Log.Warn("Showing the screenshot on the card failed", ex);
+        }
+    }
+
+    void ResetShot()
+    {
+        ShotImage.Source = null;
+        ShotFrame.Visibility = Visibility.Collapsed;
     }
 
     /// <summary>
@@ -949,6 +979,52 @@ public partial class RadialMenuWindow : Window
     // ---- inline input ----
 
     /// <summary>
+    /// Shows the card by itself, with no menu around it, centered on <paramref name="anchor"/> and kept on its monitor
+    /// (Ask About a Screenshot).
+    /// </summary>
+    internal void ShowCard(InputSpec spec, POINT anchor)
+    {
+        if (_isOpen)
+            CloseMenu(restoreFocus: false);
+        _version++;
+        _model = null;
+        _previousForeground = GetForegroundWindow();
+        _pressedInside = false;
+        ResetInputMode();
+        _labelLayouts.Clear();
+        CloseFrom(1);
+        SliceLayer.Children.Clear();
+        Slices.Clear();
+        MenuRoot.Visibility = Visibility.Hidden;
+        Width = Height = 2 * (OuterR + ArrowReach + ShadowPad); // the card grows the window when it needs more (FitInputCard)
+
+        var (work, dpi) = GetMonitorWorkArea(anchor);
+        _work = work;
+        _scale = dpi / 96.0;
+        int size = (int)Math.Round(Width * _scale);
+        double half = size / 2.0;
+        int cx = ClampCenter(anchor.X, work.Left + half, work.Right - half);
+        int cy = ClampCenter(anchor.Y, work.Top + half, work.Bottom - half);
+        _bounds = new RECT { Left = cx - size / 2, Top = cy - size / 2 };
+        _bounds.Right = _bounds.Left + size;
+        _bounds.Bottom = _bounds.Top + size;
+        _centerX = _bounds.Left + size / 2.0;
+        _centerY = _bounds.Top + size / 2.0;
+
+        Surface.BeginAnimation(OpacityProperty, null);
+        Surface.Opacity = 1;
+        SurfaceScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+        SurfaceScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        SurfaceScale.ScaleX = SurfaceScale.ScaleY = 1;
+        ApplyBounds();
+        if (!IsVisible)
+            Show();
+        ApplyBounds();
+        _isOpen = true;
+        StartInput(spec);
+    }
+
+    /// <summary>
     /// Replaces the ring with a card in the menu center that asks for a folder name and, for
     /// "New + Prompt", then a prompt; or, for Ask, only a prompt. Validation is shown inline as the user types.
     /// </summary>
@@ -966,6 +1042,7 @@ public partial class RadialMenuWindow : Window
         NameBox.Text = "";
         PromptBox.Text = "";
         SetUpSavedPrompts(spec);
+        SetUpShot(spec);
 
         MenuRoot.IsHitTestVisible = false;
         InputCard.Visibility = Visibility.Visible;
@@ -990,6 +1067,8 @@ public partial class RadialMenuWindow : Window
         InputShift.X = InputShift.Y = 0;
         ResetNewProject();
         ResetSavedPrompts();
+        ResetShot();
+        MenuRoot.Visibility = Visibility.Visible;
         _promptStage = false;
         InputCard.BeginAnimation(OpacityProperty, null);
         InputCard.Visibility = Visibility.Collapsed;
@@ -1562,6 +1641,8 @@ public partial class RadialMenuWindow : Window
         InputGlyph.Foreground = _palette.Brand;
         InputTitle.Foreground = _palette.Text;
         InputLocation.Foreground = _palette.SubText;
+        ShotFrame.BorderBrush = _palette.TileStroke;
+        ShotFrame.Background = _palette.InputBackground;
         foreach (var box in new[] { NameBox, PromptBox })
         {
             box.Background = _palette.InputBackground;
