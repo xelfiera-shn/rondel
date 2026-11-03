@@ -111,6 +111,7 @@ internal sealed partial class AppHost
 
     void OnAgentChanged(AgentChange change)
     {
+        TrackQuick(change);
         if (change.Ended)
         {
             _agentWindows.Forget(change.Agent.Id);

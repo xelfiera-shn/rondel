@@ -30,5 +30,7 @@ public static class BuiltInAgents
         FileMention = "@{file}",
         // Hooks from this file run next to the user's own ones (https://code.claude.com/docs/en/hooks).
         ActivityArgs = ["--settings", "{hooks}"],
+        // No transcript and no prompt history (https://code.claude.com/docs/en/env-vars).
+        EphemeralEnvironment = new() { ["CLAUDE_CODE_SKIP_PROMPT_HISTORY"] = "1" },
     };
 }

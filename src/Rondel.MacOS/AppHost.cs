@@ -298,11 +298,11 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
 
     /// <summary>
     /// Rondel does not follow agents on macOS yet (C-24), so an Active Agents slice could only ever say there are none:
-    /// it is left out.
+    /// it is left out. So is Quick Conversation (C-30), which needs that to delete what a session leaves once it ends.
     /// </summary>
     static MenuModel WithoutActiveAgents(MenuModel model) =>
-        model.Items.Any(MenuBuilder.ListsActiveAgents)
-            ? model with { Items = [.. model.Items.Where(item => !MenuBuilder.ListsActiveAgents(item))] }
+        model.Items.Any(item => MenuBuilder.ListsActiveAgents(item) || item.Action.Ephemeral)
+            ? model with { Items = [.. model.Items.Where(item => !MenuBuilder.ListsActiveAgents(item) && !item.Action.Ephemeral)] }
             : model;
 
     /// <summary>Session hints, a Resume slice's sessions and the recent projects are filled in when they arrive.</summary>

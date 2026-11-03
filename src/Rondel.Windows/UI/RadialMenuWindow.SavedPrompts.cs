@@ -150,7 +150,7 @@ public partial class RadialMenuWindow
         InputCard.Visibility = Visibility.Visible;
         InputCard.Opacity = 1;
         InputGlyph.Text = spec.Glyph.ToString();
-        PromptBox.Tag = Loc.Format("Input.PromptPlaceholder", spec.AgentName);
+        PromptBox.Tag = spec.Placeholder ?? Loc.Format("Input.PromptPlaceholder", spec.AgentName);
         PromptBox.Text = "";
         SetUpSavedPrompts(spec);
         ShowPromptStage(name: null);

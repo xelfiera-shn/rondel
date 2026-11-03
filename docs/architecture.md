@@ -122,13 +122,15 @@ Claude Code keeps each session as `~/.claude/projects/<encoded folder>/<session 
 - The folder encoding replaces every UTF-16 code unit outside `[A-Za-z0-9]` with `-`. Names longer than 200 characters are cut to 200 characters plus `-` and a hash, so they are matched by prefix.
 - The encoding is lossy: `a.b` and `a-b` collide, and every Turkish letter becomes `-`. Each session file's first recorded `"cwd"` is therefore read (and cached) and compared case-insensitively with the target folder.
 - If the store does not exist at all, the result is *unknown* and nothing is dimmed. If it exists but has no sessions for the folder, Continue and Resume are dimmed.
-- `RecentFolders` lists the folders worked in most recently across the whole store (for Recent Projects), each with its session count and latest session. Folders that no longer exist and folders under the temp folder are left out.
+- `RecentFolders` lists the folders worked in most recently across the whole store (for Recent Projects), each with its session count and latest session. Folders that no longer exist and folders under the temp folder or Quick Conversation's folder are left out.
 - The Resume slice and a recent project expand into their five newest sessions, but only when there are at least two. Their titles come from the session file: a title the user gave (`custom-title`), else Claude Code's latest generated title (`ai-title`), else an old-style `summary`, else the first real prompt. Only the first and last 256 KB of a file are read.
 - This is an internal format of another program: any failure means "no hints", never an error.
 
 ### Deleting sessions
 
-`ClaudeCodeStorage` lists every project folder of the store with its sessions and auto memory for the Sessions window, and deletes what is asked for. A session is a GUID-named transcript and what Claude Code keeps under the same id: `<id>.orphaned-*.jsonl` and `<id>.jsonl.superseded-*` beside it, the `<id>/` folder (subagents, tool results, MCP tasks), `file-history`, `session-env`, `image-cache`, `uploads`, `dev-mods`, `tasks` and `debug` entries for the id, and its temporary folder `%TEMP%\claude\<project>\<id>` (images, scratchpad and tasks; under `CLAUDE_CODE_TMPDIR` when set), where `<project>` is the encoded folder for older Claude Code versions and the first 16 hex digits of the SHA-256 of the encoded folder in lower case for newer ones; both are looked at. Its size is the sum of all of them. Nothing whose name is not a GUID is taken for a session, so no other path can be reached. A session is in use, and not deleted, while `~/.claude/sessions/<pid>.json` names it for a running process, or when its transcript was written to in the last two minutes; this is checked again just before deleting. `projects/<folder>/memory/` goes only when the project's memory is asked for, and a project folder (and its temporary folders) left empty is removed. The Recycle Bin is `SHFileOperation` with undo, on a thread of its own (STA, for Windows' question about files too large for the bin); without it the files are deleted for good. The window shows `cleanupPeriodDays` from `~/.claude/settings.json` (30 when unset) and never changes it.
+`ClaudeCodeStorage` lists every project folder of the store with its sessions and auto memory for the Sessions window, and deletes what is asked for. A session is a GUID-named transcript and what Claude Code keeps under the same id: `<id>.orphaned-*.jsonl` and `<id>.jsonl.superseded-*` beside it, the `<id>/` folder (subagents, tool results, MCP tasks), `file-history`, `session-env`, `image-cache`, `uploads`, `dev-mods`, `tasks` and `debug` entries for the id, and its temporary folder `%TEMP%\claude\<project>\<id>` (images, scratchpad and tasks; under `CLAUDE_CODE_TMPDIR` when set), where `<project>` is the encoded folder for older Claude Code versions and the first 16 hex digits of the SHA-256 of the encoded folder in lower case for newer ones; both are looked at. Its size is the sum of all of them. Nothing whose name is not a GUID is taken for a session, so no other path can be reached. A session is in use, and not deleted, while `~/.claude/sessions/<pid>.json` names it for a running process, or when its transcript was written to in the last two minutes; this is checked again just before deleting. `projects/<folder>/memory/` goes only when the project's memory is asked for, and a project folder (and its temporary folders) left empty is removed. The Recycle Bin is `SHFileOperation` with undo, on a thread of its own (STA, for Windows' question about files too large for the bin); without it the files are deleted for good. The window shows `cleanupPeriodDays` from `~/.claude/settings.json` (30 when unset) and never changes it. It leaves out Quick Conversation's folder.
+
+**Quick Conversation** is an `Ephemeral` action. `MenuFlow` runs it in `AppInfo.QuickDirectory` whatever the menu's folder, opens the prompt card unless `Quick.PromptCard` is off, sets the agent profile's `EphemeralEnvironment` in the plan (`CLAUDE_CODE_SKIP_PROMPT_HISTORY=1` for Claude Code: no transcript, no prompt history) and names the window `… · Quick Conversation (not saved)`. `MenuBuilder` leaves the action out for an agent without `EphemeralEnvironment`, and macOS leaves it out until it follows agents. `ClaudeCodeStorage.Sweep` then deletes for good what is left: the ids found under the folder's project and temporary folders, and those whose end was reported, each with everything `PathsOf` names. A session is kept while a running Claude Code has it open, while Rondel still follows it, or while what it has was written in the last minute and its end was not reported (one that has just started may not be registered as running yet). The folder's memory goes once nothing was kept, and the emptied folders go too. Claude Code's `~/.claude.json` keeps an entry for the folder (its trust, the last session's id and figures); Rondel never writes that file.
 
 ## Settings
 
@@ -136,13 +138,13 @@ Claude Code keeps each session as `~/.claude/projects/<encoded folder>/<session 
 - Comments and trailing commas are accepted. Non-ASCII characters are written as they are, so Turkish paths stay readable. Icons are Segoe Fluent Icons code points in hex (`"E8F4"`).
 - Enum values are written as names. A value this version does not know (written by a newer Rondel) reads as the default, with a warning in the log, instead of making the whole file unreadable.
 - The serializer is generated at build time (`SettingsJsonContext`), without reflection, so the core works in a NativeAOT build; `IsAotCompatible` makes the build warn about anything that would break that.
-- The schema is versioned and is at **5**. **Changing a default requires a migration**, applied only where the user still has the old default: version 2 added Recent Projects to the desktop menu, version 3 added Ask to the folder and Explorer menus, version 4 removed New + Prompt from them once the New Project card took it over (and gave built-in agents their `Plan` arguments), and version 5 added Active Agents to the desktop menu, each only where that menu was still the previous default. A menu for a new context (`FileItem` in version 3) needs no migration: a missing menu gets its default.
+- The schema is versioned and is at **6**. **Changing a default requires a migration**, applied only where the user still has the old default: version 2 added Recent Projects to the desktop menu, version 3 added Ask to the folder and Explorer menus, version 4 removed New + Prompt from them once the New Project card took it over (and gave built-in agents their `Plan` arguments), version 5 added Active Agents to the desktop menu and version 6 added Quick Conversation to it, each only where that menu was still the previous default. A menu for a new context (`FileItem` in version 3) needs no migration: a missing menu gets its default.
 
-Shape of version 5 (abridged):
+Shape of version 6 (abridged):
 
 ```jsonc
 {
-  "SchemaVersion": 5,
+  "SchemaVersion": 6,
   "Language": "auto",                       // "auto", "en" or "tr"
   "ProjectsRoot": "%USERPROFILE%\\Projects",       // "~/Projects" on macOS and Linux; ~ and %NAME% are expanded
   "HoldMs": 300,
@@ -153,7 +155,8 @@ Shape of version 5 (abridged):
   "Agents": [
     { "Id": "claude-code", "Name": "Claude Code", "Command": "claude", "Sessions": "claude-code", "FileMention": "@{file}",
       "Capabilities": { "Open": [], "Continue": ["--continue"], "Prompt": ["{prompt}"], "Plan": ["--permission-mode", "plan"], "...": [] },
-      "ActivityArgs": ["--settings", "{hooks}"] }   // [] turns following off for the agent
+      "ActivityArgs": ["--settings", "{hooks}"],    // [] turns following off for the agent
+      "EphemeralEnvironment": { "CLAUDE_CODE_SKIP_PROMPT_HISTORY": "1" } }   // Quick Conversation; without it the agent has none
   ],
   "NewProject": { "Prompt": true, "Git": true, "Plan": false, "Templates": ["Python"] },   // the last choice
   "NewProjectCard": { "Prompt": true, "Git": true, "Plan": true, "Templates": true },     // options the card offers
@@ -161,15 +164,17 @@ Shape of version 5 (abridged):
   "ActiveAgents": { "Follow": true, "NotifyAsks": true, "NotifyFinished": true, "Hotkey": "Ctrl+Alt+A" },
   "Updates": { "Check": true },              // the daily check; "Check now" works either way
   "Prompts": { "Enabled": true, "Pinned": ["Review my changes", "Write tests"] },  // saved prompts on the Ask slices' arc
+  "Quick": { "PromptCard": true },          // Quick Conversation opens the prompt card first
   "Actions": [
     { "Id": "continue", "Label": "@Action.Continue", "Icon": "E768", "Capability": "Continue", "Hint": "LastSession" },
     { "Id": "plan", "Label": "Plan", "Icon": "E8FD", "Capability": "Open", "ExtraArgs": ["--permission-mode", "plan"] },
     { "Id": "recents", "Label": "@Action.Recents", "Icon": "E823", "Capability": "ResumeById", "Source": "RecentProjects" },
     { "Id": "agents", "Label": "@Action.ActiveAgents", "Icon": "E99A", "Capability": "Open", "Source": "ActiveAgents" },
+    { "Id": "quick", "Label": "@Action.Quick", "Icon": "E945", "Input": "Prompt", "Capability": "Prompt", "Ephemeral": true },
     { "Id": "ask-file", "Label": "@Action.AskFile", "Icon": "E8F2", "Input": "Prompt", "Capability": "Prompt", "MentionFile": true }
   ],
   "Menus": {
-    "DesktopEmpty": ["new-project", "recents", "agents"],
+    "DesktopEmpty": ["new-project", "recents", "agents", "quick"],
     "ExplorerEmpty": ["new-project", "open-here", "ask-here", "continue-here", "resume-here"],
     "FolderItem": ["open", "ask", "continue", "resume"],
     "FileItem": ["ask-file", "open-here", "continue-here", "resume-here"]
@@ -192,7 +197,7 @@ Geometry (radii, arcs, where labels go) is the same for every theme, so a theme 
 
 ## Launching
 
-The core turns an action into a `LaunchPlan`: the folder, the agent command, the literal argument list and the window title. The Windows project executes the plan as a single PowerShell script in Windows Terminal (or a console window when Windows Terminal is missing); the escaping rules are described in [windows-notes.md](windows-notes.md#launching). On macOS, `PosixShellScript` turns the plan into a `.command` file for Terminal.app or iTerm2 (see [macos.md](macos.md#launching-in-a-terminal)).
+The core turns an action into a `LaunchPlan`: the folder, the agent command, the literal argument list, the variables set for the agent and the window title. The Windows project executes the plan as a single PowerShell script in Windows Terminal (or a console window when Windows Terminal is missing); the escaping rules are described in [windows-notes.md](windows-notes.md#launching). On macOS, `PosixShellScript` turns the plan into a `.command` file for Terminal.app or iTerm2 (see [macos.md](macos.md#launching-in-a-terminal)).
 
 ## Following agents
 
@@ -239,7 +244,7 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 | `--render-welcome out.png [dark\|light] [en\|tr] [stage] [t=SECONDS] [frames=N]` | Draws the welcome window at one moment of its picture (by default the still one shown when Windows' animations are off), with `stage` the picture alone, and with `frames=N` N moments over one loop (`out-000.png`, …). The README's `gesture-*.gif` are 72 such frames of `stage`, at three quarters of their size, with one palette for all frames and 100 ms each. |
 | `--render-update out.png [dark\|light] [en\|tr] [working\|failed]` | Draws the update window for a made-up release: the offer, the download under way (`working`) or a failed download (`failed`). |
 | `--render-new out.png [dark\|light] [en\|tr] [prompt] [empty] [transparent] [theme=ID] [accent=…]` | Draws the New Project card with made-up templates (`prompt`: with Prompt on; `empty`: without templates). |
-| `--render-ask out.png [dark\|light] [en\|tr] [empty] [picked] [transparent] [theme=ID] [accent=…]` | Draws the Ask card with made-up saved prompts (`empty`: none in the folder; `picked`: one of them picked into the box). |
+| `--render-ask out.png [dark\|light] [en\|tr] [empty] [picked] [quick] [transparent] [theme=ID] [accent=…]` | Draws the Ask card with made-up saved prompts (`empty`: none in the folder; `picked`: one of them picked into the box; `quick`: Quick Conversation's card). |
 
 ## Fixed identifiers
 
@@ -249,6 +254,7 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 | Log folder | `%LOCALAPPDATA%\Rondel\logs` (macOS: `~/Library/Logs/Rondel`) |
 | Templates folder | `Templates` in the settings folder |
 | Saved prompts folder | `Prompts` in the settings folder |
+| Quick Conversation folder | `%LOCALAPPDATA%\Rondel\Quick` (macOS: `~/Library/Application Support/Rondel/Quick`) |
 | Single-instance mutex | `Local\Rondel.SingleInstance` (a second start opens Settings in the running instance) |
 | Activation event | `Local\Rondel.Activate` |
 | Start with Windows | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, value `Rondel` |

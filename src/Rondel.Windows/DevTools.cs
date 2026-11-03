@@ -39,9 +39,9 @@ namespace Rondel.Windows;
 /// --render-settings out.png [en|tr] [bottom|scroll=DIP] [picker] [prompts]   draw the settings window (in the current Windows
 ///                                            theme), scrolled down; picker: with a custom accent and its color picker open;
 ///                                            prompts: with made-up saved prompts, scrolled to them
-/// --render-ask out.png [dark|light] [en|tr] [empty] [picked] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]
+/// --render-ask out.png [dark|light] [en|tr] [empty] [picked] [quick] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]
 ///                                            draw the Ask card with made-up saved prompts (empty: none in the folder;
-///                                            picked: one of them picked)
+///                                            picked: one of them picked; quick: Quick Conversation's card)
 /// --render-update out.png [dark|light] [en|tr] [working|failed]   draw the update window for a made-up release
 /// --render-sessions out.png [dark|light] [en|tr] [confirm] [forgood]   draw the Sessions window with made-up sessions,
 ///                                            some selected; confirm: with the question before deleting open
@@ -409,11 +409,13 @@ internal static class DevTools
         using var prompts = new MadeUpPrompts(tr, empty: options.Contains("empty", StringComparer.OrdinalIgnoreCase));
         // A made-up location: these pictures may end up in the README.
         string folder = Path.Combine("C:" + Path.DirectorySeparatorChar, "Users", "dev", "Projects", "weather-api");
-        var spec = new InputSpec(Loc.Get("Action.AskHere"), '\uE8F2', folder, "Claude Code", AskPrompt: true, ValidateName: _ => null,
-            Submit: (_, _) => null)
+        bool quick = options.Contains("quick", StringComparer.OrdinalIgnoreCase);
+        var spec = new InputSpec(Loc.Get(quick ? "Action.Quick" : "Action.AskHere"), quick ? '\uE945' : '\uE8F2', folder, "Claude Code",
+            AskPrompt: true, ValidateName: _ => null, Submit: (_, _) => null)
         {
             AskName = false,
-            Location = folder,
+            Location = quick ? Loc.Get("Quick.Location") : folder,
+            Placeholder = quick ? Loc.Get("Quick.Placeholder") : null,
             SavedPrompts = prompts.Prompts,
             PromptNames = prompts.Prompts.List(),
         };

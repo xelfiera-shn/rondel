@@ -1,4 +1,5 @@
 using Rondel.Core.Activity;
+using Rondel.Core.Agents;
 using Rondel.Core.Context;
 using Rondel.Core.Flow;
 using Rondel.Core.Launch;
@@ -218,6 +219,49 @@ public class MenuFlowTests
             flow.Invoke(model, model.Items.Single(i => i.Action.Id == "ask-file"));
             Assert.Null(_host.Input!.SavedPrompts);
             Assert.Empty(_host.Input.PromptNames);
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
+    public void AQuickConversationRunsInItsOwnFolderAndIsNotSaved()
+    {
+        var root = Directory.CreateTempSubdirectory("rondel-tests-");
+        try
+        {
+            string quick = Path.Combine(root.FullName, "Quick");
+            var flow = new MenuFlow(_host, _launcher, new RulesOnly(), () => _settings, quickDirectory: quick);
+            int sweeps = 0;
+            flow.QuickConversationStarting += () => sweeps++;
+            var model = flow.Build(new TriggerContext(ContextKind.DesktopEmpty, Path.Combine(root.FullName, "Projects"), null, "test"))!;
+            var slice = model.Items.Single(i => i.Action.Id == "quick");
+
+            // The card first: the first message, in a folder of its own that says nothing is kept.
+            flow.Invoke(model, slice);
+            var input = Assert.IsType<InputSpec>(_host.Input);
+            Assert.Equal(Loc.Get("Quick.Location"), input.Location);
+            Assert.Null(input.Submit("", "what is a monad?"));
+            var plan = Assert.Single(_launcher.Plans);
+            Assert.Equal(quick, plan.Directory);
+            Assert.True(Directory.Exists(quick));
+            Assert.Equal(["what is a monad?"], plan.Arguments);
+            Assert.Equal("1", plan.Environment["CLAUDE_CODE_SKIP_PROMPT_HISTORY"]);
+            Assert.EndsWith(Loc.Get("Quick.Window"), plan.Title);
+            Assert.Equal(1, sweeps); // what earlier ones left goes first
+
+            // Without the card, the agent opens at once.
+            _settings.Quick.PromptCard = false;
+            flow.Invoke(model, slice);
+            Assert.Equal(2, _launcher.Plans.Count);
+            Assert.Empty(_launcher.Plans[1].Arguments);
+            Assert.Equal(quick, _launcher.Plans[1].Directory);
+
+            // An agent that cannot leave no trace has no Quick Conversation.
+            _settings.FindAgent(BuiltInAgents.ClaudeCodeId)!.EphemeralEnvironment = [];
+            Assert.DoesNotContain(flow.Build(new TriggerContext(ContextKind.DesktopEmpty, root.FullName, null, "test"))!.Items, i => i.Action.Ephemeral);
         }
         finally
         {
