@@ -2,6 +2,16 @@
 
 Every version of Rondel, newest first. Until 1.0 only the two newest [releases](https://github.com/xelfiera-shn/rondel/releases) are kept for download; the notes of all versions are here.
 
+## 0.14.0 (2026-11-03)
+
+### Features
+
+- **windows:** Ask about a screenshot in a Quick Conversation (#78)
+
+### Bug fixes
+
+- **windows:** Delete what a Quick Conversation left in its folder (#77)
+
 ## 0.13.0 (2026-11-03)
 
 ### Features
