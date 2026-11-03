@@ -44,19 +44,21 @@ internal sealed partial class AppHost
             StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Deletes, off the UI thread, what Quick Conversations that no longer run left behind. The ones still followed are
-    /// kept, and so is anything that has just appeared, which may be a Quick Conversation starting right now.
+    /// Deletes, off the UI thread, what Quick Conversations that no longer run left behind, in Claude Code's folder and
+    /// in their own. The ones still followed are kept (and the folder's files with them), and so is anything that has
+    /// just appeared, which may be a Quick Conversation starting right now.
     /// </summary>
     void SweepQuick()
     {
-        var running = _activity.Agents.Where(a => IsQuick(a.Directory)).Select(a => a.SessionId).OfType<string>().ToList();
+        var followed = _activity.Agents.Where(a => IsQuick(a.Directory)).ToList();
+        var running = followed.Select(a => a.SessionId).OfType<string>().ToList();
         Task.Run(() =>
         {
             lock (_sweepLock)
             {
                 try
                 {
-                    var result = new ClaudeCodeStorage().Sweep(_flow.QuickDirectory, [.. _quickEnded], running);
+                    var result = new ClaudeCodeStorage().Sweep(_flow.QuickDirectory, [.. _quickEnded], running, inUse: followed.Count > 0);
                     _quickEnded.IntersectWith(result.Skipped); // one still closing is swept the next time
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)

@@ -27,7 +27,8 @@ public sealed record StoredProject(string Key, string? Directory, bool Directory
 public sealed record CleanupRequest(string ProjectKey, IReadOnlyList<string> SessionIds, bool Memory);
 
 /// <param name="Skipped">Sessions left alone because a Claude Code works in them by now.</param>
-public sealed record CleanupResult(int Sessions, int Memories, long Bytes, IReadOnlyList<string> Skipped);
+/// <param name="Files">Files and folders deleted from a swept folder itself (<see cref="ClaudeCodeStorage.Sweep"/>).</param>
+public sealed record CleanupResult(int Sessions, int Memories, long Bytes, IReadOnlyList<string> Skipped, int Files = 0);
 
 /// <summary>
 /// Claude Code's saved sessions on disk, for listing and deleting them. A session is its transcript
@@ -221,11 +222,15 @@ public sealed class ClaudeCodeStorage
     /// never to be kept (Quick Conversation). Their ids come from what is found for the folder (transcripts, session folders,
     /// temporary folders) and from <paramref name="ended"/>, sessions whose end was reported. A session goes unless a Claude
     /// Code still works in it, it is in <paramref name="keep"/> (still followed), or what it has is <see cref="Fresh"/> while
-    /// its end was not reported. The folder's memory goes too once nothing of it is left.
+    /// its end was not reported. The folder's memory goes too once nothing of it is left, and so does what the sessions
+    /// left in the folder itself once none can be working there.
     /// </summary>
-    public CleanupResult Sweep(string directory, IEnumerable<string>? ended = null, IEnumerable<string>? keep = null)
+    /// <param name="inUse">A session is known to work in the folder (followed, perhaps before its id is known): the
+    /// folder's own files stay.</param>
+    public CleanupResult Sweep(string directory, IEnumerable<string>? ended = null, IEnumerable<string>? keep = null, bool inUse = false)
     {
-        string key = ClaudeCodeSessionStore.Encode(Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory)));
+        string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
+        string key = ClaudeCodeSessionStore.Encode(full);
         string project = Path.Combine(ProjectsDirectory, key);
         var over = new HashSet<string>((ended ?? []).Where(IsSessionId), StringComparer.OrdinalIgnoreCase);
         var kept = new HashSet<string>(keep ?? [], StringComparer.OrdinalIgnoreCase);
@@ -239,7 +244,8 @@ public sealed class ClaudeCodeStorage
         foreach (string folder in TempFolders(key))
             ids.UnionWith(EntryNames(folder).Where(IsSessionId));
 
-        var running = RunningSessions();
+        var workingIn = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var running = RunningSessions(workingIn);
         var paths = new List<string>();
         var skipped = new List<string>();
         int sessions = 0;
@@ -262,14 +268,51 @@ public sealed class ClaudeCodeStorage
         if (memoryGoes)
             paths.Add(memory);
 
+        // What the sessions left in the folder itself (files Claude wrote there, a .claude folder of permissions) goes once
+        // no session can be working there. Something written in the last minute may belong to one that is starting right
+        // now: it goes only when an end was reported. The folder itself stays.
+        int files = 0;
+        if (skipped.Count == 0 && !inUse && !workingIn.Contains(full) && Path.GetPathRoot(full) != full)
+        {
+            foreach (string entry in EntryNames(full).Select(name => Path.Combine(full, name)))
+            {
+                if (over.Count == 0 && now - NewestWrite(entry) < Fresh)
+                    continue;
+                paths.Add(entry);
+                files++;
+            }
+        }
+
         long bytes = paths.Sum(SizeOf);
         if (paths.Count > 0)
-            Log.Info($"Sweeping {sessions} session(s) of '{directory}', {bytes} bytes" + (skipped.Count > 0 ? $"; {skipped.Count} still running" : ""));
+            Log.Info($"Sweeping {sessions} session(s) and {files} file(s) of '{directory}', {bytes} bytes"
+                + (skipped.Count > 0 ? $"; {skipped.Count} still running" : ""));
         paths.ForEach(DeleteForGood);
         RemoveIfEmpty(project);
         foreach (string folder in TempFolders(key))
             RemoveIfEmpty(folder);
-        return new CleanupResult(sessions, memoryGoes ? 1 : 0, bytes, skipped);
+        return new CleanupResult(sessions, memoryGoes ? 1 : 0, bytes, skipped, files);
+    }
+
+    /// <summary>When <paramref name="path"/>, or anything inside it, was last written to.</summary>
+    static DateTime NewestWrite(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                return File.GetLastWriteTimeUtc(path);
+            var newest = Directory.GetLastWriteTimeUtc(path);
+            foreach (var info in new DirectoryInfo(path).EnumerateFileSystemInfos("*", Everything))
+            {
+                if (info.LastWriteTimeUtc > newest)
+                    newest = info.LastWriteTimeUtc;
+            }
+            return newest;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return DateTime.UtcNow; // unknown: taken as fresh, so kept
+        }
     }
 
     static DateTime LastWrite(string path)
@@ -334,7 +377,8 @@ public sealed class ClaudeCodeStorage
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(key.ToLowerInvariant())))[..16];
 
     /// <summary>The ids of the sessions a Claude Code that still runs has open (~/.claude/sessions/&lt;pid&gt;.json).</summary>
-    HashSet<string> RunningSessions()
+    /// <param name="folders">When given, also gets the folders those Claude Codes work in.</param>
+    HashSet<string> RunningSessions(HashSet<string>? folders = null)
     {
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         string folder = Path.Combine(ConfigDirectory, "sessions");
@@ -351,9 +395,15 @@ public sealed class ClaudeCodeStorage
                     if (root.ValueKind == JsonValueKind.Object
                         && root.TryGetProperty("sessionId", out var id) && id.GetString() is { } session
                         && root.TryGetProperty("pid", out var pid) && pid.TryGetInt32(out int process) && IsAlive(process))
+                    {
                         ids.Add(session);
+                        if (folders is not null && root.TryGetProperty("cwd", out var cwd) && cwd.ValueKind == JsonValueKind.String
+                            && !string.IsNullOrEmpty(cwd.GetString()))
+                            folders.Add(Path.TrimEndingDirectorySeparator(Path.GetFullPath(cwd.GetString()!)));
+                    }
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException
+                                               or ArgumentException or NotSupportedException)
                 {
                 }
             }
