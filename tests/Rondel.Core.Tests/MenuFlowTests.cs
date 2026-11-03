@@ -227,6 +227,50 @@ public class MenuFlowTests
     }
 
     [Fact]
+    public void AScreenshotIsAskedAboutInAQuickConversationAndWrittenOnlyWhenItStarts()
+    {
+        var root = Directory.CreateTempSubdirectory("rondel-tests-");
+        try
+        {
+            string quick = Path.Combine(root.FullName, "Quick");
+            var flow = new MenuFlow(_host, _launcher, new RulesOnly(), () => _settings, quickDirectory: quick);
+            int sweeps = 0;
+            flow.QuickConversationStarting += () => sweeps++;
+            _settings.Quick.PromptCard = false; // the card comes anyway: the question and the picture are on it
+            byte[] png = [0x89, 0x50, 0x4E, 0x47, 1, 2, 3];
+
+            flow.AskAboutScreenshot(png);
+            var input = Assert.IsType<InputSpec>(_host.Input);
+            Assert.Same(png, input.Image);
+            Assert.Equal(Loc.Get("Screenshot.Placeholder"), input.Placeholder);
+            Assert.False(Directory.Exists(quick)); // nothing on disk while the card is open, or when it is cancelled
+
+            Assert.Null(input.Submit("", "what does this error mean?"));
+            string shot = Assert.Single(Directory.EnumerateFiles(quick));
+            Assert.Equal(png, File.ReadAllBytes(shot));
+            var plan = Assert.Single(_launcher.Plans);
+            Assert.Equal(quick, plan.Directory);
+            Assert.Equal([$"@{Path.GetFileName(shot)} what does this error mean?"], plan.Arguments);
+            Assert.Equal("1", plan.Environment["CLAUDE_CODE_SKIP_PROMPT_HISTORY"]);
+            Assert.Equal(1, sweeps);
+
+            // A second one gets a name of its own.
+            flow.AskAboutScreenshot(png);
+            Assert.Null(_host.Input!.Submit("", "and this?"));
+            Assert.Equal(2, Directory.EnumerateFiles(quick).Count());
+
+            // An agent that cannot leave no trace cannot ask about one.
+            _settings.FindAgent(BuiltInAgents.ClaudeCodeId)!.EphemeralEnvironment = [];
+            flow.AskAboutScreenshot(png);
+            Assert.Contains($"warn {Loc.Get("Screenshot.Unsupported")}", _host.Calls);
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public void AQuickConversationRunsInItsOwnFolderAndIsNotSaved()
     {
         var root = Directory.CreateTempSubdirectory("rondel-tests-");
@@ -357,6 +401,8 @@ public class MenuFlowTests
         public void CloseMenu(bool restoreFocus) => Calls.Add($"close {restoreFocus}");
 
         public void StartInput(InputSpec spec) => Input = spec;
+
+        public void ShowCard(InputSpec spec) => Input = spec;
 
         public NewProjectSpec? NewProject { get; private set; }
 

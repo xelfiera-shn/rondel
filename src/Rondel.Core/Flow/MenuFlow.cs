@@ -83,6 +83,63 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
             prompt: null, sessionId);
     }
 
+    /// <summary>
+    /// Ask About a Screenshot: the Quick Conversation card with <paramref name="png"/> on it, which starts a Quick Conversation
+    /// with the image in the first message. The image is only in memory until then: it is written into the Quick
+    /// Conversation folder when the conversation starts, and goes with the folder's sweep.
+    /// </summary>
+    public void AskAboutScreenshot(byte[] png)
+    {
+        var current = settings();
+        if (current.FindAgent(current.DefaultAgent) is not { } agent || agent.EphemeralEnvironment is not { Count: > 0 }
+            || !agent.Supports(AgentCapability.Prompt) || string.IsNullOrEmpty(agent.FileMention))
+        {
+            Log.Warn($"Agent '{current.DefaultAgent}' cannot start a Quick Conversation about a screenshot");
+            host.ShowWarning(Loc.Get("Screenshot.Unsupported"));
+            return;
+        }
+        var action = new ActionDefinition { Id = "screenshot", Icon = "E722", Capability = AgentCapability.Prompt, Agent = agent.Id, Ephemeral = true };
+        Log.Info($"Asking about a screenshot ({png.Length} bytes)");
+        host.ShowCard(new InputSpec(Loc.Get("Action.Screenshot"), action.Glyph, QuickDirectory, agent.Name, AskPrompt: true,
+            ValidateName: _ => null,
+            Submit: (_, prompt) =>
+            {
+                string file;
+                try
+                {
+                    file = SaveScreenshot(png);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    Log.Warn($"Writing the screenshot into '{QuickDirectory}' failed", ex);
+                    return Loc.Format("Screenshot.SaveFailed", ex.Message);
+                }
+                host.CloseMenu(restoreFocus: false);
+                Start(agent, action, QuickDirectory, WithMentions(agent, [file], prompt));
+                return null;
+            })
+        {
+            AskName = false,
+            Image = png,
+            Placeholder = Loc.Get("Screenshot.Placeholder"),
+            Location = Loc.Get("Quick.Location"),
+            SavedPrompts = current.Prompts.Enabled ? _prompts : null,
+            PromptNames = current.Prompts.Enabled ? _prompts.List() : [],
+        });
+    }
+
+    /// <summary>Writes a screenshot into the Quick Conversation folder, under a name of its own; returns its path.</summary>
+    string SaveScreenshot(byte[] png)
+    {
+        Directory.CreateDirectory(QuickDirectory);
+        string name = $"Screenshot-{DateTime.Now:yyyyMMdd-HHmmss}";
+        string file = Path.Combine(QuickDirectory, name + ".png");
+        for (int i = 2; File.Exists(file); i++)
+            file = Path.Combine(QuickDirectory, $"{name}-{i}.png");
+        File.WriteAllBytes(file, png);
+        return file;
+    }
+
     /// <summary>An item was chosen: start its agent, or ask for a folder name (and a prompt) first.</summary>
     public void Invoke(MenuModel model, MenuItemModel item)
     {
@@ -300,18 +357,19 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
             Log.Warn($"Agent '{agent.Id}' does not support {action.Capability}");
             return;
         }
-        if (action.Ephemeral)
-        {
-            // Nothing of it is saved: the agent's own setting for that, and a window title that says so.
-            plan = plan with { Environment = agent.EphemeralEnvironment ?? [], Name = Loc.Get("Quick.Window") };
-            QuickConversationStarting?.Invoke();
-        }
         var current = settings();
         ActiveAgent? followed = null;
         if (activity?.HooksFile is { } hooks && current.ActiveAgents.Follow && agent.ActivityArgs is { Count: > 0 })
         {
             followed = activity.Start(directory, agent.Name, working: !string.IsNullOrEmpty(prompt));
             plan = LaunchPlanner.Follow(plan, agent, hooks, followed.Id)!;
+        }
+        if (action.Ephemeral)
+        {
+            // Nothing of it is saved: the agent's own setting for that, and a window title that says so. The sweep comes
+            // once this one is followed, so what was written for it (a screenshot) stays.
+            plan = plan with { Environment = agent.EphemeralEnvironment ?? [], Name = Loc.Get("Quick.Window") };
+            QuickConversationStarting?.Invoke();
         }
         try
         {

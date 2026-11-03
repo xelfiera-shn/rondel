@@ -132,6 +132,8 @@ Claude Code keeps each session as `~/.claude/projects/<encoded folder>/<session 
 
 **Quick Conversation** is an `Ephemeral` action. `MenuFlow` runs it in `AppInfo.QuickDirectory` whatever the menu's folder, opens the prompt card unless `Quick.PromptCard` is off, sets the agent profile's `EphemeralEnvironment` in the plan (`CLAUDE_CODE_SKIP_PROMPT_HISTORY=1` for Claude Code: no transcript, no prompt history) and names the window `… · Quick Conversation (not saved)`. `MenuBuilder` leaves the action out for an agent without `EphemeralEnvironment`, and macOS leaves it out until it follows agents. `ClaudeCodeStorage.Sweep` then deletes for good what is left: the ids found under the folder's project and temporary folders, and those whose end was reported, each with everything `PathsOf` names. A session is kept while a running Claude Code has it open, while Rondel still follows it, or while what it has was written in the last minute and its end was not reported (one that has just started may not be registered as running yet). The folder's memory goes once nothing was kept, and the emptied folders go too. So does what is in the folder itself (files Claude wrote there, a `.claude` folder of permissions), once nothing was kept, no followed session works there and no running Claude Code has it as its folder; an entry written in the last minute stays unless an end was reported. The folder itself stays. Claude Code's `~/.claude.json` keeps an entry for the folder (its trust, the last session's id and figures); Rondel never writes that file.
 
+**Ask About a Screenshot** is `MenuFlow.AskAboutScreenshot(png)`: the platform picks the picture and hands over its PNG bytes, and the flow shows the Quick Conversation card by itself (`IMenuHost.ShowCard`) with `InputSpec.Image`, whatever `Quick.PromptCard` says. Until the card is submitted the picture is only in memory. Then it is written into the Quick Conversation folder as `Screenshot-<time>.png` and the agent starts as a Quick Conversation with the file mentioned first (`@Screenshot-….png …`); the sweep is raised after the agent is followed, so the new file stays while it runs. An agent without `EphemeralEnvironment`, the `Prompt` capability or a `FileMention` cannot do it.
+
 ## Settings
 
 - `%APPDATA%\Rondel\settings.json` (macOS: `~/Library/Application Support/Rondel/settings.json`). The file is watched, so edits apply without a restart; saves are atomic, and an unreadable file is backed up before it is overwritten.
@@ -164,7 +166,7 @@ Shape of version 6 (abridged):
   "ActiveAgents": { "Follow": true, "NotifyAsks": true, "NotifyFinished": true, "Hotkey": "Ctrl+Alt+A" },
   "Updates": { "Check": true },              // the daily check; "Check now" works either way
   "Prompts": { "Enabled": true, "Pinned": ["Review my changes", "Write tests"] },  // saved prompts on the Ask slices' arc
-  "Quick": { "PromptCard": true },          // Quick Conversation opens the prompt card first
+  "Quick": { "PromptCard": true, "ScreenshotHotkey": "" },   // the card first; Ask About a Screenshot's shortcut (none by default)
   "Actions": [
     { "Id": "continue", "Label": "@Action.Continue", "Icon": "E768", "Capability": "Continue", "Hint": "LastSession" },
     { "Id": "plan", "Label": "Plan", "Icon": "E8FD", "Capability": "Open", "ExtraArgs": ["--permission-mode", "plan"] },
@@ -244,7 +246,8 @@ Command-line diagnostics run instead of the tray app, never touch a running inst
 | `--render-welcome out.png [dark\|light] [en\|tr] [stage] [t=SECONDS] [frames=N]` | Draws the welcome window at one moment of its picture (by default the still one shown when Windows' animations are off), with `stage` the picture alone, and with `frames=N` N moments over one loop (`out-000.png`, …). The README's `gesture-*.gif` are 72 such frames of `stage`, at three quarters of their size, with one palette for all frames and 100 ms each. |
 | `--render-update out.png [dark\|light] [en\|tr] [working\|failed]` | Draws the update window for a made-up release: the offer, the download under way (`working`) or a failed download (`failed`). |
 | `--render-new out.png [dark\|light] [en\|tr] [prompt] [empty] [transparent] [theme=ID] [accent=…]` | Draws the New Project card with made-up templates (`prompt`: with Prompt on; `empty`: without templates). |
-| `--render-ask out.png [dark\|light] [en\|tr] [empty] [picked] [quick] [transparent] [theme=ID] [accent=…]` | Draws the Ask card with made-up saved prompts (`empty`: none in the folder; `picked`: one of them picked into the box; `quick`: Quick Conversation's card). |
+| `--render-ask out.png [dark\|light] [en\|tr] [empty] [picked] [quick] [shot] [transparent] [theme=ID] [accent=…]` | Draws the Ask card with made-up saved prompts (`empty`: none in the folder; `picked`: one of them picked into the box; `quick`: Quick Conversation's card; `shot`: Ask About a Screenshot's card with a made-up picture). |
+| `--render-shot-picker out.png [dark\|light] [en\|tr] [drag]` | Draws the screen picker over a made-up desktop with a window outlined (`drag`: an area being dragged). |
 
 ## Fixed identifiers
 

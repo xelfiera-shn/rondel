@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Media;
 using Rondel.Core.Localization;
 using Rondel.Core.Prompts;
@@ -22,6 +23,7 @@ public partial class SettingsWindow
         {
             PromptsBox.IsChecked = settings.Prompts.Enabled;
             QuickCardBox.IsChecked = settings.Quick.PromptCard;
+            ScreenshotHotkeyBox.Text = string.IsNullOrEmpty(settings.Quick.ScreenshotHotkey) ? Loc.Get("Settings.Hotkey.Off") : settings.Quick.ScreenshotHotkey;
             PromptsPanel.IsEnabled = settings.Prompts.Enabled;
             PromptsDesc.Text = Loc.Format("Settings.Prompts.List.Desc", SavedPrompts.MaxPinned);
 
@@ -130,6 +132,18 @@ public partial class SettingsWindow
             return;
         bool card = QuickCardBox.IsChecked == true;
         Store.Update(s => s.Quick.PromptCard = card);
+    }
+
+    void OnScreenshotHotkeyKeyDown(object sender, KeyEventArgs e) => ReadHotkey(e, ScreenshotHotkeyStatus, SaveScreenshotHotkey);
+
+    void OnClearScreenshotHotkey(object sender, RoutedEventArgs e) => SaveScreenshotHotkey("");
+
+    void SaveScreenshotHotkey(string value)
+    {
+        if (value != Store.Current.Quick.ScreenshotHotkey)
+            Store.Update(s => s.Quick.ScreenshotHotkey = value);
+        ScreenshotHotkeyBox.Text = string.IsNullOrEmpty(value) ? Loc.Get("Settings.Hotkey.Off") : value;
+        UpdateStatus();
     }
 
     void OnPromptsClicked(object sender, RoutedEventArgs e)

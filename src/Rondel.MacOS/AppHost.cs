@@ -325,6 +325,8 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
 
     void IMenuHost.StartInput(InputSpec spec) => _menu?.StartInput(spec);
 
+    void IMenuHost.ShowCard(InputSpec spec) => Log.Warn("Ask About a Screenshot is not supported on macOS yet");
+
     void IMenuHost.StartNewProject(NewProjectSpec spec) => _menu?.StartNewProject(spec);
 
     void IMenuHost.ShowWarning(string message) => Warn(message);

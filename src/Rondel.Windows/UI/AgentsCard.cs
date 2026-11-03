@@ -160,6 +160,16 @@ internal sealed unsafe class AgentsCard : IDisposable
         Layout();
     }
 
+    /// <summary>Takes the card off the screen for a screenshot, without changing what the user chose.</summary>
+    public void HideForCapture()
+    {
+        if (_window.IsVisible)
+            _window.Hide();
+    }
+
+    /// <summary>Puts the card back after a screenshot, as it was.</summary>
+    public void ShowAfterCapture() => Layout();
+
     /// <summary>Whether "Show the agents card" has something to do: the card is turned on, but not on screen.</summary>
     public bool CanShowAgain => _enabled && _options().Show && !IsShown;
 
