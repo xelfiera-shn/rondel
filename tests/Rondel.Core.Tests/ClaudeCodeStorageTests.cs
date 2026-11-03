@@ -27,8 +27,8 @@ public class ClaudeCodeStorageTests
             Assert.Equal("Fix the login page", old.Title);
             Assert.False(old.Running);
             Assert.True(work.Sessions.Single(s => s.Id == Open).Running); // a running Claude Code has it open
-            // The transcript, and ten bytes each in the one set aside, subagents, file history, a debug log and the scratchpad.
-            long expected = new FileInfo(Path.Combine(root.FullName, "claude", "projects", work.Key, Old + ".jsonl")).Length + 50;
+            // The transcript, and ten bytes each in the one set aside, subagents, file history, a debug log and both temporary folders.
+            long expected = new FileInfo(Path.Combine(root.FullName, "claude", "projects", work.Key, Old + ".jsonl")).Length + 60;
             Assert.Equal(expected, old.Bytes);
             Assert.Equal(10, work.MemoryBytes);
             Assert.False(projects.Single(p => !p.DirectoryExists).DirectoryExists); // its folder was deleted
@@ -43,6 +43,7 @@ public class ClaudeCodeStorageTests
             Assert.False(Directory.Exists(Path.Combine(root.FullName, "claude", "file-history", Old)));
             Assert.Empty(Directory.EnumerateFiles(Path.Combine(root.FullName, "claude", "debug")));
             Assert.False(Directory.Exists(Path.Combine(temp, work.Key))); // left empty: removed
+            Assert.False(Directory.Exists(Path.Combine(temp, ClaudeCodeStorage.HashedKey(work.Key))));
             Assert.True(File.Exists(Path.Combine(root.FullName, "claude", "settings.json")));
 
             // With its memory, a project whose last session goes leaves no folder behind.
@@ -72,7 +73,7 @@ public class ClaudeCodeStorageTests
 
             Assert.Equal(1, result.Sessions);
             Assert.Equal(1, result.Memories);
-            Assert.Equal(7, recycled.Count); // the six of the session and the memory folder; the made-up id reaches nothing
+            Assert.Equal(8, recycled.Count); // the seven of the session and the memory folder; the made-up id reaches nothing
             Assert.All(recycled, path => Assert.True(File.Exists(path) || Directory.Exists(path))); // the bin moves them, not this
             Assert.Equal(ClaudeCodeStorage.DefaultCleanupDays, new ClaudeCodeStorage(Path.Combine(root.FullName, "none")).CleanupPeriodDays());
         }
@@ -80,6 +81,14 @@ public class ClaudeCodeStorageTests
         {
             root.Delete(recursive: true);
         }
+    }
+
+    [Theory]
+    [InlineData("C--Work-Demo")]
+    [InlineData("c--work-demo")]
+    public void NewerVersionsNameTheTemporaryFolderAfterAHashOfTheProject(string key)
+    {
+        Assert.Equal("1059d7f9bed0e949", ClaudeCodeStorage.HashedKey(key));
     }
 
     /// <summary>
@@ -110,6 +119,7 @@ public class ClaudeCodeStorageTests
         Ten(config, "file-history", Old, "a.txt");
         Ten(config, "debug", Old + ".txt");
         Ten(temp, key, Old, "scratchpad", "notes.md");
+        Ten(temp, ClaudeCodeStorage.HashedKey(key), Old, "tasks", "1.txt"); // where newer versions keep it
         Ten(folder, "memory", "MEMORY.md");
         File.WriteAllText(Path.Combine(config, "settings.json"), "{ \"cleanupPeriodDays\": 7 }");
         File.SetLastWriteTimeUtc(transcript, DateTime.UtcNow.AddDays(-2));
