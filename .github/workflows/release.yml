@@ -116,21 +116,26 @@ jobs:
       - name: Publish
         run: ./build/publish-macos.sh --runtime ${{ matrix.runtime }} --version "$VERSION" --identity -
 
-      # macOS ties the Accessibility and Automation permissions to the signing certificate, so every release is
-      # signed with the same self-signed one (CONTRIBUTING.md, "The macOS signing certificate"). Its key goes into a
-      # keychain of this step only, as non-extractable (-x): it can sign, but not be exported. A dry run, without the
-      # environment, keeps the ad hoc signature; a release without the certificate fails.
-      - name: Sign
+      # macOS ties the Accessibility and Automation permissions to the app's signer, and opens a downloaded app with a
+      # single confirmation only when Apple notarized it. So a release is signed with the Developer ID Application
+      # certificate in MACOS_CERTIFICATE and notarized with the App Store Connect API key in MACOS_NOTARY_KEY
+      # (CONTRIBUTING.md, "Signing and notarizing the macOS app"). Both go into a keychain of this step only, the
+      # certificate's key as non-extractable (-x): it can sign, but not be exported. A dry run, without the
+      # environment, keeps the ad hoc signature; a release without them fails.
+      - name: Sign and notarize
         env:
           CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
+          NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.MACOS_NOTARY_ISSUER }}
         run: |
-          if [ -z "$CERTIFICATE" ]; then
+          if [ -z "$CERTIFICATE" ] || [ -z "$NOTARY_KEY" ]; then
             if [ "$PUBLISH" = "true" ]; then
-              echo "::error::The release environment has no MACOS_CERTIFICATE secret; a release must be signed with it."
+              echo "::error::The release environment needs MACOS_CERTIFICATE and MACOS_NOTARY_KEY; a release must be signed and notarized."
               exit 1
             fi
-            echo "::warning::No MACOS_CERTIFICATE secret: this dry run keeps the ad hoc signature."
+            echo "::warning::No MACOS_CERTIFICATE or MACOS_NOTARY_KEY secret: this dry run keeps the ad hoc signature."
             exit 0
           fi
           keychain="$RUNNER_TEMP/signing.keychain-db"
@@ -141,9 +146,22 @@ jobs:
           echo "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/signing.p12"
           security import "$RUNNER_TEMP/signing.p12" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign -x
           rm "$RUNNER_TEMP/signing.p12"
+          # The intermediate certificate, so codesign can build the chain up to Apple's root.
+          curl -fsSL https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer -o "$RUNNER_TEMP/developer-id-g2.cer"
+          security import "$RUNNER_TEMP/developer-id-g2.cer" -k "$keychain" > /dev/null || true
           security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" > /dev/null
           security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
-          ./build/publish-macos.sh --runtime ${{ matrix.runtime }} --identity "Rondel Release" --sign-only
+          identity="$(security find-identity -v -p codesigning "$keychain" | sed -n 's/.*"\(Developer ID Application: .*\)"$/\1/p' | head -1)"
+          if [ -z "$identity" ]; then
+            echo "::error::MACOS_CERTIFICATE holds no Developer ID Application certificate."
+            exit 1
+          fi
+          printf '%s\n' "$NOTARY_KEY" > "$RUNNER_TEMP/notary.p8"
+          xcrun notarytool store-credentials rondel-notary --key "$RUNNER_TEMP/notary.p8" --key-id "$NOTARY_KEY_ID" \
+            --issuer "$NOTARY_ISSUER" --keychain "$keychain" > /dev/null
+          rm "$RUNNER_TEMP/notary.p8"
+          ./build/publish-macos.sh --runtime ${{ matrix.runtime }} --identity "$identity" --sign-only \
+            --notary-profile rondel-notary --notary-keychain "$keychain"
           security delete-keychain "$keychain"
 
       - name: Remove the keychain

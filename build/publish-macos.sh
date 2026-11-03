@@ -2,7 +2,7 @@
 # Builds Rondel.app (NativeAOT) into dist/<runtime>/ and signs it.
 #
 #   build/publish-macos.sh [--runtime osx-arm64|osx-x64] [--version 0.1.0] [--identity "Rondel Development"] [--sign-only]
-#                          [--notary-profile NAME]
+#                          [--notary-profile NAME [--notary-keychain PATH]]
 #
 # --sign-only signs the app already built there, without building: the release job builds with --identity - (ad hoc)
 # and imports the release certificate only afterwards, so no package's build code runs while it is in reach.
@@ -15,7 +15,8 @@
 # A "Developer ID Application" identity signs for distribution: with the hardened runtime, the entitlements in
 # Rondel.entitlements and a secure timestamp, as notarization requires. --notary-profile then sends the app to
 # Apple's notary service with the credentials stored under that name (xcrun notarytool store-credentials) and
-# staples the ticket to it, so a downloaded copy opens after a single confirmation.
+# staples the ticket to it, so a downloaded copy opens after a single confirmation; --notary-keychain names the
+# keychain that holds them, when it is not the login keychain (the release job's own).
 set -euo pipefail
 
 runtime="osx-$(uname -m | sed 's/x86_64/x64/')"
@@ -23,6 +24,7 @@ version="0.0.0"
 identity="Rondel Development"
 sign_only=false
 notary_profile=""
+notary_keychain=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --runtime) runtime="$2"; shift 2 ;;
@@ -30,6 +32,7 @@ while [ $# -gt 0 ]; do
         --identity) identity="$2"; shift 2 ;;
         --sign-only) sign_only=true; shift ;;
         --notary-profile) notary_profile="$2"; shift 2 ;;
+        --notary-keychain) notary_keychain="$2"; shift 2 ;;
         *) echo "Unknown option: $1" >&2; exit 2 ;;
     esac
 done
@@ -86,7 +89,7 @@ if [ -n "$notary_profile" ]; then
     upload="$(mktemp -d)/Rondel.zip"
     ditto -c -k --keepParent "$app" "$upload"
     echo "Notarizing (this takes a few minutes) ..."
-    xcrun notarytool submit "$upload" --keychain-profile "$notary_profile" --wait
+    xcrun notarytool submit "$upload" --keychain-profile "$notary_profile" ${notary_keychain:+--keychain "$notary_keychain"} --wait
     rm -f "$upload"
     xcrun stapler staple "$app"
     spctl --assess --type execute --verbose=2 "$app"
