@@ -100,11 +100,13 @@ Claude Code keeps every session on disk, with the screenshots and images it took
 
 ## Updates
 
-Once a day, and when the connection comes back, Rondel asks GitHub for its latest release. When a newer one is out, a notification says so. Click it, or tray icon → **Update to …**, to see what is new and choose **Update now**, **Later** or **Skip this version**.
+Once a day, and when the connection comes back, Rondel asks GitHub for its latest release. When a newer one is out, a notification says so. Click it, or tray icon (menu bar icon on macOS) → **Update to …**, to see what is new and choose **Update now**, **Later** or **Skip this version**.
 
 Updating downloads the new executable, checks it, puts it in place of the running one and restarts Rondel; your agents keep running. Rondel takes the file only when the release's checksums carry the signature of Rondel's release key, which only the release workflow holds, and the file matches its checksum; anything else is deleted. If Rondel's folder is not writable (for example under Program Files), it opens the release page instead.
 
-Settings → **Check for updates automatically** turns the daily check off; **Check now** works either way. Versions before 0.7.0 cannot update themselves: download 0.7.0 once by hand. The macOS app does not update itself yet: download the new zip from the release page and replace Rondel in Applications. From 0.8.0 on, the Windows app does not announce a release that changes only the macOS app (**Check now** still shows it).
+Settings → **Check for updates automatically** turns the daily check off; **Check now** works either way. Versions before 0.7.0 cannot update themselves: download 0.7.0 once by hand. From 0.8.0 on, the Windows app does not announce a release that changes only the macOS app (**Check now** still shows it).
+
+On macOS the update puts the new Rondel.app in place of the old one and opens it; the folder it is in must be writable (Applications is), otherwise the release page opens instead. It takes the new version only when it carries the same signature as the running one, so the Accessibility and Finder permissions stay. A release that changes only the Windows app is not announced on macOS.
 
 ## Settings and customization
 
@@ -143,7 +145,7 @@ Please include the log lines or the probe output when you [report a bug](https:/
 
 ## Privacy
 
-Rondel has no telemetry. It reads the agent's local session data only to show the hints and the recent sessions, and it receives the events of the agents it starts on 127.0.0.1 only. Once a day the Windows app asks GitHub for its latest release (this can be turned off in Settings); the request carries nothing but Rondel's version. It deletes Claude Code's session files only when you ask for it in the Sessions window, and what is left of a Quick Conversation once it ends, and it writes nothing except its own settings, a screenshot you ask about (with the hooks file for the agents it starts), its logs, the list of its agents' windows, the update checks' state and downloads and, if you enable it, the start-with-Windows entry (the login item on macOS).
+Rondel has no telemetry. It reads the agent's local session data only to show the hints and the recent sessions, and it receives the events of the agents it starts on 127.0.0.1 only. Once a day Rondel asks GitHub for its latest release (this can be turned off in Settings); the request carries nothing but Rondel's version. It deletes Claude Code's session files only when you ask for it in the Sessions window, and what is left of a Quick Conversation once it ends, and it writes nothing except its own settings, a screenshot you ask about (with the hooks file for the agents it starts), its logs, the list of its agents' windows, the update checks' state and downloads and, if you enable it, the start-with-Windows entry (the login item on macOS).
 
 ## Build from source
 
