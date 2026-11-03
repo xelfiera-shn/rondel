@@ -24,12 +24,19 @@ namespace Rondel.Core.Flow;
 /// <param name="templates">Where new projects' templates come from; <see cref="ProjectTemplates.Default"/> when null.</param>
 /// <param name="activity">Follows the agents this flow starts, when the platform listens for their hooks; null: none is followed.</param>
 /// <param name="prompts">Where the saved prompts come from; <see cref="SavedPrompts.Default"/> when null.</param>
+/// <param name="quickDirectory">Where Quick Conversations run; <see cref="AppInfo.QuickDirectory"/> when null.</param>
 public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolderNameValidator folderNames, Func<AppSettings> settings,
     Action<Action<AppSettings>>? updateSettings = null, ProjectTemplates? templates = null, AgentActivity? activity = null,
-    SavedPrompts? prompts = null)
+    SavedPrompts? prompts = null, string? quickDirectory = null)
 {
     readonly ProjectTemplates _templates = templates ?? ProjectTemplates.Default;
     readonly SavedPrompts _prompts = prompts ?? SavedPrompts.Default;
+
+    /// <summary>The folder Quick Conversations run in; everything Claude Code keeps for it is left over from one.</summary>
+    public string QuickDirectory { get; } = quickDirectory ?? AppInfo.QuickDirectory;
+
+    /// <summary>A Quick Conversation is about to start: the platform sweeps what earlier ones left.</summary>
+    public event Action? QuickConversationStarting;
 
     /// <returns>The menu for <paramref name="context"/>, or null when no action is configured for it.</returns>
     public MenuModel? Build(TriggerContext context)
@@ -80,8 +87,8 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
     public void Invoke(MenuModel model, MenuItemModel item)
     {
         var action = item.Action;
-        // Recent projects and their sessions carry their own folder.
-        string? directory = item.Directory ?? model.Context.TargetDir;
+        // Recent projects and their sessions carry their own folder; a Quick Conversation has its own, wherever the menu opened.
+        string? directory = action.Ephemeral ? QuickFolder() : item.Directory ?? model.Context.TargetDir;
         if (action.Source == ActionSource.RecentProjects && item.Directory is null)
             return; // the Recent Projects slice itself only opens its items
         if (action.Source == ActionSource.ActiveAgents)
@@ -116,6 +123,15 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
             return;
         }
 
+        if (action.Ephemeral && !settings().Quick.PromptCard)
+        {
+            // No card: the agent opens right away, and the first message is typed in its terminal.
+            host.CloseMenu(restoreFocus: false);
+            Start(item.Agent, new ActionDefinition { Id = action.Id, Capability = AgentCapability.Open, ExtraArgs = action.ExtraArgs, Ephemeral = true },
+                directory, prompt: null);
+            return;
+        }
+
         if (action.Input == ActionInput.None)
         {
             host.CloseMenu(restoreFocus: false);
@@ -141,7 +157,8 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
                 })
             {
                 AskName = false,
-                Location = files.Count switch
+                Placeholder = action.Ephemeral ? Loc.Get("Quick.Placeholder") : null,
+                Location = action.Ephemeral ? Loc.Get("Quick.Location") : files.Count switch
                 {
                     0 => directory,
                     1 => files[0],
@@ -259,6 +276,22 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
             ? prompt
             : $"{string.Join(" ", files.Select(file => FileMention.Format(agent.FileMention, Path.GetFileName(file))))} {prompt}".TrimEnd();
 
+    /// <summary>The Quick Conversation folder, created when missing; null (with a warning) when it cannot be.</summary>
+    string? QuickFolder()
+    {
+        try
+        {
+            Directory.CreateDirectory(QuickDirectory);
+            return QuickDirectory;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Warn($"Creating the Quick Conversation folder '{QuickDirectory}' failed", ex);
+            host.ShowWarning(Loc.Format("Input.CreateFailed", ex.Message));
+            return null;
+        }
+    }
+
     void Start(AgentProfile agent, ActionDefinition action, string directory, string? prompt, string? sessionId = null,
         bool planMode = false, bool initGit = false)
     {
@@ -266,6 +299,12 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
         {
             Log.Warn($"Agent '{agent.Id}' does not support {action.Capability}");
             return;
+        }
+        if (action.Ephemeral)
+        {
+            // Nothing of it is saved: the agent's own setting for that, and a window title that says so.
+            plan = plan with { Environment = agent.EphemeralEnvironment ?? [], Name = Loc.Get("Quick.Window") };
+            QuickConversationStarting?.Invoke();
         }
         var current = settings();
         ActiveAgent? followed = null;

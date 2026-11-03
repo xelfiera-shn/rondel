@@ -36,12 +36,12 @@ public sealed partial class ClaudeCodeSessionStore : ISessionStore
     /// <param name="projectsDirectory">Overrides the location of the "projects" folder (tests).</param>
     /// <param name="ignoredRoots">
     /// Folders whose sessions never count as recent projects; by default the temp folder, where tools
-    /// run short-lived sessions.
+    /// run short-lived sessions, and the Quick Conversation folder, whose sessions are not kept.
     /// </param>
     public ClaudeCodeSessionStore(string? projectsDirectory = null, IReadOnlyList<string>? ignoredRoots = null)
     {
         _projectsDirectory = projectsDirectory;
-        _ignoredRoots = [.. (ignoredRoots ?? [Path.GetTempPath()]).Select(Normalize)];
+        _ignoredRoots = [.. (ignoredRoots ?? [Path.GetTempPath(), AppInfo.QuickDirectory]).Select(Normalize)];
     }
 
     public string ProjectsDirectory => _projectsDirectory ?? DefaultProjectsDirectory();

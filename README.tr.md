@@ -41,12 +41,12 @@ Rondel macOS 15 ve sonrasında çalışır, Dock'ta ikonu yoktur. Çalışırken
 
 | Nerede basılı tutarsınız | Aksiyonlar | Klasör |
 |---|---|---|
-| Masaüstünde boş alan | Yeni Proje, Son Projeler, Aktif Ajanlar | Proje klasörünüz (varsayılan `%USERPROFILE%\Projects`) ya da seçtiğiniz proje |
+| Masaüstünde boş alan | Yeni Proje, Son Projeler, Aktif Ajanlar, Hızlı Sohbet | Proje klasörünüz (varsayılan `%USERPROFILE%\Projects`) ya da seçtiğiniz proje |
 | Dosya Gezgini'nde bir klasörün boş alanı | Yeni Proje, Burada Aç, Burada Sor, Burada Devam Et, Burada Oturum Seç | Açık olan klasör |
 | Bir klasörün üzerinde (masaüstü veya Dosya Gezgini) | Aç, Sor, Devam Et, Oturum Seç | O klasör |
 | Bir dosyanın üzerinde (masaüstü veya Dosya Gezgini) | Bu Dosyayı Sor, Burada Aç, Burada Devam Et, Burada Oturum Seç | Dosyanın bulunduğu klasör |
 
-macOS'ta da aynısıdır; Ctrl yerine ⌥ Option, Dosya Gezgini yerine Finder, varsayılan proje klasörü olarak `~/Projects` kullanılır. Masaüstü menüsünde henüz Aktif Ajanlar yoktur.
+macOS'ta da aynısıdır; Ctrl yerine ⌥ Option, Dosya Gezgini yerine Finder, varsayılan proje klasörü olarak `~/Projects` kullanılır. Masaüstü menüsünde henüz Aktif Ajanlar ve Hızlı Sohbet yoktur.
 
 - **Aç** yeni bir oturum başlatır, **Devam Et** en son oturumu sürdürür, **Oturum Seç** listeden seçtirir (`claude`, `claude --continue`, `claude --resume`).
 - **Sor** ve **Burada Sor** yalnızca bir prompt sorar ve yeni oturumu onunla başlatır. **Bu Dosyayı Sor** aynısını dosyanın klasöründe yapar ve dosyayı prompt'un başına ekler (`@Program.cs`, boşluklu adlarda `@"Proje Notları.md"`); Claude Code dosyayı hemen okur. Birkaç dosya seçip birinin üzerinde basılı tutarsanız **Bu Dosyaları Sor** olur ve seçili dosyaların hepsi prompt'a eklenir (şimdilik Windows'ta).
@@ -57,6 +57,7 @@ macOS'ta da aynısıdır; Ctrl yerine ⌥ Option, Dosya Gezgini yerine Finder, v
   <img src="docs/images/recents-tr.png" width="460" alt="Masaüstü menüsünde Son Projeler beş proje klasörüne, bir proje de oturumlarına açılmış">
 </p>
 
+- **Hızlı Sohbet** (masaüstü menüsü; şimdilik Windows'ta) hiçbir projeye ait olmayan bir soru ya da sohbet içindir. Kendi klasöründe (`%LOCALAPPDATA%\Rondel\Quick`) prompt kartını açar (Ayarlar → **Hızlı Sohbet** kapalıysa ajanı hemen başlatır); Claude Code bu oturum için döküm ve prompt geçmişi yazmaz (`CLAUDE_CODE_SKIP_PROMPT_HISTORY`). Sohbet bitince Rondel, Claude Code'un onun için yine de tuttuklarını (geçici dosyalar, hafıza gibi) kalıcı olarak siler (ajan takibi kapalıysa bir sonraki Hızlı Sohbet'te ya da Rondel açılırken). Son Projeler'de, Oturum Seç'te ve Oturumlar'da hiç görünmez. İlk seferde Claude Code bu klasöre güvenip güvenmediğinizi sorar: **Yes, I trust this folder**'ı seçin. Claude Code bundan sonra `~/.claude.json`'da klasör için bir kayıt tutar (güvenildiği bilgisi ve son oturumun kimliği, maliyeti, token sayıları), ama konuşmadan hiçbir şey tutmaz. Konuşmanın kendisi her konuşma gibi Claude'a gider.
 - Devam Et ve Oturum Seç, son oturumun ne zaman olduğunu ve kaç oturum bulunduğunu gösterir; oturum yoksa soluk görünürler.
 - **Yeni Proje** bir kart açar: klasör adı, projenin nasıl başlayacağı ve içine kopyalanacak şablonlar. Başlangıç seçenekleri birleştirilebilir:
   - **Prompt** — ajanı ilk prompt'la başlatır;
@@ -141,7 +142,7 @@ Menüler, aksiyonlar ve ajanlar `%APPDATA%\Rondel\settings.json` (macOS'ta `~/Li
 
 ## Gizlilik
 
-Rondel telemetri içermez. Ajanın yerel oturum verisini yalnızca ipuçlarını ve son oturumları göstermek için okur; başlattığı ajanların olaylarını yalnızca 127.0.0.1 üzerinden alır. Windows uygulaması günde bir kez GitHub'a son sürümünü sorar (Ayarlar'dan kapatılabilir); bu istek Rondel'in sürümü dışında hiçbir bilgi taşımaz. Claude Code'un oturum dosyalarını yalnızca siz Oturumlar penceresinde isterseniz siler. Kendi ayarları (başlattığı ajanlar için hook dosyasıyla birlikte), logları, ajanlarının pencere listesi, güncelleme denetiminin durumu ile indirdiği güncellemeler ve (açarsanız) Windows ile başlatma kaydı (macOS'ta giriş öğesi) dışında hiçbir şey yazmaz.
+Rondel telemetri içermez. Ajanın yerel oturum verisini yalnızca ipuçlarını ve son oturumları göstermek için okur; başlattığı ajanların olaylarını yalnızca 127.0.0.1 üzerinden alır. Windows uygulaması günde bir kez GitHub'a son sürümünü sorar (Ayarlar'dan kapatılabilir); bu istek Rondel'in sürümü dışında hiçbir bilgi taşımaz. Claude Code'un oturum dosyalarını yalnızca siz Oturumlar penceresinde isterseniz, Hızlı Sohbet'inkileri de sohbet bitince siler. Kendi ayarları (başlattığı ajanlar için hook dosyasıyla birlikte), logları, ajanlarının pencere listesi, güncelleme denetiminin durumu ile indirdiği güncellemeler ve (açarsanız) Windows ile başlatma kaydı (macOS'ta giriş öğesi) dışında hiçbir şey yazmaz.
 
 ## Kaynaktan derleme
 

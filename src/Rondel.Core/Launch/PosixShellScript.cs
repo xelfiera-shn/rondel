@@ -61,6 +61,8 @@ public static class PosixShellScript
             // The agent's hooks send it back with every event, so Rondel knows which session reported.
             s.Append($"export {AgentActivity.EnvironmentVariable}={Quote(id)}\n");
         }
+        foreach (var (variable, value) in plan.Environment.Where(v => Settings.AppSettings.IsVariableName(v.Key)))
+            s.Append($"export {variable}={Quote(value)}\n");
         s.Append($"exec {Quote(shell)} -l -i -c {Quote(agent.ToString())} rondel");
         foreach (string argument in plan.Arguments)
             s.Append(' ').Append(Quote(argument));

@@ -25,6 +25,8 @@ public static class PowerShellScript
             // The agent's hooks send it back with every event, so Rondel knows which session reported.
             s.AppendLine($"$env:{AgentActivity.EnvironmentVariable} = {Quote(id)}");
         }
+        foreach (var (variable, value) in plan.Environment.Where(v => Settings.AppSettings.IsVariableName(v.Key)))
+            s.AppendLine($"${{env:{variable}}} = {Quote(value)}");
         if (plan.InitGit)
         {
             // A new project gets its repository before the agent starts; without git it starts anyway.

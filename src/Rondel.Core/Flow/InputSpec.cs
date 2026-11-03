@@ -18,6 +18,9 @@ public sealed record InputSpec(string Title, char Glyph, string ParentDir, strin
     /// <summary>Shown under the title when no name is asked for: the folder, or the file the prompt is about.</summary>
     public string? Location { get; init; }
 
+    /// <summary>The prompt box's placeholder; "What should {agent} do?" when null.</summary>
+    public string? Placeholder { get; init; }
+
     /// <summary>Where the saved prompts the card offers are read from; null when saved prompts are turned off.</summary>
     public SavedPrompts? SavedPrompts { get; init; }
 

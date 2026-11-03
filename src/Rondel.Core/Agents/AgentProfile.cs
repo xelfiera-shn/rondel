@@ -37,6 +37,12 @@ public sealed class AgentProfile
     /// </summary>
     public List<string>? ActivityArgs { get; set; }
 
+    /// <summary>
+    /// Environment variables that keep a session from being saved, for a Quick Conversation (e.g. Claude Code's
+    /// CLAUDE_CODE_SKIP_PROMPT_HISTORY=1). Null or empty: the agent cannot, and Quick Conversation is hidden for it.
+    /// </summary>
+    public Dictionary<string, string>? EphemeralEnvironment { get; set; }
+
     public bool TryGetArguments(AgentCapability capability, [NotNullWhen(true)] out List<string>? templates) =>
         Capabilities.TryGetValue(capability.ToString(), out templates) && templates is not null;
 

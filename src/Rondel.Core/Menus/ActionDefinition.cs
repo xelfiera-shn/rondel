@@ -82,6 +82,14 @@ public sealed class ActionDefinition
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool MentionFile { get; set; }
 
+    /// <summary>
+    /// A Quick Conversation: the agent starts in a folder of its own (<see cref="AppInfo.QuickDirectory"/>), wherever the menu
+    /// opened, with the agent's <see cref="AgentProfile.EphemeralEnvironment"/>, and what is left of the session is
+    /// deleted once it ends. Hidden where the agent cannot leave no trace.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Ephemeral { get; set; }
+
     /// <summary>The icon as a character; computed from <see cref="Icon"/>, so not written to settings.json.</summary>
     [JsonIgnore]
     public char Glyph =>

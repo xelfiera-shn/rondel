@@ -21,6 +21,7 @@ public partial class SettingsWindow
         try
         {
             PromptsBox.IsChecked = settings.Prompts.Enabled;
+            QuickCardBox.IsChecked = settings.Quick.PromptCard;
             PromptsPanel.IsEnabled = settings.Prompts.Enabled;
             PromptsDesc.Text = Loc.Format("Settings.Prompts.List.Desc", SavedPrompts.MaxPinned);
 
@@ -121,6 +122,14 @@ public partial class SettingsWindow
             pinned.Add(name);
         Store.Update(s => s.Prompts.Pinned = pinned);
         LoadPrompts(Store.Current);
+    }
+
+    void OnQuickCardClicked(object sender, RoutedEventArgs e)
+    {
+        if (_loading)
+            return;
+        bool card = QuickCardBox.IsChecked == true;
+        Store.Update(s => s.Quick.PromptCard = card);
     }
 
     void OnPromptsClicked(object sender, RoutedEventArgs e)

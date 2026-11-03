@@ -36,6 +36,7 @@ Rondel'in Windows'ta ve macOS'ta hangi özelliklere sahip olduğu ve her birinin
 | **Sor**, **Burada Sor** ve **Bu Dosyayı Sor** | ✅ 0.3.0 | ✅ 0.8.0 |
 | **Bu Dosyaları Sor**: seçili birden fazla dosya tek prompt'ta | ✅ 0.10.0 | ⬜ |
 | Hazır promptlar: en fazla beşi Sor dilimlerinin yayında, hepsi Sor kartında | ✅ 0.11.0 | ⬜ |
+| Masaüstünde **Hızlı Sohbet**: kendi klasöründe, kaydedilmeyen bir sohbet; bitince geride kalanlar silinir | ✅ 0.13.0 | ⬜ |
 | **Yeni Proje** kartı: ilk prompt, `git init`, plan modu ve şablonlar | ✅ 0.4.0 | ✅ 0.8.0 |
 | Terminal seçimi | ✅ 0.1.0: Windows Terminal ya da konsol penceresi | ✅ 0.8.0: Terminal ya da iTerm2 |
 | Kabuk seçimi | ✅ 0.1.0: PowerShell 7 ya da Windows PowerShell | — ajan, `PATH` ve alias'larınızla birlikte giriş kabuğunuzda çalışır |

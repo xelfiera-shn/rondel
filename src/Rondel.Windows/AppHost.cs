@@ -109,6 +109,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         StartCard();
         ApplySettings(Store.Current);
         StartFollowingAgents();
+        StartQuickConversations();
         StartUpdates();
         if (Store.LoadError is not null)
             ShowBalloon(AppInfo.Name, Loc.Get("Tray.SettingsInvalid"), warning: true);
@@ -154,7 +155,10 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
             return;
         }
         var storage = new Rondel.Core.Agents.ClaudeCode.ClaudeCodeStorage();
-        var window = new SessionsWindow(storage.List, storage.Delete, _flow.Resume, storage.CleanupPeriodDays(), SystemTheme.Read());
+        // A Quick Conversation is not a saved session, even while Claude Code still has something of it.
+        string quick = Rondel.Core.Agents.ClaudeCode.ClaudeCodeSessionStore.Encode(Path.TrimEndingDirectorySeparator(_flow.QuickDirectory));
+        var window = new SessionsWindow(() => [.. storage.List().Where(p => !string.Equals(p.Key, quick, StringComparison.OrdinalIgnoreCase))],
+            storage.Delete, _flow.Resume, storage.CleanupPeriodDays(), SystemTheme.Read());
         window.Closed += (_, _) => _sessionsWindow = null;
         _sessionsWindow = window;
         window.Show();
