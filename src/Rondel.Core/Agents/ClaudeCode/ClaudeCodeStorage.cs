@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Rondel.Core.Logging;
 
@@ -202,8 +204,8 @@ public sealed class ClaudeCodeStorage
         foreach (string key in projects)
         {
             RemoveIfEmpty(Path.Combine(ProjectsDirectory, key));
-            if (TempDirectory is { } temp)
-                RemoveIfEmpty(Path.Combine(temp, key));
+            foreach (string folder in TempFolders(key))
+                RemoveIfEmpty(folder);
         }
         return new CleanupResult(sessions, memories, bytes, skipped);
     }
@@ -225,9 +227,25 @@ public sealed class ClaudeCodeStorage
             yield return Path.Combine(ConfigDirectory, folder, id);
         foreach (string file in FilesStartingWith(Path.Combine(ConfigDirectory, "debug"), id))
             yield return file;
-        if (TempDirectory is { } temp)
-            yield return Path.Combine(temp, key, id);
+        foreach (string folder in TempFolders(key))
+            yield return Path.Combine(folder, id);
     }
+
+    /// <summary>
+    /// The temporary folders of project <paramref name="key"/>: named after the key by older Claude Code versions, after
+    /// <see cref="HashedKey"/> by newer ones; none when <see cref="TempDirectory"/> is not known.
+    /// </summary>
+    internal IEnumerable<string> TempFolders(string key)
+    {
+        if (TempDirectory is not { } temp)
+            yield break;
+        yield return Path.Combine(temp, key);
+        yield return Path.Combine(temp, HashedKey(key));
+    }
+
+    /// <summary>How newer Claude Code versions name a project's temporary folder: the start of the SHA-256 of its key in lower case.</summary>
+    internal static string HashedKey(string key) =>
+        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(key.ToLowerInvariant())))[..16];
 
     /// <summary>The ids of the sessions a Claude Code that still runs has open (~/.claude/sessions/&lt;pid&gt;.json).</summary>
     HashSet<string> RunningSessions()
