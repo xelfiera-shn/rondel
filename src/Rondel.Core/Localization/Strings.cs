@@ -42,6 +42,7 @@ static class Strings
         ["Action.AskHere"] = "Ask Here",
         ["Action.AskFile"] = "Ask About This File",
         ["Action.AskFiles"] = "Ask About These Files",
+        ["Action.Quick"] = "Quick Conversation",
         ["Action.ActiveAgents"] = "Active Agents",
         ["Agents.None"] = "None running",
         ["Agents.One"] = "1 agent",
@@ -369,6 +370,13 @@ static class Strings
         ["Settings.Sessions"] = "Saved sessions",
         ["Settings.Sessions.Desc"] = "Claude Code keeps every session on disk, screenshots included. See how much space each one takes and delete those you no longer need.",
         ["Settings.Sessions.Open"] = "Open Sessions",
+        ["Quick.Location"] = "Nothing of the conversation is kept once it ends",
+        ["Quick.Window"] = "Quick Conversation (not saved)",
+        ["Quick.Hint"] = "Not saved",
+        ["Quick.Placeholder"] = "What would you like to talk about?",
+        ["Settings.Quick"] = "Quick Conversation",
+        ["Settings.Quick.Card"] = "Open the prompt card first",
+        ["Settings.Quick.Card.Desc"] = "Turned off, Quick Conversation opens the agent right away and you type in its terminal. Either way it starts in a folder of its own, and nothing of the conversation is kept on this computer once it ends.",
     };
 
     public static readonly IReadOnlyDictionary<string, string> Tr = new Dictionary<string, string>
@@ -410,6 +418,7 @@ static class Strings
         ["Action.AskHere"] = "Burada Sor",
         ["Action.AskFile"] = "Bu Dosyayı Sor",
         ["Action.AskFiles"] = "Bu Dosyaları Sor",
+        ["Action.Quick"] = "Hızlı Sohbet",
         ["Action.ActiveAgents"] = "Aktif Ajanlar",
         ["Agents.None"] = "Çalışan yok",
         ["Agents.One"] = "1 ajan",
@@ -737,5 +746,12 @@ static class Strings
         ["Settings.Sessions"] = "Kayıtlı oturumlar",
         ["Settings.Sessions.Desc"] = "Claude Code her oturumu ekran görüntüleriyle birlikte diskte saklar. Hangisinin ne kadar yer kapladığını görün, artık gerekmeyenleri silin.",
         ["Settings.Sessions.Open"] = "Oturumları aç",
+        ["Quick.Location"] = "Bittiğinde konuşmadan hiçbir şey kalmaz",
+        ["Quick.Window"] = "Hızlı Sohbet (kaydedilmiyor)",
+        ["Quick.Hint"] = "Kaydedilmez",
+        ["Quick.Placeholder"] = "Ne konuşmak istersiniz?",
+        ["Settings.Quick"] = "Hızlı Sohbet",
+        ["Settings.Quick.Card"] = "Önce prompt kartını aç",
+        ["Settings.Quick.Card.Desc"] = "Kapalıyken Hızlı Sohbet ajanı hemen açar, siz de terminaline yazarsınız. Her iki durumda da kendi klasöründe başlar ve bittiğinde bu bilgisayarda konuşmadan hiçbir şey kalmaz.",
     };
 }

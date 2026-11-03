@@ -91,6 +91,53 @@ public class ClaudeCodeStorageTests
         Assert.Equal("1059d7f9bed0e949", ClaudeCodeStorage.HashedKey(key));
     }
 
+    [Fact]
+    public void AQuickConversationLeavesNothingOnceItEnds()
+    {
+        var root = Directory.CreateTempSubdirectory("rondel-tests-");
+        try
+        {
+            string config = Path.Combine(root.FullName, "claude"), temp = Path.Combine(root.FullName, "temp");
+            string quick = Directory.CreateDirectory(Path.Combine(root.FullName, "Quick")).FullName;
+            string key = ClaudeCodeSessionStore.Encode(quick), hashed = ClaudeCodeStorage.HashedKey(key);
+            void Make(params string[] parts)
+            {
+                string path = Path.Combine(parts);
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllText(path, "x");
+            }
+            void Age(string folder) => Directory.SetLastWriteTimeUtc(folder, DateTime.UtcNow.AddHours(-1));
+            // No transcripts (they are never written): what is left are temporary folders, file history and the memory.
+            Make(temp, key, Old, "scratchpad", "a.md");
+            Make(config, "file-history", Old, "a");
+            Make(temp, hashed, Gone, "images", "b.png"); // ended a moment ago: fresh, but its end was reported
+            Make(temp, hashed, Open, "scratchpad", "c.md"); // just started, its end not reported: kept
+            Make(config, "projects", key, "memory", "MEMORY.md");
+            Age(Path.Combine(temp, key, Old));
+            Age(Path.Combine(config, "file-history", Old));
+            var storage = new ClaudeCodeStorage(config, temp);
+
+            var first = storage.Sweep(quick, ended: [Gone]);
+            Assert.Equal(2, first.Sessions);
+            Assert.Equal([Open], first.Skipped);
+            Assert.False(Directory.Exists(Path.Combine(config, "file-history", Old)));
+            Assert.True(Directory.Exists(Path.Combine(temp, hashed, Open)));
+            Assert.True(Directory.Exists(Path.Combine(config, "projects", key, "memory"))); // one still runs: its memory stays
+
+            Age(Path.Combine(temp, hashed, Open));
+            var second = storage.Sweep(quick);
+            Assert.Equal(1, second.Sessions);
+            Assert.Equal(1, second.Memories);
+            Assert.False(Directory.Exists(Path.Combine(temp, key))); // nothing left, not even the folders
+            Assert.False(Directory.Exists(Path.Combine(temp, hashed)));
+            Assert.False(Directory.Exists(Path.Combine(config, "projects", key)));
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
     /// <summary>
     /// A Claude Code folder with a project that exists (an old session with all its files, and an open one) and one
     /// whose folder is gone, plus a temporary folder for the scratchpads.

@@ -16,12 +16,18 @@ public sealed record LaunchPlan(string Directory, string AgentName, string Comma
     /// </summary>
     public string? ActivityId { get; init; }
 
+    /// <summary>Environment variables the script sets for the agent (names are letters, digits and underscores).</summary>
+    public IReadOnlyDictionary<string, string> Environment { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>What the window title names after the agent; the folder's name when null.</summary>
+    public string? Name { get; init; }
+
     public string Title
     {
         get
         {
             string folder = Path.GetFileName(Path.TrimEndingDirectorySeparator(Directory));
-            return $"{AgentName} · {(folder.Length > 0 ? folder : Directory)}";
+            return $"{AgentName} · {Name ?? (folder.Length > 0 ? folder : Directory)}";
         }
     }
 }

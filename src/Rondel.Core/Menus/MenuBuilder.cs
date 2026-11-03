@@ -87,6 +87,7 @@ public static class MenuBuilder
                 Agent = parent.Agent.Id,
                 ExtraArgs = parent.Action.ExtraArgs,
                 MentionFile = parent.Action.MentionFile,
+                Ephemeral = parent.Action.Ephemeral,
             },
             parent.Agent,
             name,
@@ -225,9 +226,12 @@ public static class MenuBuilder
                     continue;
                 if (action.MentionFile && (context.FilePath is null || string.IsNullOrEmpty(agent.FileMention)))
                     continue;
+                if (action.Ephemeral && agent.EphemeralEnvironment is not { Count: > 0 })
+                    continue;
                 if (agent.Supports(action.Capability))
                 {
-                    items.Add(new MenuItemModel(action, agent, LabelOf(action, context), action.Glyph, null, false)
+                    // Quick Conversation says under its label that nothing of it is kept.
+                    items.Add(new MenuItemModel(action, agent, LabelOf(action, context), action.Glyph, action.Ephemeral ? Loc.Get("Quick.Hint") : null, false)
                     {
                         PinnedPrompts = action.Input == ActionInput.Prompt && action.Source == ActionSource.Context ? pinned : [],
                     });

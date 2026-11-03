@@ -35,7 +35,7 @@ public class SettingsTests
     }
 
     [Theory]
-    [InlineData("""["new-project", "new-prompt"]""", new[] { "new-project", "recents", "agents" })] // New + Prompt left with 4, Active Agents came with 5
+    [InlineData("""["new-project", "new-prompt"]""", new[] { "new-project", "recents", "agents", "quick" })] // New + Prompt left with 4, Active Agents came with 5, Quick Conversation with 6
     [InlineData("""["new-prompt"]""", new[] { "new-prompt" })]
     public void SchemaTwoAddsRecentProjectsOnlyToAnUntouchedDesktopMenu(string savedMenu, string[] expected)
     {
@@ -80,14 +80,14 @@ public class SettingsTests
         settings.Normalize();
 
         Assert.Equal(ActionInput.NewProject, settings.FindAction("new-project")!.Input);
-        Assert.Equal(["new-project", "recents", "agents"], settings.Menus[nameof(ContextKind.DesktopEmpty)]); // and Active Agents with 5
+        Assert.Equal(["new-project", "recents", "agents", "quick"], settings.Menus[nameof(ContextKind.DesktopEmpty)]); // Active Agents with 5, Quick Conversation with 6
         Assert.Equal(["new-prompt", "open-here"], settings.Menus[nameof(ContextKind.ExplorerEmpty)]); // changed by the user: kept
         Assert.True(settings.FindAgent(BuiltInAgents.ClaudeCodeId)!.Supports(AgentCapability.Plan));
         Assert.True(settings.NewProjectCard.Templates);
     }
 
     [Theory]
-    [InlineData("""["new-project", "recents"]""", new[] { "new-project", "recents", "agents" })]
+    [InlineData("""["new-project", "recents"]""", new[] { "new-project", "recents", "agents", "quick" })]
     [InlineData("""["recents", "new-project"]""", new[] { "recents", "new-project" })]
     public void SchemaFiveAddsActiveAgentsOnlyToAnUntouchedDesktopMenu(string savedMenu, string[] expected)
     {
@@ -99,6 +99,23 @@ public class SettingsTests
         Assert.Equal(expected, settings.Menus[nameof(ContextKind.DesktopEmpty)]);
         Assert.Equal(ActionSource.ActiveAgents, settings.FindAction("agents")!.Source);
         Assert.Equal("", settings.ActiveAgents.Hotkey);
+    }
+
+    [Theory]
+    [InlineData("""["new-project", "recents", "agents"]""", new[] { "new-project", "recents", "agents", "quick" })]
+    [InlineData("""["new-project", "agents"]""", new[] { "new-project", "agents" })]
+    public void SchemaSixAddsQuickConversationOnlyToAnUntouchedDesktopMenu(string savedMenu, string[] expected)
+    {
+        string json = $$"""{ "SchemaVersion": 5, "Agents": [ { "Id": "claude-code" } ], "Menus": { "DesktopEmpty": {{savedMenu}} } }""";
+        var settings = SettingsJson.Deserialize(json)!;
+
+        settings.Normalize();
+
+        Assert.Equal(expected, settings.Menus[nameof(ContextKind.DesktopEmpty)]);
+        Assert.True(settings.FindAction("quick")!.Ephemeral);
+        Assert.True(settings.Quick.PromptCard);
+        // A profile saved before it gets the built-in way to leave no trace.
+        Assert.Equal("1", settings.FindAgent(BuiltInAgents.ClaudeCodeId)!.EphemeralEnvironment!["CLAUDE_CODE_SKIP_PROMPT_HISTORY"]);
     }
 
     [Fact]
@@ -205,7 +222,7 @@ public class SettingsTests
         string alpha = Path.Combine(Path.GetTempPath(), "work", "alpha");
         var project = MenuBuilder.ProjectItems(recents, [new FolderActivity(alpha, DateTime.UtcNow, 1, "a1")], _ => [])[0];
 
-        Assert.Equal(["new-project"], menu.Items.Where(MenuBuilder.RunsItself).Select(i => i.Action.Id));
+        Assert.Equal(["new-project", "quick"], menu.Items.Where(MenuBuilder.RunsItself).Select(i => i.Action.Id));
         Assert.True(MenuBuilder.RunsItself(project)); // continues the project
         Assert.True(MenuBuilder.RunsItself(menu.Items.Single(MenuBuilder.ListsActiveAgents) with { ActivityId = "agent" }));
     }

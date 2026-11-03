@@ -41,12 +41,12 @@ Rondel runs on macOS 15 and later and has no Dock icon. Opening it again while i
 
 | Where you hold | Actions | Folder |
 |---|---|---|
-| Empty desktop | New Project, Recent Projects, Active Agents | Your projects folder (default `%USERPROFILE%\Projects`), or the project you pick |
+| Empty desktop | New Project, Recent Projects, Active Agents, Quick Conversation | Your projects folder (default `%USERPROFILE%\Projects`), or the project you pick |
 | Empty area of a folder in File Explorer | New Project, Open Here, Ask Here, Continue Here, Resume Here | The folder that is open |
 | A folder (on the desktop or in File Explorer) | Open, Ask, Continue, Resume | That folder |
 | A file (on the desktop or in File Explorer) | Ask About This File, Open Here, Continue Here, Resume Here | The folder the file is in |
 
-On macOS it is the same with ⌥ Option instead of Ctrl, Finder instead of File Explorer and `~/Projects` as the default projects folder; the desktop menu has no Active Agents yet.
+On macOS it is the same with ⌥ Option instead of Ctrl, Finder instead of File Explorer and `~/Projects` as the default projects folder; the desktop menu has no Active Agents or Quick Conversation yet.
 
 - **Open** starts a new session, **Continue** the most recent one, **Resume** lets you pick (`claude`, `claude --continue`, `claude --resume`).
 - **Ask** and **Ask Here** ask only for a prompt and start a new session with it. **Ask About This File** does the same in the file's folder and puts the file first in the prompt (`@Program.cs`, or `@"My Notes.md"` for a name with spaces), so Claude Code reads it right away. Select several files and hold one of them, and it becomes **Ask About These Files**, with every selected file in the prompt (Windows for now).
@@ -57,6 +57,7 @@ On macOS it is the same with ⌥ Option instead of Ctrl, Finder instead of File 
   <img src="docs/images/recents-en.png" width="460" alt="The desktop menu with Recent Projects opened into five project folders, and one project opened further into its sessions">
 </p>
 
+- **Quick Conversation** (desktop menu; Windows for now) is for a question or a talk that belongs to no project. It opens the prompt card (or, with Settings → **Quick Conversation** turned off, the agent right away) in a folder of its own, `%LOCALAPPDATA%\Rondel\Quick`, and Claude Code writes no transcript or prompt history for it (`CLAUDE_CODE_SKIP_PROMPT_HISTORY`). When it ends, Rondel deletes for good what Claude Code still kept for it, such as temporary files and memory (with following turned off, at the next Quick Conversation or when Rondel starts). It never shows in Recent Projects, Resume or Sessions. The first time, Claude Code asks whether you trust the folder: choose **Yes, I trust this folder**. Claude Code then keeps one entry for the folder in `~/.claude.json` (that it is trusted, and the last session's id, cost and token counts), but nothing of the conversation. The conversation itself goes to Claude like any other.
 - Continue and Resume show when the last session was and how many there are, and are dimmed when there are none.
 - **New Project** opens a card: the folder name, how the project starts, and the templates copied into it. Start options can be combined:
   - **Prompt** — start the agent with a first prompt;
@@ -141,7 +142,7 @@ Please include the log lines or the probe output when you [report a bug](https:/
 
 ## Privacy
 
-Rondel has no telemetry. It reads the agent's local session data only to show the hints and the recent sessions, and it receives the events of the agents it starts on 127.0.0.1 only. Once a day the Windows app asks GitHub for its latest release (this can be turned off in Settings); the request carries nothing but Rondel's version. It deletes Claude Code's session files only when you ask for it in the Sessions window, and it writes nothing except its own settings (with the hooks file for the agents it starts), its logs, the list of its agents' windows, the update checks' state and downloads and, if you enable it, the start-with-Windows entry (the login item on macOS).
+Rondel has no telemetry. It reads the agent's local session data only to show the hints and the recent sessions, and it receives the events of the agents it starts on 127.0.0.1 only. Once a day the Windows app asks GitHub for its latest release (this can be turned off in Settings); the request carries nothing but Rondel's version. It deletes Claude Code's session files only when you ask for it in the Sessions window, and what is left of a Quick Conversation once it ends, and it writes nothing except its own settings (with the hooks file for the agents it starts), its logs, the list of its agents' windows, the update checks' state and downloads and, if you enable it, the start-with-Windows entry (the login item on macOS).
 
 ## Build from source
 

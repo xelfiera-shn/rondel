@@ -210,6 +210,92 @@ public sealed class ClaudeCodeStorage
         return new CleanupResult(sessions, memories, bytes, skipped);
     }
 
+    /// <summary>
+    /// What was written to this recently may belong to a session that has just started and is not registered as running
+    /// yet: it is swept only once its end was reported.
+    /// </summary>
+    public static readonly TimeSpan Fresh = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// Deletes for good what Claude Code kept for the sessions of <paramref name="directory"/>, a folder whose sessions are
+    /// never to be kept (Quick Conversation). Their ids come from what is found for the folder (transcripts, session folders,
+    /// temporary folders) and from <paramref name="ended"/>, sessions whose end was reported. A session goes unless a Claude
+    /// Code still works in it, it is in <paramref name="keep"/> (still followed), or what it has is <see cref="Fresh"/> while
+    /// its end was not reported. The folder's memory goes too once nothing of it is left.
+    /// </summary>
+    public CleanupResult Sweep(string directory, IEnumerable<string>? ended = null, IEnumerable<string>? keep = null)
+    {
+        string key = ClaudeCodeSessionStore.Encode(Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory)));
+        string project = Path.Combine(ProjectsDirectory, key);
+        var over = new HashSet<string>((ended ?? []).Where(IsSessionId), StringComparer.OrdinalIgnoreCase);
+        var kept = new HashSet<string>(keep ?? [], StringComparer.OrdinalIgnoreCase);
+        var ids = new HashSet<string>(over, StringComparer.OrdinalIgnoreCase);
+        foreach (string name in EntryNames(project))
+        {
+            string id = name.EndsWith(".jsonl", StringComparison.OrdinalIgnoreCase) ? name[..^6] : name;
+            if (IsSessionId(id))
+                ids.Add(id);
+        }
+        foreach (string folder in TempFolders(key))
+            ids.UnionWith(EntryNames(folder).Where(IsSessionId));
+
+        var running = RunningSessions();
+        var paths = new List<string>();
+        var skipped = new List<string>();
+        int sessions = 0;
+        var now = DateTime.UtcNow;
+        foreach (string id in ids)
+        {
+            var found = PathsOf(key, id).Where(Exists).ToList();
+            bool fresh = found.Any(path => now - LastWrite(path) < Fresh);
+            if (running.Contains(id) || kept.Contains(id) || (fresh && !over.Contains(id)))
+            {
+                skipped.Add(id);
+                continue;
+            }
+            paths.AddRange(found);
+            if (found.Count > 0)
+                sessions++;
+        }
+        string memory = Path.Combine(project, "memory");
+        bool memoryGoes = skipped.Count == 0 && Directory.Exists(memory);
+        if (memoryGoes)
+            paths.Add(memory);
+
+        long bytes = paths.Sum(SizeOf);
+        if (paths.Count > 0)
+            Log.Info($"Sweeping {sessions} session(s) of '{directory}', {bytes} bytes" + (skipped.Count > 0 ? $"; {skipped.Count} still running" : ""));
+        paths.ForEach(DeleteForGood);
+        RemoveIfEmpty(project);
+        foreach (string folder in TempFolders(key))
+            RemoveIfEmpty(folder);
+        return new CleanupResult(sessions, memoryGoes ? 1 : 0, bytes, skipped);
+    }
+
+    static DateTime LastWrite(string path)
+    {
+        try
+        {
+            return File.Exists(path) ? File.GetLastWriteTimeUtc(path) : Directory.GetLastWriteTimeUtc(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return DateTime.UtcNow; // unknown: taken as fresh, so kept
+        }
+    }
+
+    static IEnumerable<string> EntryNames(string folder)
+    {
+        try
+        {
+            return Directory.Exists(folder) ? Directory.EnumerateFileSystemEntries(folder).Select(Path.GetFileName).OfType<string>().ToList() : [];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
     /// <summary>Every path that may belong to session <paramref name="id"/> of project <paramref name="key"/>, found or not.</summary>
     internal IEnumerable<string> PathsOf(string key, string id)
     {

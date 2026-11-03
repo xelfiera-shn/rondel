@@ -962,7 +962,7 @@ public partial class RadialMenuWindow : Window
         CloseFrom(1);
         InputGlyph.Text = spec.Glyph.ToString();
         NameBox.Tag = Loc.Get("Input.NamePlaceholder");
-        PromptBox.Tag = Loc.Format("Input.PromptPlaceholder", spec.AgentName);
+        PromptBox.Tag = spec.Placeholder ?? Loc.Format("Input.PromptPlaceholder", spec.AgentName);
         NameBox.Text = "";
         PromptBox.Text = "";
         SetUpSavedPrompts(spec);

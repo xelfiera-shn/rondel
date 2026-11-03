@@ -461,6 +461,16 @@
                     </Grid>
                 </Border>
 
+                <!-- Quick Conversation -->
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{l:Loc Settings.Quick}" />
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <CheckBox x:Name="QuickCardBox" Content="{l:Loc Settings.Quick.Card}" Click="OnQuickCardClicked" />
+                        <TextBlock Style="{StaticResource Description}" Margin="28,2,0,0" Text="{l:Loc Settings.Quick.Card.Desc}" />
+                    </StackPanel>
+                </Border>
+
                 <!-- Saved prompts -->
                 <TextBlock Style="{StaticResource SectionHeader}" Text="{l:Loc Settings.Prompts}" />
 

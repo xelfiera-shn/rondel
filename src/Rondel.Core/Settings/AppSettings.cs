@@ -31,7 +31,7 @@ public sealed class AppSettings
     /// Bumped whenever a default changes, so <see cref="Normalize"/> can migrate saved files.
     /// A migration only touches values that are still at the old default.
     /// </summary>
-    public const int CurrentSchemaVersion = 5;
+    public const int CurrentSchemaVersion = 6;
 
     /// <summary>0 for a file written by hand without the field.</summary>
     public int SchemaVersion { get; set; }
@@ -77,6 +77,9 @@ public sealed class AppSettings
 
     /// <summary>Saved prompts in the Ask slices: whether they are offered, and those pinned to the slices' arc.</summary>
     public SavedPromptsOptions Prompts { get; set; } = new();
+
+    /// <summary>Quick Conversation: whether it asks for the first message on the prompt card.</summary>
+    public QuickConversationOptions Quick { get; set; } = new();
 
     /// <summary>Context name (DesktopEmpty, ExplorerEmpty, FolderItem, FileItem) → action ids, clockwise from the top.</summary>
     public Dictionary<string, List<string>> Menus { get; set; } = DefaultMenus();
@@ -138,6 +141,7 @@ public sealed class AppSettings
         NewProject.Templates = (NewProject.Templates ?? []).Where(t => !string.IsNullOrWhiteSpace(t))
             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         Prompts ??= new();
+        Quick ??= new();
         Prompts.Pinned = (Prompts.Pinned ?? []).Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase).Take(Rondel.Core.Prompts.SavedPrompts.MaxPinned).ToList();
 
@@ -174,6 +178,10 @@ public sealed class AppSettings
             // Missing in files written before Rondel followed agents; an empty list turns following off for the agent.
             agent.ActivityArgs ??= builtIn?.ActivityArgs is { } args ? new List<string>(args) : null;
             agent.ActivityArgs?.RemoveAll(a => a is null);
+            // Missing in files written before Quick Conversation; an empty one hides it for the agent.
+            agent.EphemeralEnvironment = (agent.EphemeralEnvironment ?? builtIn?.EphemeralEnvironment)?
+                .Where(v => IsVariableName(v.Key) && v.Value is not null)
+                .ToDictionary(v => v.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
         }
         foreach (var builtIn in BuiltInAgents.Create())
         {
@@ -235,9 +243,16 @@ public sealed class AppSettings
         // 5: Active Agents joined the desktop menu, after Recent Projects.
         if (SchemaVersion < 5)
             InsertIfDefault(nameof(ContextKind.DesktopEmpty), ["new-project", "recents"], "agents", after: "recents");
+        // 6: Quick Conversation joined the desktop menu, after Active Agents.
+        if (SchemaVersion < 6)
+            InsertIfDefault(nameof(ContextKind.DesktopEmpty), ["new-project", "recents", "agents"], "quick", after: "agents");
         SchemaVersion = CurrentSchemaVersion;
         WasMigrated = true;
     }
+
+    /// <summary>An environment variable's name: letters, digits and underscores, not starting with a digit.</summary>
+    internal static bool IsVariableName(string? name) =>
+        name is { Length: > 0 } && !char.IsAsciiDigit(name[0]) && name.All(c => char.IsAsciiLetterOrDigit(c) || c == '_');
 
     void InsertIfDefault(string context, string[] oldDefault, string id, string after)
     {
@@ -255,7 +270,7 @@ public sealed class AppSettings
 
     public static Dictionary<string, List<string>> DefaultMenus() => new(StringComparer.OrdinalIgnoreCase)
     {
-        [nameof(ContextKind.DesktopEmpty)] = ["new-project", "recents", "agents"],
+        [nameof(ContextKind.DesktopEmpty)] = ["new-project", "recents", "agents", "quick"],
         [nameof(ContextKind.ExplorerEmpty)] = ["new-project", "open-here", "ask-here", "continue-here", "resume-here"],
         [nameof(ContextKind.FolderItem)] = ["open", "ask", "continue", "resume"],
         [nameof(ContextKind.FileItem)] = ["ask-file", "open-here", "continue-here", "resume-here"],
@@ -276,5 +291,6 @@ public sealed class AppSettings
         new() { Id = "recents", Label = "@Action.Recents", Icon = "E823", Capability = AgentCapability.ResumeById, Source = ActionSource.RecentProjects },
         new() { Id = "ask-file", Label = "@Action.AskFile", Icon = "E8F2", Input = ActionInput.Prompt, Capability = AgentCapability.Prompt, MentionFile = true },
         new() { Id = "agents", Label = "@Action.ActiveAgents", Icon = "E99A", Capability = AgentCapability.Open, Source = ActionSource.ActiveAgents },
+        new() { Id = "quick", Label = "@Action.Quick", Icon = "E945", Input = ActionInput.Prompt, Capability = AgentCapability.Prompt, Ephemeral = true },
     ];
 }

@@ -24,5 +24,13 @@ public static class AppInfo
         ? Path.Combine(Home, "Library", "Logs", Name)
         : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Name, "logs");
 
+    /// <summary>
+    /// Where Quick Conversations run, an empty folder of their own: %LOCALAPPDATA%\Rondel\Quick on Windows,
+    /// ~/Library/Application Support/Rondel/Quick on macOS.
+    /// </summary>
+    public static string QuickDirectory { get; } = OperatingSystem.IsMacOS()
+        ? Path.Combine(Home, "Library", "Application Support", Name, "Quick")
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Name, "Quick");
+
     static string Home => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 }
