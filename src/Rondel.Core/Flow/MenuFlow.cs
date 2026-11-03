@@ -65,6 +65,17 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
         return (model with { Items = [.. model.Items.Take(MenuBuilder.MaxItems - 1), item] }, Math.Min(model.Items.Count, MenuBuilder.MaxItems - 1));
     }
 
+    /// <summary>Resumes a saved session in its folder with the default agent (the Sessions window's Resume).</summary>
+    public void Resume(string directory, string sessionId)
+    {
+        var current = settings();
+        if (current.FindAgent(current.DefaultAgent) is not { } agent)
+            return;
+        Log.Info($"Resuming session {sessionId} in '{directory}'");
+        Start(agent, new ActionDefinition { Id = "resume-session", Capability = AgentCapability.ResumeById, Agent = agent.Id }, directory,
+            prompt: null, sessionId);
+    }
+
     /// <summary>An item was chosen: start its agent, or ask for a folder name (and a prompt) first.</summary>
     public void Invoke(MenuModel model, MenuItemModel item)
     {
