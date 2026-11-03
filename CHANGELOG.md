@@ -2,6 +2,16 @@
 
 Every version of Rondel, newest first. Until 1.0 only the two newest [releases](https://github.com/xelfiera-shn/rondel/releases) are kept for download; the notes of all versions are here.
 
+## 0.13.0 (2026-11-03)
+
+### Features
+
+- **windows:** Have a Quick Conversation that is not kept (#74)
+
+### Bug fixes
+
+- **windows:** Find the temporary folders of newer Claude Code versions (#73)
+
 ## 0.12.0 (2026-11-03)
 
 ### Features

@@ -138,6 +138,55 @@ public class ClaudeCodeStorageTests
         }
     }
 
+    [Fact]
+    public void WhatQuickConversationsLeftInTheirFolderGoesOnceNoneCanBeWorkingThere()
+    {
+        var root = Directory.CreateTempSubdirectory("rondel-tests-");
+        try
+        {
+            string config = Path.Combine(root.FullName, "claude");
+            string quick = Directory.CreateDirectory(Path.Combine(root.FullName, "Quick")).FullName;
+            string Make(params string[] parts)
+            {
+                string path = Path.Combine(quick, Path.Combine(parts));
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllText(path, "x");
+                return path;
+            }
+            void Age(string path)
+            {
+                var old = DateTime.UtcNow.AddHours(-1);
+                File.SetLastWriteTimeUtc(path, old);
+                for (string? folder = Path.GetDirectoryName(path); folder is not null && folder != quick; folder = Path.GetDirectoryName(folder))
+                    Directory.SetLastWriteTimeUtc(folder, old);
+            }
+            Age(Make("script.py")); // written by Claude in an earlier one
+            Age(Make(".claude", "settings.local.json")); // permissions given in one
+            string fresh = Make("shot.png"); // just written: it may belong to one starting right now
+            var storage = new ClaudeCodeStorage(config, Path.Combine(root.FullName, "temp"));
+
+            // While one is followed, or a Claude Code works in the folder, its files stay.
+            Assert.Equal(0, storage.Sweep(quick, inUse: true).Files);
+            Directory.CreateDirectory(Path.Combine(config, "sessions"));
+            string state = Path.Combine(config, "sessions", "1.json");
+            string cwd = JsonSerializer.Serialize(quick + Path.DirectorySeparatorChar);
+            File.WriteAllText(state, $$"""{"pid":{{Environment.ProcessId}},"sessionId":"{{Open}}","cwd":{{cwd}}}""");
+            Assert.Equal(0, storage.Sweep(quick).Files);
+            File.Delete(state);
+
+            // Then what is older goes, and what is fresh only once an end was reported; the folder itself stays.
+            Assert.Equal(2, storage.Sweep(quick).Files);
+            Assert.Equal([fresh], Directory.EnumerateFileSystemEntries(quick));
+            Assert.Equal(1, storage.Sweep(quick, ended: [Gone]).Files);
+            Assert.True(Directory.Exists(quick));
+            Assert.Empty(Directory.EnumerateFileSystemEntries(quick));
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
     /// <summary>
     /// A Claude Code folder with a project that exists (an old session with all its files, and an open one) and one
     /// whose folder is gone, plus a temporary folder for the scratchpads.
