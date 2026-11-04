@@ -346,9 +346,9 @@ internal sealed class SettingsWindow : Window
 
         page.Children.Add(Section("Settings.Permissions"));
         page.Children.Add(Card(_accessibility = new PermissionRow(Loc.Get("Settings.Permissions.Accessibility"),
-            Loc.Get("Settings.Permissions.Accessibility.Desc"), _host.AllowAccessibility, this)));
+            Loc.Get("Settings.Permissions.Accessibility.Desc"), _host.AllowAccessibility, _look)));
         page.Children.Add(Card(_finder = new PermissionRow(Loc.Get("Settings.Permissions.Finder"),
-            Loc.Get("Settings.Permissions.Finder.Desc"), _host.AllowFinderAccess, this)));
+            Loc.Get("Settings.Permissions.Finder.Desc"), _host.AllowFinderAccess, _look)));
 
         page.Children.Add(Section("Settings.System"));
         page.Children.Add(Card(new StackPanel
@@ -990,49 +990,6 @@ internal sealed class SettingsWindow : Window
                 : IsFocused ? _look.SubText
                 : IsPointerOver ? _look.Hover
                 : Brushes.Transparent;
-        }
-    }
-
-    /// <summary>A permission: what it is for, whether it is granted, and a button that asks for it while it is not.</summary>
-    sealed class PermissionRow : Grid
-    {
-        readonly Ellipse _dot = new() { Width = 8, Height = 8, Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center };
-        readonly TextBlock _state;
-        readonly Button _allow;
-
-        public PermissionRow(string title, string description, Action allow, SettingsWindow page)
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto");
-            _state = page.Inline("");
-            _allow = Button(Loc.Get("Settings.Permissions.Allow"), allow);
-            _allow.Margin = new Thickness(12, 0, 0, 0);
-            var text = new StackPanel
-            {
-                Margin = new Thickness(0, 0, 16, 0),
-                Children =
-                {
-                    page.Label(title),
-                    page.Description(description),
-                },
-            };
-            var right = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center,
-                Children = { _dot, _state, _allow },
-            };
-            Children.Add(text);
-            SetColumn(right, 1);
-            Children.Add(right);
-        }
-
-        /// <param name="granted">Null while it is not known yet.</param>
-        public void Show(bool? granted)
-        {
-            _state.Text = granted is null ? "" : Loc.Get(granted.Value ? "Settings.Permissions.Granted" : "Settings.Permissions.Missing");
-            _dot.IsVisible = granted is not null;
-            _dot.Fill = granted == true ? new SolidColorBrush(Color.FromRgb(0x34, 0xC7, 0x59)) : new SolidColorBrush(Color.FromRgb(0xFF, 0x9F, 0x0A));
-            _allow.IsVisible = granted == false;
         }
     }
 }

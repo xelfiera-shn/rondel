@@ -63,7 +63,7 @@ Which features Rondel has on Windows and on macOS, and since which version. Down
 | English and Turkish | ✅ 0.1.0 | ✅ 0.8.0 |
 | Updates from within the app, verified with Rondel's release key | ✅ 0.7.0 | ✅ 0.15.0 |
 | Diagnostics: debug logging and `--probe` | ✅ 0.1.0 | ✅ 0.8.0 |
-| A welcome window at the first start that shows how the menu opens, again from the tray menu | ✅ 0.11.0 | ⬜ |
+| A welcome window at the first start that shows how the menu opens, again from the tray menu | ✅ 0.11.0 | ✅ 0.16.0 |
 
 ## Planned
 

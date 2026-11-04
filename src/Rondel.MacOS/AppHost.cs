@@ -37,6 +37,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
     nint _activity;
     RadialMenuWindow? _menu;
     SettingsWindow? _settingsWindow;
+    WelcomeWindow? _welcomeWindow;
     string? _look;
 
     /// <param name="settingsDirectory">Where settings.json is; the settings folder unless a diagnostic passes a copy.</param>
@@ -81,6 +82,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         _menuBar.AccessibilityClicked += AllowAccessibility;
         _menuBar.FinderAccessClicked += AllowFinderAccess;
         _menuBar.SettingsClicked += OpenSettings;
+        _menuBar.HowToUseClicked += ShowWelcome;
         _menuBar.PauseClicked += () => Store.Update(s => s.Paused = !s.Paused);
         _menuBar.OpenLogsClicked += OpenLogFolder;
         _menuBar.QuitClicked += () => QuitRequested?.Invoke();
@@ -124,8 +126,19 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
 
         // The event tap must answer within a fraction of a second, also after hours in the background.
         _activity = Native.BeginLatencyCriticalActivity("Rondel watches for Option + hold");
-        StartTrigger();
-        AskForFinderAccess(fromMenu: false);
+        // The first time, the welcome window says what the two permissions are for and asks for them; on later
+        // starts macOS asks at once for one that is missing.
+        if (Store.CreatedNew)
+        {
+            StartTrigger(prompt: false);
+            CheckFinderAccess();
+            ShowWelcome();
+        }
+        else
+        {
+            StartTrigger(prompt: true);
+            AskForFinderAccess(fromMenu: false);
+        }
 
         Log.Info($"{AppInfo.Name} {AppInfo.Version} started (macOS {Environment.OSVersion.Version}, UI culture {System.Globalization.CultureInfo.CurrentUICulture.Name}, language {Loc.Language})");
     }
@@ -167,6 +180,26 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         _settingsWindow.Activate();
     }
 
+    /// <summary>
+    /// The welcome window, which shows how the menu opens and asks for the permissions: by itself the first time
+    /// Rondel runs, and from the menu bar (How to use) whenever asked.
+    /// </summary>
+    public void ShowWelcome()
+    {
+        if (_welcomeWindow is { } open)
+        {
+            open.Activate();
+            return;
+        }
+        Log.Info(Store.CreatedNew ? "First run: showing the welcome window" : "Showing the welcome window");
+        var window = new WelcomeWindow(this);
+        window.SettingsRequested += OpenSettings;
+        window.Closed += (_, _) => _welcomeWindow = null;
+        _welcomeWindow = window;
+        window.Show();
+        window.Activate();
+    }
+
     public void OpenSettingsFile() => Workspace.OpenText(Store.FilePath);
 
     public void OpenLogFolder() => Workspace.Open(Log.Directory);
@@ -196,10 +229,11 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
     // ---- permissions ----
 
     /// <summary>
-    /// The tap needs the Accessibility permission. Without it macOS is asked to show its prompt once, and a grant
-    /// is picked up while Rondel runs, so no restart is needed.
+    /// The tap needs the Accessibility permission. Without it macOS is asked to show its prompt once (unless
+    /// <paramref name="prompt"/> is false: the welcome window asks), and a grant is picked up while Rondel runs, so
+    /// no restart is needed.
     /// </summary>
-    void StartTrigger()
+    void StartTrigger(bool prompt)
     {
         if (Native.AXIsProcessTrusted())
         {
@@ -207,7 +241,8 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
             return;
         }
         Log.Warn("No Accessibility permission yet; the trigger is off until it is granted");
-        Native.RequestAccessibility();
+        if (prompt)
+            Native.RequestAccessibility();
         _accessibilityPoll = DispatcherTimer.Run(() =>
         {
             if (!Native.AXIsProcessTrusted())
