@@ -15,11 +15,13 @@ using Rondel.Core;
 using Rondel.Core.Agents;
 using Rondel.Core.Launch;
 using Rondel.Core.Localization;
+using Rondel.Core.Sessions;
 using Rondel.Core.Settings;
 using Rondel.Core.Themes;
 using Rondel.MacOS.Interop;
 using Rondel.MacOS.Launch;
 using Path = Avalonia.Controls.Shapes.Path;
+using UpdateCheck = Rondel.Core.Updates.UpdateStatus;
 
 namespace Rondel.MacOS.UI;
 
@@ -39,7 +41,7 @@ internal sealed class SettingsWindow : Window
     readonly Dictionary<string, Image> _themeImages = [];
     ThemePreviews? _previews;
     string? _previewKey;
-    Look _look = Look.Dark;
+    PageLook _look = PageLook.Dark;
     bool _loading;
     int _commandVersion;
 
@@ -51,7 +53,9 @@ internal sealed class SettingsWindow : Window
     CheckBox _cardPrompt = null!, _cardGit = null!, _cardPlan = null!, _cardTemplates = null!, _autostart = null!, _debug = null!;
     WrapPanel _themeCards = null!;
     StackPanel _swatches = null!, _customAccent = null!;
-    Button _openLoginItems = null!;
+    Button _openLoginItems = null!, _checkNow = null!;
+    CheckBox _checkUpdates = null!;
+    TextBlock _updateStatus = null!;
     PermissionRow _accessibility = null!, _finder = null!;
 
     public SettingsWindow(AppHost host)
@@ -120,6 +124,7 @@ internal sealed class SettingsWindow : Window
             _command.Text = DefaultAgent(s)?.Command ?? "";
             Select(_terminal, s.Terminal.ToString());
             _debug.IsChecked = s.DebugLogging;
+            _checkUpdates.IsChecked = s.Updates.Check;
             _cardPrompt.IsChecked = s.NewProjectCard.Prompt;
             _cardGit.IsChecked = s.NewProjectCard.Git;
             _cardPlan.IsChecked = s.NewProjectCard.Plan;
@@ -134,6 +139,26 @@ internal sealed class SettingsWindow : Window
         RefreshPermissions();
         UpdateStatus();
         CheckCommand();
+        ShowUpdateStatus();
+    }
+
+    /// <summary>What the update checks found, and the button that checks now (or opens the update when there is one).</summary>
+    public void ShowUpdateStatus()
+    {
+        var updates = _host.Updates.Service;
+        _updateStatus.Text = updates.Status switch
+        {
+            UpdateCheck.Development => Loc.Get("Settings.Updates.Development"),
+            UpdateCheck.Checking => Loc.Get("Settings.Updates.Checking"),
+            UpdateCheck.Available when updates.Latest is { } release => Loc.Format("Settings.Updates.Available", release.Version),
+            UpdateCheck.UpToDate when updates.LastCheckUtc is { } checkedAt => Loc.Format("Settings.Updates.UpToDate", RelativeTime.Describe(checkedAt)),
+            UpdateCheck.Failed => Loc.Get("Settings.Updates.Failed"),
+            _ when updates.LastCheckUtc is { } checkedAt => Loc.Format("Settings.Updates.LastChecked", RelativeTime.Describe(checkedAt)),
+            _ => Loc.Get("Settings.Updates.NotChecked"),
+        };
+        bool available = updates.Status == UpdateCheck.Available && updates.Latest is not null;
+        _checkNow.Content = Loc.Get(available ? "Settings.Updates.Install" : "Settings.Updates.CheckNow");
+        _checkNow.IsEnabled = updates.Status is not (UpdateCheck.Development or UpdateCheck.Checking);
     }
 
     void UpdateStatus()
@@ -187,7 +212,7 @@ internal sealed class SettingsWindow : Window
     {
         if (_scroll.Parent is Grid previous)
             previous.Children.Remove(_scroll); // kept across builds, for its scroll position
-        _look = ActualThemeVariant == ThemeVariant.Light ? Look.Light : Look.Dark;
+        _look = ActualThemeVariant == ThemeVariant.Light ? PageLook.Light : PageLook.Dark;
         Title = Loc.Get("Settings.Title");
         Background = _look.Background;
         _themeImages.Clear();
@@ -346,6 +371,19 @@ internal sealed class SettingsWindow : Window
             },
         }));
 
+        page.Children.Add(Section("Settings.Updates"));
+        _updateStatus = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Foreground = _look.SubText };
+        _checkNow = Button("", OnCheckNow);
+        page.Children.Add(Card(new StackPanel
+        {
+            Children =
+            {
+                (_checkUpdates = Check(Loc.Get("Settings.Updates.Check"), OnCheckUpdatesClicked)),
+                Description(Loc.Get("Settings.Updates.Check.Desc"), new Thickness(28, 2, 0, 0)),
+                Columns(_updateStatus, _checkNow, new Thickness(0, 12, 0, 0)),
+            },
+        }));
+
         _scroll.Content = page;
         var root = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto") };
         root.Children.Add(Header());
@@ -361,18 +399,8 @@ internal sealed class SettingsWindow : Window
     /// <summary>Rondel's ring, name and tagline over a thin line in the brand gradient.</summary>
     Control Header()
     {
-        var brand = MenuPalette.For(new AppearanceOptions(), _look == Look.Dark).Brand;
-        var logo = new Canvas { Width = 36, Height = 36, VerticalAlignment = VerticalAlignment.Center };
-        logo.Children.Add(new Ellipse { Width = 30, Height = 30, Stroke = brand, StrokeThickness = 3, [Canvas.LeftProperty] = 3.0, [Canvas.TopProperty] = 3.0 });
-        var slice = new StreamGeometry();
-        using (var g = slice.Open())
-        {
-            g.BeginFigure(new Point(18, 18), true);
-            g.LineTo(new Point(18 - 7.4, 18 - 7.4));
-            g.ArcTo(new Point(18 + 7.4, 18 - 7.4), new Size(10.5, 10.5), 0, false, SweepDirection.Clockwise);
-            g.EndFigure(true);
-        }
-        logo.Children.Add(new Path { Data = slice, Fill = brand });
+        var brand = _look.Brand;
+        var logo = PageLook.Logo();
         return new StackPanel
         {
             Margin = new Thickness(24, 20, 24, 0),
@@ -757,6 +785,22 @@ internal sealed class SettingsWindow : Window
         RefreshAutostart();
     }
 
+    void OnCheckUpdatesClicked()
+    {
+        bool value = _checkUpdates.IsChecked == true;
+        if (!_loading)
+            Store.Update(s => s.Updates.Check = value);
+    }
+
+    void OnCheckNow()
+    {
+        var updates = _host.Updates;
+        if (updates.Service.Status == UpdateCheck.Available && updates.Service.Latest is { } release)
+            updates.OpenWindow(release);
+        else
+            _ = updates.CheckNowAsync();
+    }
+
     void OnDebugClicked()
     {
         bool value = _debug.IsChecked == true;
@@ -887,29 +931,17 @@ internal sealed class SettingsWindow : Window
 
     static Color ToColor(uint argb) => Color.FromArgb((byte)(argb >> 24), (byte)(argb >> 16), (byte)(argb >> 8), (byte)argb);
 
-    /// <summary>The page's own colors in dark and light mode (the controls take theirs from the Fluent theme).</summary>
-    sealed record Look(IBrush Background, IBrush Card, IBrush CardStroke, IBrush Text, IBrush SubText, IBrush Accent, IBrush Idle, IBrush Hover)
-    {
-        public static Look Dark { get; } = new(Solid(0xFF1E1E1E), Solid(0xFF2A2A2A), Solid(0xFF3A3A3A), Solid(0xFFF2F2F2), Solid(0xFFA3A3A3),
-            Solid(0xFF2DD4BF), Solid(0xFF333333), Solid(0xFF5A5A5A));
-
-        public static Look Light { get; } = new(Solid(0xFFECECEC), Solid(0xFFFFFFFF), Solid(0xFFDADADA), Solid(0xFF1D1D1F), Solid(0xFF6B6B70),
-            Solid(0xFF0F766E), Solid(0xFFF2F2F2), Solid(0xFFB8B8B8));
-
-        static IBrush Solid(uint argb) => new SolidColorBrush(ToColor(argb)).ToImmutable();
-    }
-
     /// <summary>
     /// A theme or an accent to choose: its content in a frame that is lit while chosen. A click, Space or Enter chooses
     /// it; Tab moves between them.
     /// </summary>
     sealed class Choice : Border
     {
-        readonly Look _look;
+        readonly PageLook _look;
         readonly bool _round;
         bool _checked;
 
-        public Choice(Look look, bool round)
+        public Choice(PageLook look, bool round)
         {
             _look = look;
             _round = round;

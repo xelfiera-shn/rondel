@@ -9,5 +9,6 @@
 
 *.ico binary
 *.png binary
+*.icns binary
 *.jpg binary
 *.gif binary

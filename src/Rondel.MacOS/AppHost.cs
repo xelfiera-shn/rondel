@@ -18,6 +18,7 @@ using Rondel.MacOS.Launch;
 using Rondel.MacOS.Settings;
 using Rondel.MacOS.Trigger;
 using Rondel.MacOS.UI;
+using Rondel.MacOS.Updates;
 
 namespace Rondel.MacOS;
 
@@ -47,8 +48,12 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         _tap = new EventTap(this);
         var launcher = new MacTerminalLauncher(message => Dispatcher.UIThread.Post(() => Warn(message)));
         _flow = new MenuFlow(this, launcher, new MacFolderNameValidator(), () => Store.Current, change => Store.Update(change));
+        Updates = new MacUpdates(Store, () => QuitRequested?.Invoke());
         ApplySettings(Store.Current);
     }
+
+    /// <summary>Looking for newer releases, and updating Rondel.app in place.</summary>
+    public MacUpdates Updates { get; }
 
     public SettingsStore Store { get; }
 
@@ -79,6 +84,16 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         _menuBar.PauseClicked += () => Store.Update(s => s.Paused = !s.Paused);
         _menuBar.OpenLogsClicked += OpenLogFolder;
         _menuBar.QuitClicked += () => QuitRequested?.Invoke();
+        _menuBar.UpdateClicked += () =>
+        {
+            if (Updates.Offered is { } release)
+                Updates.OpenWindow(release);
+        };
+        Updates.Changed += () =>
+        {
+            _menuBar.Update(s => s with { Update = Updates.Offered?.Version.ToString() });
+            _settingsWindow?.ShowUpdateStatus();
+        };
         _menuBar.Show(new MenuBarState(Store.Current.Paused, !Native.AXIsProcessTrusted(), true,
             Store.LoadError is null ? null : Loc.Get("Tray.SettingsInvalid")));
 
@@ -94,8 +109,16 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         {
             activatable.Activated += (_, e) =>
             {
+                // A click on one of Rondel's notifications reopens it too; that click has its own window. Which of
+                // the two arrives first is not fixed, so the reopen waits a moment before it looks.
                 if (e.Kind == ActivationKind.Reopen)
-                    OpenSettings();
+                {
+                    DispatcherTimer.RunOnce(() =>
+                    {
+                        if (!Notifications.ClickedWithin(TimeSpan.FromSeconds(2)))
+                            OpenSettings();
+                    }, TimeSpan.FromMilliseconds(400));
+                }
             };
         }
 
@@ -337,6 +360,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
     public void Dispose()
     {
         _accessibilityPoll?.Dispose();
+        Updates.Dispose();
         _worker.Dispose();
         _menuBar.Dispose();
         Store.Dispose();

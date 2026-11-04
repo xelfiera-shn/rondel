@@ -14,10 +14,12 @@ using Rondel.Core.Localization;
 using Rondel.Core.Logging;
 using Rondel.Core.Menus;
 using Rondel.Core.Settings;
+using Rondel.Core.Updates;
 using Rondel.MacOS.Detection;
 using Rondel.MacOS.Interop;
 using Rondel.MacOS.Launch;
 using Rondel.MacOS.UI;
+using Rondel.MacOS.Updates;
 
 namespace Rondel.MacOS;
 
@@ -52,8 +54,21 @@ internal static class DevTools
                 using (var file = File.Create(output))
                     MenuBar.RenderIcon(paused: options.Contains("paused")).Save(file);
                 return true;
+            case ["--export-app-icon", var output]:
+                ExportAppIcon(output);
+                return true;
             case ["--render-settings", var output, .. var options]:
                 RenderSettings(output, options);
+                return true;
+            case ["--render-update", var output, .. var options]:
+                RenderUpdate(output, options);
+                return true;
+            case ["--install-update", var bundle, var zip, var from]:
+                // Swaps a locally built zip into a bundle once this process exits, as an update does.
+                if (!AppVersion.TryParse(from, out var version))
+                    throw new ArgumentException($"'{from}' is not a version");
+                if (!MacSelfUpdate.Install(Path.GetFullPath(bundle), Path.GetFullPath(zip), version))
+                    throw new InvalidOperationException("The update was not installed; see the log");
                 return true;
             default:
                 return false;
@@ -177,6 +192,77 @@ internal static class DevTools
     /// Draws the whole settings page, without scrolling, into a PNG at 2x: <c>--render-settings out.png [dark|light] [en|tr]</c>.
     /// It works on a copy of settings.json, so a running Rondel and the real file are not touched.
     /// </summary>
+    /// <summary>
+    /// Draws the update window for a made-up 0.15.0 over 0.14.0 into a PNG at 2x:
+    /// <c>--render-update out.png [dark|light] [en|tr] [working|failed]</c>. The notes mix lines for both apps; the
+    /// Windows ones are left out, as in the app.
+    /// </summary>
+    static void RenderUpdate(string output, string[] options)
+    {
+        AppBuilder.Configure<App>().UsePlatformDetect()
+            .With(new FontManagerOptions { DefaultFamilyName = ".AppleSystemUIFont" })
+            .SetupWithoutStarting();
+        Loc.SetLanguage(options.FirstOrDefault(o => o is "en" or "tr") ?? "en");
+        var release = new ReleaseInfo(new AppVersion(0, 15, 0), """
+            ### Features
+
+            - **windows:** Ask about a screenshot in a Quick Conversation (#78)
+            - **core:** Look for newer releases and verify them with the release key (#46)
+
+            ### macOS
+
+            - **macos:** Update Rondel from within the app (#90)
+            - **macos:** Open in one click after downloading, notarized by Apple (#89)
+            """, new Uri("https://github.com/xelfiera-shn/rondel/releases/tag/v0.15.0"), new DateTimeOffset(2026, 11, 5, 12, 0, 0, TimeSpan.Zero), []);
+        var window = new UpdateWindow(release, new AppVersion(0, 14, 0))
+        {
+            RequestedThemeVariant = options.Contains("light") ? Avalonia.Styling.ThemeVariant.Light : Avalonia.Styling.ThemeVariant.Dark,
+        };
+        if (options.Contains("working"))
+            window.ShowWorking(Loc.Format("Update.Downloading", 6.2.ToString("0.0", Loc.Culture), 15.6.ToString("0.0", Loc.Culture)), 6.2 / 15.6, canCancel: true);
+        else if (options.Contains("failed"))
+            window.ShowFailed(Loc.Get("Update.Failed.Network"), canRetry: true);
+        const double Width = 520, Height = 560;
+        var page = (Control)window.Content!;
+        window.Content = null;
+        var root = new Avalonia.Controls.Panel { Width = Width, Height = Height, Background = window.Background, Children = { page } };
+        window.Content = root;
+        for (int pass = 0; pass < 3; pass++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            window.Measure(new Size(Width, Height));
+            window.Arrange(new Rect(0, 0, Width, Height));
+        }
+        var bitmap = new RenderTargetBitmap(new PixelSize((int)(Width * 2), (int)(Height * 2)), new Vector(192, 192));
+        bitmap.Render(root);
+        bitmap.Save(output, new PngBitmapEncoderOptions());
+        window.Close();
+    }
+
+    /// <summary>
+    /// Writes the app icon as an .icns file (build/Rondel.icns, which publish-macos.sh puts into the bundle):
+    /// <c>--export-app-icon out.icns</c>. Every size of Apple's iconset is drawn on its own, then iconutil packs them.
+    /// </summary>
+    static void ExportAppIcon(string output)
+    {
+        AppBuilder.Configure<App>().UsePlatformDetect().SetupWithoutStarting();
+        string set = Path.Combine(Directory.CreateTempSubdirectory("rondel-icon-").FullName, "Rondel.iconset");
+        Directory.CreateDirectory(set);
+        foreach (int size in new[] { 16, 32, 128, 256, 512 })
+        {
+            AppIcon.RenderAppIcon(size).Save(Path.Combine(set, $"icon_{size}x{size}.png"), new PngBitmapEncoderOptions());
+            AppIcon.RenderAppIcon(size * 2).Save(Path.Combine(set, $"icon_{size}x{size}@2x.png"), new PngBitmapEncoderOptions());
+        }
+        var start = new System.Diagnostics.ProcessStartInfo("/usr/bin/iconutil") { UseShellExecute = false };
+        foreach (string argument in new[] { "-c", "icns", set, "-o", Path.GetFullPath(output) })
+            start.ArgumentList.Add(argument);
+        using var process = System.Diagnostics.Process.Start(start)!;
+        process.WaitForExit();
+        Directory.Delete(Path.GetDirectoryName(set)!, recursive: true);
+        if (process.ExitCode != 0)
+            throw new InvalidOperationException($"iconutil failed ({process.ExitCode})");
+    }
+
     static void RenderSettings(string output, string[] options)
     {
         AppBuilder.Configure<App>().UsePlatformDetect()
