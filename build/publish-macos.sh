@@ -2,6 +2,7 @@
 # Builds Rondel.app (NativeAOT) into dist/<runtime>/ and signs it.
 #
 #   build/publish-macos.sh [--runtime osx-arm64|osx-x64] [--version 0.1.0] [--identity "Rondel Development"] [--sign-only]
+#                          [--notary-profile NAME [--notary-keychain PATH]]
 #
 # --sign-only signs the app already built there, without building: the release job builds with --identity - (ad hoc)
 # and imports the release certificate only afterwards, so no package's build code runs while it is in reach.
@@ -10,18 +11,28 @@
 # the same certificate; an ad-hoc signature changes with every build and the permissions would have to be granted
 # again. For development, create a self-signed one once: Keychain Access > Certificate Assistant > Create a
 # Certificate, name "Rondel Development", identity type Self-Signed Root, certificate type Code Signing.
+#
+# A "Developer ID Application" identity signs for distribution: with the hardened runtime, the entitlements in
+# Rondel.entitlements and a secure timestamp, as notarization requires. --notary-profile then sends the app to
+# Apple's notary service with the credentials stored under that name (xcrun notarytool store-credentials) and
+# staples the ticket to it, so a downloaded copy opens after a single confirmation; --notary-keychain names the
+# keychain that holds them, when it is not the login keychain (the release job's own).
 set -euo pipefail
 
 runtime="osx-$(uname -m | sed 's/x86_64/x64/')"
 version="0.0.0"
 identity="Rondel Development"
 sign_only=false
+notary_profile=""
+notary_keychain=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --runtime) runtime="$2"; shift 2 ;;
         --version) version="$2"; shift 2 ;;
         --identity) identity="$2"; shift 2 ;;
         --sign-only) sign_only=true; shift ;;
+        --notary-profile) notary_profile="$2"; shift 2 ;;
+        --notary-keychain) notary_keychain="$2"; shift 2 ;;
         *) echo "Unknown option: $1" >&2; exit 2 ;;
     esac
 done
@@ -63,7 +74,25 @@ elif [ ! -d "$app" ]; then
 fi
 
 # The libraries first, then the app: a bundle is signed from the inside out.
-find "$app/Contents/MacOS" -name '*.dylib' -exec codesign --force --timestamp=none --sign "$identity" {} \;
-codesign --force --timestamp=none --sign "$identity" "$app"
+sign=(codesign --force --timestamp=none --sign "$identity")
+case "$identity" in
+    "Developer ID Application"*)
+        sign=(codesign --force --timestamp --options runtime --sign "$identity") ;;
+esac
+find "$app/Contents/MacOS" -name '*.dylib' -exec "${sign[@]}" {} \;
+# Rondel.entitlements grants Apple Events, for asking Finder which folder a window shows: the hardened runtime blocks
+# them otherwise. It stays a bare plist (no comments, LF line ends): older codesign versions refuse anything else.
+"${sign[@]}" --entitlements "$root/build/Rondel.entitlements" "$app"
 codesign --verify --strict "$app"
 echo "  $app ($(du -sh "$app" | cut -f1)), signed with \"$identity\""
+
+if [ -n "$notary_profile" ]; then
+    # notarytool takes a zip; the ticket is then stapled to the app itself, which the release zips again.
+    upload="$(mktemp -d)/Rondel.zip"
+    ditto -c -k --keepParent "$app" "$upload"
+    echo "Notarizing (this takes a few minutes) ..."
+    xcrun notarytool submit "$upload" --keychain-profile "$notary_profile" ${notary_keychain:+--keychain "$notary_keychain"} --wait
+    rm -f "$upload"
+    xcrun stapler staple "$app"
+    spctl --assess --type execute --verbose=2 "$app"
+fi
