@@ -80,6 +80,8 @@ case "$identity" in
         sign=(codesign --force --timestamp --options runtime --sign "$identity") ;;
 esac
 find "$app/Contents/MacOS" -name '*.dylib' -exec "${sign[@]}" {} \;
+# Rondel.entitlements grants Apple Events, for asking Finder which folder a window shows: the hardened runtime blocks
+# them otherwise. It stays a bare plist (no comments, LF line ends): older codesign versions refuse anything else.
 "${sign[@]}" --entitlements "$root/build/Rondel.entitlements" "$app"
 codesign --verify --strict "$app"
 echo "  $app ($(du -sh "$app" | cut -f1)), signed with \"$identity\""

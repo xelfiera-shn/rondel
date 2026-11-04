@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!--
-  Entitlements of Rondel.app under the hardened runtime, which notarization requires. Rondel asks Finder over Apple
-  Events which folder a window shows; the hardened runtime blocks that without this one. The event tap needs no
-  entitlement: it runs on the Accessibility permission.
--->
 <plist version="1.0">
 <dict>
   <key>com.apple.security.automation.apple-events</key>

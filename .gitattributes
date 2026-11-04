@@ -4,6 +4,9 @@
 # Shell scripts run on macOS and Linux: a CR after the #! line would break them.
 *.sh text eol=lf
 
+# The macOS app's entitlements: older codesign versions refuse a plist with CR line ends.
+*.entitlements text eol=lf
+
 *.ico binary
 *.png binary
 *.jpg binary
