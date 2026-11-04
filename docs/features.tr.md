@@ -61,7 +61,7 @@ Rondel'in Windows'ta ve macOS'ta hangi özelliklere sahip olduğu ve her birinin
 | Ayarlar'da izinler (Erişilebilirlik, Finder) | — | ✅ 0.8.0 |
 | Menüler, aksiyonlar ve ajanlar `settings.json`'da; dosya kaydedilince uygulanır | ✅ 0.1.0 | ✅ 0.8.0 |
 | İngilizce ve Türkçe | ✅ 0.1.0 | ✅ 0.8.0 |
-| Rondel'in yayın anahtarıyla doğrulanan, uygulama içinden güncelleme | ✅ 0.7.0 | ⬜ yeni zip'i sürüm sayfasından indirin |
+| Rondel'in yayın anahtarıyla doğrulanan, uygulama içinden güncelleme | ✅ 0.7.0 | ✅ 0.15.0 |
 | Tanılama: hata ayıklama logu ve `--probe` | ✅ 0.1.0 | ✅ 0.8.0 |
 | İlk açılışta menünün nasıl açıldığını gösteren hoş geldiniz penceresi; tepsi menüsünden yeniden açılır | ✅ 0.11.0 | ⬜ |
 

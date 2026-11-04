@@ -48,6 +48,8 @@ dotnet publish "$root/src/Rondel.MacOS/Rondel.MacOS.csproj" -c Release -r "$runt
     -p:Version="$version" -p:PublishAot=true -p:DebugType=none -p:StripSymbols=true -nologo -v quiet
 rm -rf "$app/Contents/MacOS/"*.dSYM # debug symbols are not shipped
 mkdir -p "$app/Contents/Resources"
+# Finder, Spotlight and the Dock show it; written by `Rondel --export-app-icon build/Rondel.icns`.
+cp "$root/build/Rondel.icns" "$app/Contents/Resources/Rondel.icns"
 
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -58,6 +60,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>Rondel</string>
   <key>CFBundleDisplayName</key><string>Rondel</string>
   <key>CFBundleExecutable</key><string>Rondel</string>
+  <key>CFBundleIconFile</key><string>Rondel</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$version</string>
   <key>CFBundleVersion</key><string>$version</string>

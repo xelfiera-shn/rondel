@@ -47,6 +47,9 @@ internal sealed class App : Application
                 Log.Stop();
             };
             _host.Start();
+            _host.Updates.Start();
+            if (Updates.MacSelfUpdate.AfterUpdate(lifetime.Args ?? []) is { } from)
+                Updates.MacUpdates.ShowUpdated(from);
         }
         base.OnFrameworkInitializationCompleted();
     }

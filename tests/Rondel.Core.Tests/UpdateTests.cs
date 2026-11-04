@@ -117,6 +117,25 @@ public sealed class UpdateTests : IDisposable
     }
 
     [Fact]
+    public void NotesTellAReleaseThatChangesOnlyTheWindowsApp()
+    {
+        const string windows = "### Features\n\n- **windows:** Keep the active agents in sight on a card (#58)\n\n### Bug fixes\n\n- **windows:** Delete what a Quick Conversation left (#77)\n";
+        const string shared = windows + "- **core:** Look for newer releases (#46)\n";
+        const string mac = "### macOS\n\n- **macos:** Update Rondel from within the app (#90)\n";
+
+        Assert.True(ReleaseNotes.OnlyScoped(windows, "windows"));
+        Assert.False(ReleaseNotes.OnlyScoped(shared, "windows"));
+        Assert.False(ReleaseNotes.OnlyScoped(windows + "\n" + mac, "windows"));
+        Assert.False(ReleaseNotes.OnlyScoped("- Keep reading settings.json (#34)\n", "windows")); // no scope: for everyone
+        Assert.False(ReleaseNotes.OnlyScoped("", "windows")); // says nothing either way
+
+        // The macOS app shows the notes without the Windows lines.
+        var sections = ReleaseNotes.Parse(shared + "\n" + mac, withoutScope: "windows");
+        Assert.Equal([Localization.Loc.Get("Update.Notes.Fixes"), "macOS"], sections.Select(s => s.Heading));
+        Assert.Equal(["Look for newer releases"], sections[0].Lines);
+    }
+
+    [Fact]
     public void ChecksumLinesAreReadAsSha256sumWritesThem()
     {
         string hash = new('a', 64);

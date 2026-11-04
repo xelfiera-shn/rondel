@@ -100,11 +100,13 @@ Claude Code her oturumu, aldığı ekran görüntüleri ve görsellerle, saklad�
 
 ## Güncellemeler
 
-Rondel günde bir kez ve internet bağlantısı geldiğinde GitHub'a son sürümünü sorar. Daha yeni bir sürüm çıkmışsa bir bildirim bunu söyler. Bildirime ya da tepsi ikonu → **… sürümüne güncelle** satırına tıklayınca yenilikleri görür; **Şimdi güncelle**, **Sonra** veya **Bu sürümü atla** seçeneklerinden birini seçersiniz.
+Rondel günde bir kez ve internet bağlantısı geldiğinde GitHub'a son sürümünü sorar. Daha yeni bir sürüm çıkmışsa bir bildirim bunu söyler. Bildirime ya da tepsi ikonu (macOS'ta menü çubuğu ikonu) → **… sürümüne güncelle** satırına tıklayınca yenilikleri görür; **Şimdi güncelle**, **Sonra** veya **Bu sürümü atla** seçeneklerinden birini seçersiniz.
 
 Güncelleme yeni exe'yi indirir, doğrular, çalışan exe'nin yerine koyar ve Rondel'i yeniden başlatır; ajanlarınız çalışmaya devam eder. Rondel dosyayı yalnızca yayının özet dosyası, yalnızca yayın iş akışında bulunan Rondel yayın anahtarıyla imzalıysa ve dosya bu özetle eşleşiyorsa kullanır; eşleşmeyen dosya silinir. Rondel'in klasörüne yazılamıyorsa (örneğin Program Files altında) bunun yerine sürüm sayfası açılır.
 
-Ayarlar'daki **Güncellemeleri otomatik denetle** seçeneği günlük denetimi kapatır; **Şimdi denetle** her durumda çalışır. 0.7.0'dan önceki sürümler kendini güncelleyemez: 0.7.0'ı bir kez elle indirin. macOS uygulaması henüz kendini güncellemez: yeni zip'i sürüm sayfasından indirip Uygulamalar'daki Rondel'in yerine koyun. 0.8.0'dan itibaren Windows uygulaması, yalnızca macOS uygulamasını değiştiren bir sürümü duyurmaz (**Şimdi denetle** yine gösterir).
+Ayarlar'daki **Güncellemeleri otomatik denetle** seçeneği günlük denetimi kapatır; **Şimdi denetle** her durumda çalışır. 0.7.0'dan önceki sürümler kendini güncelleyemez: 0.7.0'ı bir kez elle indirin. 0.8.0'dan itibaren Windows uygulaması, yalnızca macOS uygulamasını değiştiren bir sürümü duyurmaz (**Şimdi denetle** yine gösterir).
+
+macOS'ta güncelleme yeni Rondel.app'i eskisinin yerine koyar ve açar; bulunduğu klasöre yazılabilmelidir (Uygulamalar klasörüne yazılabilir), yazılamıyorsa bunun yerine sürüm sayfası açılır. Yeni sürümü yalnızca çalışan sürümle aynı imzayı taşıyorsa alır; böylece Erişilebilirlik ve Finder izinleri korunur. Yalnızca Windows uygulamasını değiştiren bir sürüm macOS'ta duyurulmaz.
 
 ## Ayarlar ve özelleştirme
 
@@ -143,7 +145,7 @@ Menüler, aksiyonlar ve ajanlar `%APPDATA%\Rondel\settings.json` (macOS'ta `~/Li
 
 ## Gizlilik
 
-Rondel telemetri içermez. Ajanın yerel oturum verisini yalnızca ipuçlarını ve son oturumları göstermek için okur; başlattığı ajanların olaylarını yalnızca 127.0.0.1 üzerinden alır. Windows uygulaması günde bir kez GitHub'a son sürümünü sorar (Ayarlar'dan kapatılabilir); bu istek Rondel'in sürümü dışında hiçbir bilgi taşımaz. Claude Code'un oturum dosyalarını yalnızca siz Oturumlar penceresinde isterseniz, Hızlı Sohbet'inkileri de sohbet bitince siler. Kendi ayarları (başlattığı ajanlar için hook dosyasıyla birlikte), sorduğunuz ekran görüntüleri, logları, ajanlarının pencere listesi, güncelleme denetiminin durumu ile indirdiği güncellemeler ve (açarsanız) Windows ile başlatma kaydı (macOS'ta giriş öğesi) dışında hiçbir şey yazmaz.
+Rondel telemetri içermez. Ajanın yerel oturum verisini yalnızca ipuçlarını ve son oturumları göstermek için okur; başlattığı ajanların olaylarını yalnızca 127.0.0.1 üzerinden alır. Rondel günde bir kez GitHub'a son sürümünü sorar (Ayarlar'dan kapatılabilir); bu istek Rondel'in sürümü dışında hiçbir bilgi taşımaz. Claude Code'un oturum dosyalarını yalnızca siz Oturumlar penceresinde isterseniz, Hızlı Sohbet'inkileri de sohbet bitince siler. Kendi ayarları (başlattığı ajanlar için hook dosyasıyla birlikte), sorduğunuz ekran görüntüleri, logları, ajanlarının pencere listesi, güncelleme denetiminin durumu ile indirdiği güncellemeler ve (açarsanız) Windows ile başlatma kaydı (macOS'ta giriş öğesi) dışında hiçbir şey yazmaz.
 
 ## Kaynaktan derleme
 

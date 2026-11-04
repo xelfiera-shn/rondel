@@ -16,8 +16,9 @@ public static partial class ReleaseNotes
     /// Reads the notes the release workflow writes (git-cliff): "### Features" headings over
     /// "- **scope:** Summary (#12)" lines. Known headings are shown in the UI language; the lines stay as written.
     /// </summary>
-    public static IReadOnlyList<ReleaseNoteSection> Parse(string markdown) =>
-        [.. Sections(markdown).Select(section => section with { Heading = Heading(section.Heading) })];
+    /// <param name="withoutScope">A scope whose lines are left out, such as the other platform's ("windows").</param>
+    public static IReadOnlyList<ReleaseNoteSection> Parse(string markdown, string? withoutScope = null) =>
+        [.. Sections(markdown, withoutScope).Select(section => section with { Heading = Heading(section.Heading) })];
 
     /// <summary>
     /// Whether every section with lines in the notes is <paramref name="heading"/>: a release that changes only the
@@ -29,8 +30,15 @@ public static partial class ReleaseNotes
         return sections.Count > 0 && sections.All(section => section.Heading == heading);
     }
 
-    /// <summary>The sections with their headings as written.</summary>
-    static List<ReleaseNoteSection> Sections(string markdown)
+    /// <summary>
+    /// Whether every line of the notes has <paramref name="scope"/>: a release that changes only the Windows app
+    /// ("windows"), for example. False for notes without any line, which say nothing either way.
+    /// </summary>
+    public static bool OnlyScoped(string markdown, string scope) =>
+        Sections(markdown).Count > 0 && Sections(markdown, withoutScope: scope).Count == 0;
+
+    /// <summary>The sections with their headings as written, without the lines of <paramref name="withoutScope"/>.</summary>
+    static List<ReleaseNoteSection> Sections(string markdown, string? withoutScope = null)
     {
         var sections = new List<ReleaseNoteSection>();
         string heading = "";
@@ -45,7 +53,8 @@ public static partial class ReleaseNotes
             }
             else if ((line.StartsWith("- ", StringComparison.Ordinal) || line.StartsWith("* ", StringComparison.Ordinal)) && Clean(line[2..]) is { Length: > 0 } item)
             {
-                lines.Add(item);
+                if (withoutScope is null || !string.Equals(Scope().Match(line[2..]).Groups[1].Value, withoutScope, StringComparison.OrdinalIgnoreCase))
+                    lines.Add(item);
             }
         }
         Flush();
@@ -75,7 +84,7 @@ public static partial class ReleaseNotes
         return text.Replace("**", "", StringComparison.Ordinal).Replace("`", "", StringComparison.Ordinal).Trim();
     }
 
-    [GeneratedRegex(@"^\*\*[^*]+:\*\*\s*")]
+    [GeneratedRegex(@"^\*\*([^*]+):\*\*\s*")]
     private static partial Regex Scope();
 
     [GeneratedRegex(@"\s*\(#\d+\)$")]
