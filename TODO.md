@@ -51,7 +51,7 @@ What every platform gets, with a mark per platform. A Linux column is added when
 | C-17 | English and Turkish | ✅ 0.1.0 | ✅ 0.8.0 | |
 | C-18 | Diagnostics: debug log, `--probe`, `--render-menu` | ✅ 0.1.0 | ✅ 0.8.0 | |
 | C-19 | A modifier key for an alternate mode (for example Shift for plan mode) | ⬜ | ⬜ | |
-| C-20 | Ask about several selected files | ✅ 0.10.0 | ⬜ | |
+| C-20 | Ask about several selected files | ✅ 0.10.0 | 🔄 burakseyitkara1 | |
 | C-21 | Updates: a daily check (on by default, also when the connection comes back), asking before updating, and the update itself from within the app, verified with Rondel's release key | ✅ 0.7.0 | 🔄 burakseyitkara1 | Windows: the exe replaces itself and restarts. macOS picks its own way with M-7 |
 | C-22 | First-run hint that explains the gesture | ✅ 0.11.0 | 🔄 burakseyitkara1 | macOS: the welcome window also asks for Accessibility and Finder |
 | C-23 | Pick up where you left off: a desktop slice that resumes the latest project's last session | ⏸️ | ⏸️ | Parked; to be decided later |
