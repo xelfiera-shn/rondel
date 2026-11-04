@@ -31,7 +31,7 @@ Kurulum programı yoktur, yönetici izni gerekmez. Windows 10 ve 11 desteklenir.
 
 1. [Claude Code](https://docs.anthropic.com/en/docs/claude-code)'u kurun ve Terminal'de `claude` komutunun çalıştığını görün.
 2. [Son sürümden](https://github.com/xelfiera-shn/rondel/releases/latest) `Rondel-<sürüm>-osx-arm64.zip` (Apple Silicon) ya da `-osx-x64.zip` (Intel) dosyasını indirin, açın ve **Rondel**'i **Uygulamalar** klasörüne taşıyın.
-3. Rondel'i açın. Rondel imzalıdır ama Apple tarafından onaylanmamıştır (notarization), bu yüzden macOS ilk açılışı engeller: **Sistem Ayarları → Gizlilik ve Güvenlik**'i açın, aşağıdaki Rondel mesajına gelin ve **Yine de Aç**'a tıklayın. macOS bunu indirdiğiniz her güncellemeden sonra bir kez daha sorar.
+3. Rondel'i açın. Rondel imzalıdır ve Apple tarafından onaylanmıştır (notarization), bu yüzden macOS internetten indirilmiş bir uygulamayı açmak isteyip istemediğinizi yalnızca bir kez sorar: **Aç**'ı seçin.
 4. Sorulduğunda **Erişilebilirlik** iznini verin: Rondel ⌥ + basılı tutmayı bununla fark eder. **Finder** iznini de verin: Rondel bir pencerenin hangi klasörü gösterdiğini Finder'a sorar. İki izin de güncellemelerde korunur. Menü çubuğunda Rondel ikonu belirir; menüsü henüz verilmemiş izinleri gösterir.
 5. Menü çubuğu ikonu → **Ayarlar…** → **Oturum açılınca başlat**'ı işaretleyin.
 
@@ -137,7 +137,7 @@ Menüler, aksiyonlar ve ajanlar `%APPDATA%\Rondel\settings.json` (macOS'ta `~/Li
 - Ayarlar'da **Hata ayıklama logu**'nu açın, sorunu tekrarlayın, sonra tray ikonu → **Log klasörünü aç** (`%LOCALAPPDATA%\Rondel\logs`). Her tetiklemede UI Automation zinciri, algılanan bağlam ve klasör yazılır.
 - `Rondel.exe --probe X Y sonuc.txt` tek bir ekran noktasını (fiziksel piksel) tüm ayrıntılarıyla sınıflandırır.
 - Terminal komutun bulunamadığını söylüyorsa Ayarlar'daki komutu ve `PATH`'i kontrol edin; PowerShell profilinizdeki alias'lar da çalışır.
-- macOS'ta loglar `~/Library/Logs/Rondel` içindedir; probe, Rondel'in kendi izinleri geçerli olsun diye `open -n -W /Applications/Rondel.app --args --probe X Y ~/sonuc.txt` ile çalıştırılır (nokta cinsinden). Ayarlar, komutun giriş kabuğunuzda bulunup bulunmadığını gösterir. ⌥ + basılı tutma hiçbir şey yapmıyorsa Ayarlar'daki **İzinler**'e bakın.
+- macOS'ta loglar `~/Library/Logs/Rondel` içindedir; probe, Rondel'in kendi izinleri geçerli olsun diye `open -n -W /Applications/Rondel.app --args --probe X Y ~/sonuc.txt` ile çalıştırılır (nokta cinsinden). Ayarlar, komutun giriş kabuğunuzda bulunup bulunmadığını gösterir. ⌥ + basılı tutma hiçbir şey yapmıyorsa Ayarlar'daki **İzinler**'e bakın. 0.14.0 ya da daha eski bir sürümden noter onaylı bir sürüme geçtiyseniz macOS yeni Rondel'i başka bir uygulama sayar: Erişilebilirlik izinli görünüyor ama ⌥ + basılı tutma yine çalışmıyorsa Rondel'i Sistem Ayarları → Gizlilik ve Güvenlik → Erişilebilirlik listesinden kaldırıp (**–**) yeniden izin verin.
 
 [Hata bildirirken](https://github.com/xelfiera-shn/rondel/issues/new/choose) log satırlarını veya probe çıktısını eklemeniz çok yardımcı olur.
 

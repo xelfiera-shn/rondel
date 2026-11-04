@@ -11,7 +11,7 @@ Rondel'in Windows'ta ve macOS'ta hangi özelliklere sahip olduğu ve her birinin
 | **Çalıştığı sistemler** | Windows 10 ve 11, x64 ve ARM64 | macOS 15 ve sonrası, Apple Silicon ve Intel |
 | **İndirilecek dosya** | `Rondel-<sürüm>-win-x64.exe` ya da `-win-arm64.exe` | `Rondel-<sürüm>-osx-arm64.zip` ya da `-osx-x64.zip` |
 | **Menüyü açan hareket** | Ctrl + sol fare tuşunu basılı tutmak | ⌥ Option + sol fare tuşunu basılı tutmak |
-| **İlk açılış** | Henüz kod imzalı değil: SmartScreen bir kez sorar (Ek bilgi → Yine de çalıştır) | İmzalı, ama Apple'ın noter onayı yok: Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç ile bir kez izin verin |
+| **İlk açılış** | Henüz kod imzalı değil: SmartScreen bir kez sorar (Ek bilgi → Yine de çalıştır) | İmzalı ve Apple tarafından onaylı (notarization): macOS açmak isteyip istemediğinizi bir kez sorar |
 
 ## Menü
 

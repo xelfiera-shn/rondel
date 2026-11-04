@@ -11,7 +11,7 @@ Which features Rondel has on Windows and on macOS, and since which version. Down
 | **Runs on** | Windows 10 and 11, x64 and ARM64 | macOS 15 and later, Apple Silicon and Intel |
 | **Download** | `Rondel-<version>-win-x64.exe` or `-win-arm64.exe` | `Rondel-<version>-osx-arm64.zip` or `-osx-x64.zip` |
 | **Opens the menu** | Ctrl + hold the left mouse button | ⌥ Option + hold the left mouse button |
-| **First start** | Not code-signed yet: SmartScreen asks once (More info → Run anyway) | Signed, but not notarized by Apple: allow it once in System Settings → Privacy & Security → Open Anyway |
+| **First start** | Not code-signed yet: SmartScreen asks once (More info → Run anyway) | Signed and notarized by Apple: macOS asks once whether to open it |
 
 ## The menu
 

@@ -64,35 +64,25 @@ Until 1.0, the release job keeps only the two newest releases on GitHub, the new
 
 [CHANGELOG.md](CHANGELOG.md) keeps the notes of every version. After each release, the release job writes it from the version tags (`build/changelog-body.tera`) onto a branch `changelog/v<version>`, and its summary links to the pull request to open; a maintainer opens it into `dev`. GitHub Actions does not open it itself, because the setting that would allow it also lets workflows approve pull requests.
 
-### The macOS signing certificate
+### Signing and notarizing the macOS app
 
-macOS ties the Accessibility and Automation permissions to the app's signing certificate, so every release is signed with the same self-signed certificate, kept as two secrets of the `release` environment, next to the release key: `MACOS_CERTIFICATE` (the `.p12` file, base64) and `MACOS_CERTIFICATE_PASSWORD`. A release fails without it; a dry run, which cannot use the environment, signs ad hoc instead. It is not an Apple certificate and costs nothing, so releases are not notarized (see [docs/macos.md](docs/macos.md#permissions-and-signing)).
+macOS ties the Accessibility and Automation permissions to the app's signer, and opens a downloaded app with a single confirmation only when Apple notarized it. So every release is signed with a **Developer ID Application** certificate from a maintainer's Apple Developer Program membership and notarized by Apple. Five secrets of the `release` environment, next to the release key, hold what that needs:
 
-**It must never be replaced:** a release signed with another certificate makes every user grant both permissions again. Keep the `.p12` file and its password in a password manager. A maintainer creates it once, with OpenSSL (Git Bash on Windows has it):
+| Secret | What |
+|---|---|
+| `MACOS_CERTIFICATE` | The Developer ID Application certificate with its private key, as a `.p12` file in base64 |
+| `MACOS_CERTIFICATE_PASSWORD` | The `.p12` file's password |
+| `MACOS_NOTARY_KEY` | An App Store Connect API key (the `AuthKey_….p8` file's text), for `notarytool` |
+| `MACOS_NOTARY_KEY_ID`, `MACOS_NOTARY_ISSUER` | That key's ID and its issuer ID |
 
-```bash
-cat > rondel-release.cnf <<'EOF'
-[req]
-distinguished_name = dn
-x509_extensions = ext
-prompt = no
-[dn]
-CN = Rondel Release
-[ext]
-basicConstraints = critical, CA:false
-keyUsage = critical, digitalSignature
-extendedKeyUsage = critical, codeSigning
-EOF
-openssl req -x509 -newkey rsa:3072 -nodes -days 7300 -config rondel-release.cnf -keyout rondel-release.key -out rondel-release.crt
-# macOS imports only these older .p12 algorithms; it asks for the password here
-openssl pkcs12 -export -name "Rondel Release" -inkey rondel-release.key -in rondel-release.crt -out rondel-release.p12 \
-    -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1
-openssl base64 -A -in rondel-release.p12 | gh secret set MACOS_CERTIFICATE --env release --repo xelfiera-shn/rondel
-gh secret set MACOS_CERTIFICATE_PASSWORD --env release --repo xelfiera-shn/rondel   # asks for the same password
-rm rondel-release.key rondel-release.cnf                               # the .p12 holds the key
-```
+A release fails without them; a dry run, which cannot use the environment, keeps the ad hoc signature. The member who owns the certificate sets them up once:
 
-The release job builds the app first, signed ad hoc, and only then imports the certificate into a keychain of its own, as non-extractable, to sign it with the identity named `Rondel Release`; so no package's build code runs while the key is there, and the key can sign but not be exported.
+1. **The certificate.** In Keychain Access → My Certificates, right-click **Developer ID Application: …** → Export, as a `.p12` file with a password. Then `openssl base64 -A -in Certificates.p12 | gh secret set MACOS_CERTIFICATE --env release --repo xelfiera-shn/rondel`, and `gh secret set MACOS_CERTIFICATE_PASSWORD --env release --repo xelfiera-shn/rondel`, which asks for the password. Delete the exported file afterwards.
+2. **The notary key.** In App Store Connect → Users and Access → Integrations → Team Keys, add a key with the Developer role and download it (it can be downloaded only once). Then `gh secret set MACOS_NOTARY_KEY --env release --repo xelfiera-shn/rondel < AuthKey_XXXXXXXXXX.p8`, and the Key ID and the Issuer ID shown on that page as `MACOS_NOTARY_KEY_ID` and `MACOS_NOTARY_ISSUER`. A key can be revoked there at any time.
+
+**The team must not change.** The app's designated requirement names the Developer ID team, not the certificate, so a renewed certificate of the same team (they last five years) keeps every user's permissions; a certificate of another team makes everyone grant them again.
+
+The release job builds the app first, signed ad hoc, and only then imports the certificate into a keychain of its own, as non-extractable, signs the app with it, has it notarized and staples the ticket to it; so no package's build code runs while the key is there, and the key can sign but not be exported. Locally, `build/publish-macos.sh --identity "Developer ID Application: …" --notary-profile NAME` does the same, after `xcrun notarytool store-credentials NAME` once.
 
 Every push to `dev` also produces a test build: the CI run's **Rondel-dev.N-win-x64** artifact (kept for 14 days).
 

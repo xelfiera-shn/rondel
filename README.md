@@ -31,7 +31,7 @@ There is no installer and Rondel needs no admin rights. Windows 10 and 11 are su
 
 1. Install [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and check that `claude` runs in Terminal.
 2. Download `Rondel-<version>-osx-arm64.zip` (Apple Silicon) or `-osx-x64.zip` (Intel) from the [latest release](https://github.com/xelfiera-shn/rondel/releases/latest), unzip it and move **Rondel** into **Applications**.
-3. Open it. Rondel is signed, but not notarized by Apple, so macOS blocks the first start: open **System Settings → Privacy & Security**, scroll down to the message about Rondel and click **Open Anyway**. macOS asks this once more after every update you download.
+3. Open it. Rondel is signed and notarized by Apple, so macOS asks only once whether to open an app downloaded from the internet: choose **Open**.
 4. Allow **Accessibility** when asked: Rondel needs it to notice ⌥ + hold. Allow **Finder** too: Rondel asks Finder which folder a window shows. Both stay granted across updates. The Rondel icon appears in the menu bar; its menu offers the permissions that are still missing.
 5. Menu bar icon → **Settings…** → tick **Open at login**.
 
@@ -137,7 +137,7 @@ Menus, actions and agents live in `%APPDATA%\Rondel\settings.json` (`~/Library/A
 - Turn on **Debug logging** in Settings, reproduce the problem, then tray icon → **Open log folder** (`%LOCALAPPDATA%\Rondel\logs`). Every trigger logs the UI Automation chain, the detected context and the folder.
 - `Rondel.exe --probe X Y result.txt` classifies a single screen point (physical pixels) with the full trace.
 - If the terminal says the command was not found, check the command in Settings and your `PATH`; aliases from your PowerShell profile work too.
-- On macOS the logs are in `~/Library/Logs/Rondel`, and the probe runs through `open -n -W /Applications/Rondel.app --args --probe X Y ~/result.txt` (points), so that Rondel's own permissions apply. Settings shows whether the command is found in your login shell. If ⌥ + hold does nothing, check **Permissions** in Settings.
+- On macOS the logs are in `~/Library/Logs/Rondel`, and the probe runs through `open -n -W /Applications/Rondel.app --args --probe X Y ~/result.txt` (points), so that Rondel's own permissions apply. Settings shows whether the command is found in your login shell. If ⌥ + hold does nothing, check **Permissions** in Settings. After moving from 0.14.0 or earlier to a notarized version, macOS takes the new Rondel for another app: if Accessibility shows as allowed but ⌥ + hold still does nothing, remove Rondel from System Settings → Privacy & Security → Accessibility (**–**) and allow it again.
 
 Please include the log lines or the probe output when you [report a bug](https://github.com/xelfiera-shn/rondel/issues/new/choose).
 
