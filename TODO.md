@@ -90,7 +90,7 @@ Kept by the macOS side. The first rows are the steps of [macos.md](https://githu
 | M-5 | Menu window, `--render-menu` | ✅ #45, #50, #51 | A fallback when the non-activating panel API is missing (review of #32) |
 | M-6 | Launching and the settings window | ✅ #49, #52 | |
 | M-7 | Distribution: signing with the release certificate, the release job, the macOS part of the README | ✅ #53 | |
-| M-8 | Signing with a Developer ID and notarizing, so a downloaded copy opens after a single confirmation | 🔄 burakseyitkara1 | The certificate and the notary key come from burakseyitkara1's Apple Developer membership (team R2333A9MFR); the certificate secrets change in the same session as the merge |
+| M-8 | Signing with a Developer ID and notarizing, so a downloaded copy opens after a single confirmation | ✅ #81 | The certificate and the notary key come from burakseyitkara1's Apple Developer membership (team R2333A9MFR); the certificate secrets change in the same session as the merge |
 
 ## Ideas
 
