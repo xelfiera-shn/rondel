@@ -34,7 +34,7 @@ Rondel'in Windows'ta ve macOS'ta hangi özelliklere sahip olduğu ve her birinin
 | **Oturum Seç**, en yeni oturumlara açılır | ✅ 0.1.0 | ✅ 0.8.0 |
 | Masaüstünde **Son Projeler**: projelere ve onların oturumlarına açılır | ✅ 0.2.0 | ✅ 0.8.0 |
 | **Sor**, **Burada Sor** ve **Bu Dosyayı Sor** | ✅ 0.3.0 | ✅ 0.8.0 |
-| **Bu Dosyaları Sor**: seçili birden fazla dosya tek prompt'ta | ✅ 0.10.0 | ⬜ |
+| **Bu Dosyaları Sor**: seçili birden fazla dosya tek prompt'ta | ✅ 0.10.0 | ✅ 0.16.0 |
 | Hazır promptlar: en fazla beşi Sor dilimlerinin yayında, hepsi Sor kartında | ✅ 0.11.0 | ⬜ |
 | Masaüstünde **Hızlı Sohbet**: kendi klasöründe, kaydedilmeyen bir sohbet; bitince geride kalanlar silinir | ✅ 0.13.0 | ⬜ |
 | **Ekran Görüntüsünü Sor**: donmuş ekrandan bir alan ya da pencere seçip Hızlı Sohbet'te sorma (tray menüsü, isteğe bağlı kısayol) | ✅ 0.14.0 | ⬜ |

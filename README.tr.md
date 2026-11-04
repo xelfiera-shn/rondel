@@ -49,7 +49,7 @@ Rondel macOS 15 ve sonrasında çalışır, Dock'ta ikonu yoktur. Çalışırken
 macOS'ta da aynısıdır; Ctrl yerine ⌥ Option, Dosya Gezgini yerine Finder, varsayılan proje klasörü olarak `~/Projects` kullanılır. Masaüstü menüsünde henüz Aktif Ajanlar ve Hızlı Sohbet yoktur.
 
 - **Aç** yeni bir oturum başlatır, **Devam Et** en son oturumu sürdürür, **Oturum Seç** listeden seçtirir (`claude`, `claude --continue`, `claude --resume`).
-- **Sor** ve **Burada Sor** yalnızca bir prompt sorar ve yeni oturumu onunla başlatır. **Bu Dosyayı Sor** aynısını dosyanın klasöründe yapar ve dosyayı prompt'un başına ekler (`@Program.cs`, boşluklu adlarda `@"Proje Notları.md"`); Claude Code dosyayı hemen okur. Birkaç dosya seçip birinin üzerinde basılı tutarsanız **Bu Dosyaları Sor** olur ve seçili dosyaların hepsi prompt'a eklenir (şimdilik Windows'ta).
+- **Sor** ve **Burada Sor** yalnızca bir prompt sorar ve yeni oturumu onunla başlatır. **Bu Dosyayı Sor** aynısını dosyanın klasöründe yapar ve dosyayı prompt'un başına ekler (`@Program.cs`, boşluklu adlarda `@"Proje Notları.md"`); Claude Code dosyayı hemen okur. Birkaç dosya seçip birinin üzerinde basılı tutarsanız **Bu Dosyaları Sor** olur ve seçili dosyaların hepsi prompt'a eklenir.
 - **Oturum Seç dışa doğru açılır** (klasörde iki veya daha fazla oturum varsa): son beş oturum dilimin etrafındaki bir yayda belirir, en yenisi tam dilimin dışında. Birini seçerek o oturumu doğrudan açabilirsiniz.
 - **Son Projeler** (masaüstü menüsü) en son çalıştığınız beş klasöre açılır. Birini seçince o projenin son oturumu açılır; iki veya daha fazla oturumu olan bir proje de aynı şekilde oturumlarına açılır.
 
