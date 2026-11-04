@@ -18,7 +18,7 @@ internal sealed class MenuBar : IDisposable
 {
     readonly TrayIcon _icon;
     readonly NativeMenuItem _warning = new() { IsEnabled = false };
-    readonly NativeMenuItem _update, _accessibility, _finderAccess, _settings, _pause, _openLogs, _quit;
+    readonly NativeMenuItem _update, _accessibility, _finderAccess, _settings, _howToUse, _pause, _openLogs, _quit;
     readonly NativeMenuItemSeparator _permissionsSeparator = new(), _quitSeparator = new();
 
     /// <summary>
@@ -35,6 +35,7 @@ internal sealed class MenuBar : IDisposable
         _accessibility = Item(() => AccessibilityClicked?.Invoke());
         _finderAccess = Item(() => FinderAccessClicked?.Invoke());
         _settings = Item(() => SettingsClicked?.Invoke());
+        _howToUse = Item(() => HowToUseClicked?.Invoke());
         _pause = Item(() => PauseClicked?.Invoke());
         _openLogs = Item(() => OpenLogsClicked?.Invoke());
         _quit = Item(() => QuitClicked?.Invoke());
@@ -46,6 +47,8 @@ internal sealed class MenuBar : IDisposable
     public event Action? AccessibilityClicked;
     public event Action? FinderAccessClicked;
     public event Action? SettingsClicked;
+
+    public event Action? HowToUseClicked;
     public event Action? PauseClicked;
     public event Action? OpenLogsClicked;
     public event Action? QuitClicked;
@@ -82,6 +85,7 @@ internal sealed class MenuBar : IDisposable
         _accessibility.Header = Loc.Get("MacMenu.AllowAccessibility");
         _finderAccess.Header = Loc.Get("MacMenu.AllowFinder");
         _settings.Header = Loc.Get("Tray.Settings");
+        _howToUse.Header = Loc.Get("Tray.HowToUse");
         _pause.Header = Loc.Get(s.Paused ? "Tray.Resume" : "Tray.Pause");
         _openLogs.Header = Loc.Get("Tray.OpenLogs");
         _quit.Header = Loc.Get("MacMenu.Quit");
@@ -98,7 +102,7 @@ internal sealed class MenuBar : IDisposable
             _menu.Items.Add(item);
         if (_menu.Items.Count > 0)
             _menu.Items.Add(_permissionsSeparator);
-        foreach (var item in new NativeMenuItemBase[] { _settings, _pause, _openLogs, _quitSeparator, _quit })
+        foreach (var item in new NativeMenuItemBase[] { _settings, _howToUse, _pause, _openLogs, _quitSeparator, _quit })
             _menu.Items.Add(item);
     }
 

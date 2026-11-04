@@ -32,7 +32,7 @@ There is no installer and Rondel needs no admin rights. Windows 10 and 11 are su
 1. Install [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and check that `claude` runs in Terminal.
 2. Download `Rondel-<version>-osx-arm64.zip` (Apple Silicon) or `-osx-x64.zip` (Intel) from the [latest release](https://github.com/xelfiera-shn/rondel/releases/latest), unzip it and move **Rondel** into **Applications**.
 3. Open it. Rondel is signed and notarized by Apple, so macOS asks only once whether to open an app downloaded from the internet: choose **Open**.
-4. Allow **Accessibility** when asked: Rondel needs it to notice ⌥ + hold. Allow **Finder** too: Rondel asks Finder which folder a window shows. Both stay granted across updates. The Rondel icon appears in the menu bar; its menu offers the permissions that are still missing.
+4. A welcome window shows how the menu opens (**How to use…** in the menu bar icon's menu shows it again) and asks for two permissions. Allow **Accessibility**: Rondel needs it to notice ⌥ + hold. Allow **Finder** too: Rondel asks Finder which folder a window shows. Both stay granted across updates. The Rondel icon appears in the menu bar; its menu offers the permissions that are still missing.
 5. Menu bar icon → **Settings…** → tick **Open at login**.
 
 Rondel runs on macOS 15 and later and has no Dock icon. Opening it again while it runs opens its settings.

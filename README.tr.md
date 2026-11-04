@@ -32,7 +32,7 @@ Kurulum programı yoktur, yönetici izni gerekmez. Windows 10 ve 11 desteklenir.
 1. [Claude Code](https://docs.anthropic.com/en/docs/claude-code)'u kurun ve Terminal'de `claude` komutunun çalıştığını görün.
 2. [Son sürümden](https://github.com/xelfiera-shn/rondel/releases/latest) `Rondel-<sürüm>-osx-arm64.zip` (Apple Silicon) ya da `-osx-x64.zip` (Intel) dosyasını indirin, açın ve **Rondel**'i **Uygulamalar** klasörüne taşıyın.
 3. Rondel'i açın. Rondel imzalıdır ve Apple tarafından onaylanmıştır (notarization), bu yüzden macOS internetten indirilmiş bir uygulamayı açmak isteyip istemediğinizi yalnızca bir kez sorar: **Aç**'ı seçin.
-4. Sorulduğunda **Erişilebilirlik** iznini verin: Rondel ⌥ + basılı tutmayı bununla fark eder. **Finder** iznini de verin: Rondel bir pencerenin hangi klasörü gösterdiğini Finder'a sorar. İki izin de güncellemelerde korunur. Menü çubuğunda Rondel ikonu belirir; menüsü henüz verilmemiş izinleri gösterir.
+4. Bir hoş geldiniz penceresi menünün nasıl açıldığını gösterir (menü çubuğu ikonunun menüsündeki **Nasıl kullanılır…** onu yeniden açar) ve iki izin ister. **Erişilebilirlik** iznini verin: Rondel ⌥ + basılı tutmayı bununla fark eder. **Finder** iznini de verin: Rondel bir pencerenin hangi klasörü gösterdiğini Finder'a sorar. İki izin de güncellemelerde korunur. Menü çubuğunda Rondel ikonu belirir; menüsü henüz verilmemiş izinleri gösterir.
 5. Menü çubuğu ikonu → **Ayarlar…** → **Oturum açılınca başlat**'ı işaretleyin.
 
 Rondel macOS 15 ve sonrasında çalışır, Dock'ta ikonu yoktur. Çalışırken yeniden açarsanız ayarları açılır.
