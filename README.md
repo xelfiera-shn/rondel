@@ -114,7 +114,7 @@ Tray icon → **Settings…**: language (Automatic / English / Türkçe), the me
 
 On macOS, menu bar icon → **Settings…** has the same, except the keyboard shortcut and active agents, with Terminal or iTerm2 as the terminal; the agent runs in your login shell, so `PATH` and aliases from `~/.zprofile` and `~/.zshrc` work. Its **Permissions** section shows whether Accessibility and Finder are allowed, and **Open at login** adds Rondel to your login items.
 
-**Appearance**: five themes — Rondel, Line, Spotlight, Orbit and Petal — each in dark and light, chosen from pictures of the menu; dark or light can follow Windows (or macOS) or stay fixed, and the accent color is the theme's own, a ready-made pair or your own colors, typed as `#RRGGBB` or picked with the dot in their box (Windows for now). Changes show in the menu at once.
+**Appearance**: five themes — Rondel, Line, Spotlight, Orbit and Petal — each in dark and light, chosen from pictures of the menu; dark or light can follow Windows (or macOS) or stay fixed, and the accent color is the theme's own, a ready-made pair or your own colors, typed as `#RRGGBB` or picked with the dot in their box. Changes show in the menu at once.
 
 <p align="center">
   <img src="docs/images/themes-en.png" width="720" alt="The same folder menu in the five themes: Rondel, Line, Spotlight, Orbit and Petal">

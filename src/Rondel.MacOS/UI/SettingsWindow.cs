@@ -57,6 +57,11 @@ internal sealed class SettingsWindow : Window
     CheckBox _checkUpdates = null!;
     TextBlock _updateStatus = null!;
     PermissionRow _accessibility = null!, _finder = null!;
+    ColorDot _accentFromDot = null!, _accentToDot = null!;
+    readonly ColorPicker _picker = new();
+    readonly Flyout _pickerFlyout = new() { Placement = PlacementMode.BottomEdgeAlignedLeft };
+    /// <summary>The hex box the open color picker edits.</summary>
+    TextBox? _pickingBox;
 
     public SettingsWindow(AppHost host)
     {
@@ -81,9 +86,16 @@ internal sealed class SettingsWindow : Window
         };
         KeyDown += (_, e) =>
         {
-            if (e.Key == Key.Escape)
+            if (e.Key != Key.Escape)
+                return;
+            // Esc closes the color picker first, then the window.
+            if (_pickerFlyout.IsOpen)
+                _pickerFlyout.Hide();
+            else
                 Close();
+            e.Handled = true;
         };
+        SetUpAccentPicker();
         Closed += (_, _) =>
         {
             Loc.Changed -= Rebuild;
@@ -247,7 +259,17 @@ internal sealed class SettingsWindow : Window
             _mode = Combo(OnModeChanged, ("Auto", Loc.Get("Settings.Mode.Auto.Mac")), ("Dark", Loc.Get("Settings.Mode.Dark")), ("Light", Loc.Get("Settings.Mode.Light"))))));
         _accentFrom = Box(CommitCustomAccent);
         _accentTo = Box(CommitCustomAccent);
-        _accentFrom.Width = _accentTo.Width = 110;
+        _accentFrom.Width = _accentTo.Width = 130;
+        _accentFromDot = new ColorDot(_look);
+        _accentToDot = new ColorDot(_look);
+        foreach (var (box, dot) in new[] { (_accentFrom, _accentFromDot), (_accentTo, _accentToDot) })
+        {
+            ToolTip.SetTip(dot, Loc.Get("Settings.Accent.Pick"));
+            AutomationProperties.SetName(dot, Loc.Get("Settings.Accent.Pick"));
+            dot.Clicked += () => PickAccentColor(box);
+            box.InnerLeftContent = dot;
+            box.TextChanged += (_, _) => ShowAccentDots();
+        }
         page.Children.Add(Card(new StackPanel
         {
             Children =
@@ -622,6 +644,48 @@ internal sealed class SettingsWindow : Window
             s.Appearance.AccentTo = preset is null ? "" : AppearanceOptions.FormatColor(preset.To);
         });
         RefreshPreviews(Store.Current.Appearance);
+    }
+
+    /// <summary>
+    /// The color picker of a custom accent color: it edits the hex box as it is dragged and saves the color once the
+    /// mouse is released, as Enter in the box does.
+    /// </summary>
+    void SetUpAccentPicker()
+    {
+        _pickerFlyout.Content = _picker;
+        _picker.Changing += color =>
+        {
+            if (_pickingBox is not null)
+                _pickingBox.Text = AppearanceOptions.FormatColor(color);
+        };
+        _picker.Committed += color =>
+        {
+            if (_pickingBox is null)
+                return;
+            _pickingBox.Text = AppearanceOptions.FormatColor(color);
+            CommitCustomAccent();
+        };
+        _pickerFlyout.Closed += (_, _) => _pickingBox = null;
+    }
+
+    /// <summary>Opens the color picker under <paramref name="box"/>, on the color in it.</summary>
+    void PickAccentColor(TextBox box)
+    {
+        _pickingBox = box;
+        _picker.SetColor(PickerStart(box));
+        _pickerFlyout.ShowAt(box);
+    }
+
+    /// <summary>The box's color; an empty end is the start color once more, so the picker starts from it.</summary>
+    uint PickerStart(TextBox box) =>
+        AppearanceOptions.ParseColor(box.Text) ?? AppearanceOptions.ParseColor(_accentFrom.Text) ?? 0xFF6B7280;
+
+    /// <summary>The dots show the colors as they are typed; an empty end shows the start color it repeats.</summary>
+    void ShowAccentDots()
+    {
+        uint? from = AppearanceOptions.ParseColor(_accentFrom.Text);
+        _accentFromDot.Show(from);
+        _accentToDot.Show(AppearanceOptions.ParseColor(_accentTo.Text) ?? ((_accentTo.Text ?? "").Trim().Length == 0 ? from : null));
     }
 
     void CommitCustomAccent()
