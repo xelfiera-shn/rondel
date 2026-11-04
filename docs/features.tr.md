@@ -23,7 +23,7 @@ Rondel'in Windows'ta ve macOS'ta hangi özelliklere sahip olduğu ve her birinin
 | Menüde klavye: rakamlar, oklar, Tab, Boşluk, Enter, Esc | ✅ 0.1.0 | ✅ 0.8.0 |
 | Uzun proje adları dilimlerine sığar | ✅ 0.3.0 | ✅ 0.8.0 |
 | Beş tema, koyu ve açık mod, vurgu renkleri | ✅ 0.5.0 | ✅ 0.8.0 |
-| Kendi vurgu renkleriniz için renk seçici | ✅ 0.10.0 | ✅ 0.16.0 |
+| Kendi vurgu renkleriniz için renk seçici | ✅ 0.10.0 | ✅ 0.15.0 |
 | Menüyü fare imlecinin olduğu yerde açan klavye kısayolu | ✅ 0.1.0 | ⬜ |
 
 ## Ajanı başlatma
@@ -63,7 +63,7 @@ Rondel'in Windows'ta ve macOS'ta hangi özelliklere sahip olduğu ve her birinin
 | İngilizce ve Türkçe | ✅ 0.1.0 | ✅ 0.8.0 |
 | Rondel'in yayın anahtarıyla doğrulanan, uygulama içinden güncelleme | ✅ 0.7.0 | ✅ 0.15.0 |
 | Tanılama: hata ayıklama logu ve `--probe` | ✅ 0.1.0 | ✅ 0.8.0 |
-| İlk açılışta menünün nasıl açıldığını gösteren hoş geldiniz penceresi; tepsi menüsünden yeniden açılır | ✅ 0.11.0 | ✅ 0.16.0 |
+| İlk açılışta menünün nasıl açıldığını gösteren hoş geldiniz penceresi; tepsi menüsünden yeniden açılır | ✅ 0.11.0 | ✅ 0.15.0 |
 
 ## Planlananlar
 
