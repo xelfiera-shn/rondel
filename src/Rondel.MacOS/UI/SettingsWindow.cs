@@ -50,7 +50,7 @@ internal sealed class SettingsWindow : Window
     TextBlock _rootStatus = null!, _commandLabel = null!, _commandStatus = null!, _terminalStatus = null!;
     TextBlock _accentName = null!, _accentStatus = null!, _holdValue = null!, _autostartStatus = null!;
     Slider _hold = null!;
-    CheckBox _cardPrompt = null!, _cardGit = null!, _cardPlan = null!, _cardTemplates = null!, _autostart = null!, _debug = null!;
+    CheckBox _cardPrompt = null!, _cardGit = null!, _cardPlan = null!, _cardTemplates = null!, _autostart = null!, _debug = null!, _quickCard = null!;
     WrapPanel _themeCards = null!;
     StackPanel _swatches = null!, _customAccent = null!;
     Button _openLoginItems = null!, _checkNow = null!;
@@ -138,6 +138,7 @@ internal sealed class SettingsWindow : Window
             _debug.IsChecked = s.DebugLogging;
             _checkUpdates.IsChecked = s.Updates.Check;
             _cardPrompt.IsChecked = s.NewProjectCard.Prompt;
+            _quickCard.IsChecked = s.Quick.PromptCard;
             _cardGit.IsChecked = s.NewProjectCard.Git;
             _cardPlan.IsChecked = s.NewProjectCard.Plan;
             _cardTemplates.IsChecked = s.NewProjectCard.Templates;
@@ -365,6 +366,16 @@ internal sealed class SettingsWindow : Window
         }));
         page.Children.Add(Card(Row(Loc.Get("Settings.Templates"), Loc.Get("Settings.Templates.Desc"),
             Button(Loc.Get("NewProject.OpenTemplates"), _host.OpenTemplatesFolder))));
+
+        page.Children.Add(Section("Settings.Quick"));
+        page.Children.Add(Card(new StackPanel
+        {
+            Children =
+            {
+                (_quickCard = Check(Loc.Get("Settings.Quick.Card"), OnQuickCardClicked)),
+                Description(Loc.Get("Settings.Quick.Card.Desc"), new Thickness(28, 2, 0, 0)),
+            },
+        }));
 
         page.Children.Add(Section("Settings.Permissions"));
         page.Children.Add(Card(_accessibility = new PermissionRow(Loc.Get("Settings.Permissions.Accessibility"),
@@ -815,6 +826,14 @@ internal sealed class SettingsWindow : Window
             Store.Update(s => s.Terminal = terminal);
             UpdateStatus();
         }
+    }
+
+    void OnQuickCardClicked()
+    {
+        if (_loading)
+            return;
+        bool card = _quickCard.IsChecked == true;
+        Store.Update(s => s.Quick.PromptCard = card);
     }
 
     void OnNewProjectCardClicked()

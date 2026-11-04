@@ -138,6 +138,9 @@ internal static unsafe partial class Native
     [LibraryImport(LibSystem, EntryPoint = "pthread_main_np")]
     public static partial int IsMainThread();
 
+    [LibraryImport(LibSystem, EntryPoint = "getuid")]
+    public static partial uint UserId();
+
     // ---- CoreFoundation ----
 
     [LibraryImport(CoreFoundation)]
