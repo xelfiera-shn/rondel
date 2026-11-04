@@ -192,10 +192,6 @@ internal static class DevTools
     }
 
     /// <summary>
-    /// Draws the whole settings page, without scrolling, into a PNG at 2x: <c>--render-settings out.png [dark|light] [en|tr]</c>.
-    /// It works on a copy of settings.json, so a running Rondel and the real file are not touched.
-    /// </summary>
-    /// <summary>
     /// Draws the update window for a made-up 0.15.0 over 0.14.0 into a PNG at 2x:
     /// <c>--render-update out.png [dark|light] [en|tr] [working|failed]</c>. The notes mix lines for both apps; the
     /// Windows ones are left out, as in the app.
@@ -309,6 +305,11 @@ internal static class DevTools
         Directory.Delete(copy, recursive: true);
     }
 
+    /// <summary>
+    /// Draws the whole settings page, without scrolling, into a PNG at 2x:
+    /// <c>--render-settings out.png [dark|light] [en|tr] [custom]</c>, with <c>custom</c> a custom accent and its color
+    /// dots. It works on a copy of settings.json, so a running Rondel and the real file are not touched.
+    /// </summary>
     static void RenderSettings(string output, string[] options)
     {
         AppBuilder.Configure<App>().UsePlatformDetect()
@@ -321,6 +322,14 @@ internal static class DevTools
         var host = new AppHost(copy);
         if (options.FirstOrDefault(o => o is "en" or "tr") is { } language)
             Loc.SetLanguage(language);
+        if (options.Contains("custom"))
+        {
+            host.Store.Update(s =>
+            {
+                s.Appearance.AccentFrom = "#F97316";
+                s.Appearance.AccentTo = "#DB2777";
+            });
+        }
         var window = new SettingsWindow(host)
         {
             RequestedThemeVariant = options.Contains("light") ? Avalonia.Styling.ThemeVariant.Light : Avalonia.Styling.ThemeVariant.Dark,
