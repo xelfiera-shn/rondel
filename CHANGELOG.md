@@ -2,6 +2,12 @@
 
 Every version of Rondel, newest first. Until 1.0 only the two newest [releases](https://github.com/xelfiera-shn/rondel/releases) are kept for download; the notes of all versions are here.
 
+## 0.15.1 (2026-11-05)
+
+### macOS
+
+- **macos:** Sweep Quick Conversations only when Claude Code lists its sessions (#92)
+
 ## 0.15.0 (2026-11-05)
 
 ### macOS
