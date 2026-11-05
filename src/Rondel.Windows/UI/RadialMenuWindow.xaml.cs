@@ -1024,6 +1024,18 @@ public partial class RadialMenuWindow : Window
         StartInput(spec);
     }
 
+    /// <summary>The card being shown, if any (an answer card opens with its title, icon and picture).</summary>
+    internal InputSpec? CurrentInput => _isOpen ? _input : null;
+
+    /// <summary>Where the card is on the screen and the work area of its monitor, in physical pixels: an answer card opens there.</summary>
+    internal (RECT Card, RECT Work) CardPlace()
+    {
+        var topLeft = InputCard.PointToScreen(new Point(0, 0));
+        var bottomRight = InputCard.PointToScreen(new Point(InputCard.ActualWidth, InputCard.ActualHeight));
+        var card = new RECT { Left = (int)topLeft.X, Top = (int)topLeft.Y, Right = (int)bottomRight.X, Bottom = (int)bottomRight.Y };
+        return (card, _work);
+    }
+
     /// <summary>
     /// Replaces the ring with a card in the menu center that asks for a folder name and, for
     /// "New + Prompt", then a prompt; or, for Ask, only a prompt. Validation is shown inline as the user types.

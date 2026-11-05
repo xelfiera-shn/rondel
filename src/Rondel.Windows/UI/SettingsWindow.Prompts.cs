@@ -23,6 +23,7 @@ public partial class SettingsWindow
         {
             PromptsBox.IsChecked = settings.Prompts.Enabled;
             QuickCardBox.IsChecked = settings.Quick.PromptCard;
+            LoadQuickModel(settings);
             ScreenshotHotkeyBox.Text = string.IsNullOrEmpty(settings.Quick.ScreenshotHotkey) ? Loc.Get("Settings.Hotkey.Off") : settings.Quick.ScreenshotHotkey;
             PromptsPanel.IsEnabled = settings.Prompts.Enabled;
             PromptsDesc.Text = Loc.Format("Settings.Prompts.List.Desc", SavedPrompts.MaxPinned);
@@ -132,6 +133,28 @@ public partial class SettingsWindow
             return;
         bool card = QuickCardBox.IsChecked == true;
         Store.Update(s => s.Quick.PromptCard = card);
+    }
+
+    /// <summary>The agent's own default, the models Rondel knows, and one written into settings.json by hand.</summary>
+    void LoadQuickModel(AppSettings settings)
+    {
+        string agent = settings.FindAgent(settings.DefaultAgent)?.Name ?? "";
+        QuickModelBox.Items.Clear();
+        QuickModelBox.Items.Add(new ComboBoxItem { Tag = "", Content = Loc.Format("Settings.Quick.Model.Default", agent) });
+        foreach (string model in QuickConversationOptions.Models)
+            QuickModelBox.Items.Add(new ComboBoxItem { Tag = model, Content = char.ToUpperInvariant(model[0]) + model[1..] });
+        string current = settings.Quick.Model;
+        if (current.Length > 0 && !QuickConversationOptions.Models.Contains(current, StringComparer.OrdinalIgnoreCase))
+            QuickModelBox.Items.Add(new ComboBoxItem { Tag = current, Content = current });
+        QuickModelBox.SelectedItem = QuickModelBox.Items.Cast<ComboBoxItem>()
+            .First(item => string.Equals((string)item.Tag, current, StringComparison.OrdinalIgnoreCase) || (current.Length == 0 && (string)item.Tag == ""));
+    }
+
+    void OnQuickModelChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || QuickModelBox.SelectedItem is not ComboBoxItem { Tag: string model })
+            return;
+        Store.Update(s => s.Quick.Model = model);
     }
 
     void OnScreenshotHotkeyKeyDown(object sender, KeyEventArgs e) => ReadHotkey(e, ScreenshotHotkeyStatus, SaveScreenshotHotkey);

@@ -32,5 +32,13 @@ public static class BuiltInAgents
         ActivityArgs = ["--settings", "{hooks}"],
         // No transcript and no prompt history (https://code.claude.com/docs/en/env-vars).
         EphemeralEnvironment = new() { ["CLAUDE_CODE_SKIP_PROMPT_HISTORY"] = "1" },
+        // Print mode, streamed as it is written (https://code.claude.com/docs/en/headless). Not --bare, which ignores
+        // the subscription login. On the card Claude may only read and search the web: there is no one to ask for more.
+        AnswerArgs =
+        [
+            "-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
+            "--tools", "Read,WebSearch,WebFetch", "--permission-mode", "dontAsk",
+        ],
+        ModelArgs = ["--model", "{model}"],
     };
 }

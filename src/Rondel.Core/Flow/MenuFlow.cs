@@ -25,18 +25,59 @@ namespace Rondel.Core.Flow;
 /// <param name="activity">Follows the agents this flow starts, when the platform listens for their hooks; null: none is followed.</param>
 /// <param name="prompts">Where the saved prompts come from; <see cref="SavedPrompts.Default"/> when null.</param>
 /// <param name="quickDirectory">Where Quick Conversations run; <see cref="AppInfo.QuickDirectory"/> when null.</param>
+/// <param name="answers">Starts an agent without a terminal, so a Quick Conversation answers on its card; null: it starts in a
+/// terminal.</param>
 public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolderNameValidator folderNames, Func<AppSettings> settings,
     Action<Action<AppSettings>>? updateSettings = null, ProjectTemplates? templates = null, AgentActivity? activity = null,
-    SavedPrompts? prompts = null, string? quickDirectory = null)
+    SavedPrompts? prompts = null, string? quickDirectory = null, IAnswerLauncher? answers = null)
 {
     readonly ProjectTemplates _templates = templates ?? ProjectTemplates.Default;
     readonly SavedPrompts _prompts = prompts ?? SavedPrompts.Default;
+    readonly object _quickGate = new();
+    readonly List<QuickAnswer> _openAnswers = [];
+    readonly HashSet<string> _continued = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The folder Quick Conversations run in; everything Claude Code keeps for it is left over from one.</summary>
     public string QuickDirectory { get; } = quickDirectory ?? AppInfo.QuickDirectory;
 
     /// <summary>A Quick Conversation is about to start: the platform sweeps what earlier ones left.</summary>
     public event Action? QuickConversationStarting;
+
+    /// <summary>
+    /// A Quick Conversation's card closed without it going on in a terminal: that session (its id) is over, and what it
+    /// kept goes with the sweep. Raised on the UI thread.
+    /// </summary>
+    public event Action<string>? QuickSessionEnded;
+
+    /// <summary>
+    /// The Quick Conversation sessions the sweep keeps although no terminal runs them: answers on an open card, and
+    /// those continued in a terminal until <see cref="ForgetQuickSession"/>. Safe to read from any thread.
+    /// </summary>
+    public IReadOnlyCollection<string> QuickSessions
+    {
+        get
+        {
+            lock (_quickGate)
+                return [.. _openAnswers.Select(a => a.SessionId).OfType<string>().Concat(_continued)];
+        }
+    }
+
+    /// <summary>A card answers a Quick Conversation right now (its id may not be known yet): the folder's files stay.</summary>
+    public bool QuickAnswerOpen
+    {
+        get
+        {
+            lock (_quickGate)
+                return _openAnswers.Count > 0;
+        }
+    }
+
+    /// <summary>A Quick Conversation continued in a terminal has ended: the sweep need not keep it any more.</summary>
+    public void ForgetQuickSession(string sessionId)
+    {
+        lock (_quickGate)
+            _continued.Remove(sessionId);
+    }
 
     /// <returns>The menu for <paramref name="context"/>, or null when no action is configured for it.</returns>
     public MenuModel? Build(TriggerContext context)
@@ -114,8 +155,14 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
                     Log.Warn($"Writing the screenshot into '{QuickDirectory}' failed", ex);
                     return Loc.Format("Screenshot.SaveFailed", ex.Message);
                 }
+                string first = WithMentions(agent, [file], prompt)!;
+                if (Answer(agent, action, prompt ?? "", first) is { } answer)
+                {
+                    host.ShowAnswer(answer);
+                    return null;
+                }
                 host.CloseMenu(restoreFocus: false);
-                Start(agent, action, QuickDirectory, WithMentions(agent, [file], prompt));
+                Start(agent, action, QuickDirectory, first);
                 return null;
             })
         {
@@ -208,8 +255,14 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
                 ValidateName: _ => null,
                 Submit: (_, prompt) =>
                 {
+                    string? first = WithMentions(item.Agent, files, prompt);
+                    if (action.Ephemeral && Answer(item.Agent, action, prompt ?? "", first ?? "") is { } answer)
+                    {
+                        host.ShowAnswer(answer);
+                        return null;
+                    }
                     host.CloseMenu(restoreFocus: false);
-                    Start(item.Agent, action, directory, WithMentions(item.Agent, files, prompt));
+                    Start(item.Agent, action, directory, first);
                     return null;
                 })
             {
@@ -332,6 +385,85 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
         files.Count == 0 || string.IsNullOrEmpty(agent.FileMention)
             ? prompt
             : $"{string.Join(" ", files.Select(file => FileMention.Format(agent.FileMention, Path.GetFileName(file))))} {prompt}".TrimEnd();
+
+    /// <summary>
+    /// A Quick Conversation's first question, answered on its card without a terminal (<see cref="AgentProfile.AnswerArgs"/>,
+    /// with the model from Settings). Its session's files stay while the card is open; closed, they go with the sweep, and
+    /// "Continue in terminal" resumes the session there as a Quick Conversation.
+    /// </summary>
+    /// <param name="question">What the user typed, shown on the card.</param>
+    /// <param name="prompt">What the agent gets: the question after its file mentions.</param>
+    /// <returns>The answer, or null when the agent cannot answer that way: start it in a terminal then.</returns>
+    QuickAnswer? Answer(AgentProfile agent, ActionDefinition action, string question, string prompt)
+    {
+        if (answers is null || LaunchPlanner.Answer(agent, QuickDirectory, settings().Quick.Model) is not { } plan)
+            return null;
+        var answer = new QuickAnswer(question, agent.Supports(AgentCapability.ResumeById),
+            onContinue: a => ContinueInTerminal(agent, action, a),
+            onTerminal: a =>
+            {
+                Release(a);
+                host.CloseMenu(restoreFocus: false);
+                Start(agent, action, QuickDirectory, prompt);
+            },
+            onClosed: a =>
+            {
+                Release(a);
+                if (a.SessionId is { } id)
+                    QuickSessionEnded?.Invoke(id);
+            });
+        lock (_quickGate)
+            _openAnswers.Add(answer);
+        // Sweeps what earlier ones left; while this answer is open, the folder's files (a screenshot) stay.
+        QuickConversationStarting?.Invoke();
+        IAnswerProcess? process = null;
+        try
+        {
+            process = answers.Start(plan);
+        }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or IOException)
+        {
+            Log.Warn($"Starting {agent.Name} for an answer on the card failed; it starts in a terminal", ex);
+        }
+        if (process is null)
+        {
+            Release(answer);
+            return null;
+        }
+        string model = settings().Quick.Model;
+        Log.Info($"Answering a Quick Conversation on its card with {agent.Name}" + (model.Length > 0 ? $" ({model})" : ""));
+        answer.Run(process, prompt);
+        return answer;
+    }
+
+    void Release(QuickAnswer answer)
+    {
+        lock (_quickGate)
+            _openAnswers.Remove(answer);
+    }
+
+    /// <summary>"Continue in terminal": the answer's session, resumed in a terminal as a Quick Conversation.</summary>
+    void ContinueInTerminal(AgentProfile agent, ActionDefinition action, QuickAnswer answer)
+    {
+        string id = answer.SessionId!;
+        lock (_quickGate)
+        {
+            _openAnswers.Remove(answer);
+            _continued.Add(id); // kept until that session ends (ForgetQuickSession)
+        }
+        host.CloseMenu(restoreFocus: false);
+        Log.Info($"Continuing Quick Conversation {id} in a terminal");
+        var resume = new ActionDefinition
+        {
+            Id = action.Id,
+            Icon = action.Icon,
+            Capability = AgentCapability.ResumeById,
+            Agent = agent.Id,
+            Ephemeral = true,
+            ExtraArgs = LaunchPlanner.ModelArguments(agent, settings().Quick.Model),
+        };
+        Start(agent, resume, QuickDirectory, prompt: null, id);
+    }
 
     /// <summary>The Quick Conversation folder, created when missing; null (with a warning) when it cannot be.</summary>
     string? QuickFolder()

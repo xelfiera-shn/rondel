@@ -43,6 +43,20 @@ public sealed class AgentProfile
     /// </summary>
     public Dictionary<string, string>? EphemeralEnvironment { get; set; }
 
+    /// <summary>
+    /// Arguments that make the agent answer one question, read from its standard input, without a terminal: printed as
+    /// Claude Code's stream-json events, the only format Rondel reads (e.g. Claude Code's "-p --output-format stream-json").
+    /// A Quick Conversation shows that first answer on its card, and continues in a terminal with
+    /// <see cref="AgentCapability.ResumeById"/>. Null or empty: a Quick Conversation starts in a terminal at once.
+    /// </summary>
+    public List<string>? AnswerArgs { get; set; }
+
+    /// <summary>
+    /// Arguments that pick the model, "{model}" being the one chosen in Settings → Quick Conversation (e.g. "--model",
+    /// "{model}"). Null or empty: the agent's own default is used.
+    /// </summary>
+    public List<string>? ModelArgs { get; set; }
+
     public bool TryGetArguments(AgentCapability capability, [NotNullWhen(true)] out List<string>? templates) =>
         Capabilities.TryGetValue(capability.ToString(), out templates) && templates is not null;
 

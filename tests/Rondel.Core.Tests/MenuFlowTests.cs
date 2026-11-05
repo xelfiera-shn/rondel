@@ -404,6 +404,10 @@ public class MenuFlowTests
 
         public void ShowCard(InputSpec spec) => Input = spec;
 
+        public QuickAnswer? Answer { get; private set; }
+
+        public void ShowAnswer(QuickAnswer answer) => Answer = answer;
+
         public NewProjectSpec? NewProject { get; private set; }
 
         public void StartNewProject(NewProjectSpec spec) => NewProject = spec;

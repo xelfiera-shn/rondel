@@ -142,6 +142,7 @@ public sealed class AppSettings
             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         Prompts ??= new();
         Quick ??= new();
+        Quick.Model = Quick.Model?.Trim() ?? "";
         Prompts.Pinned = (Prompts.Pinned ?? []).Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase).Take(Rondel.Core.Prompts.SavedPrompts.MaxPinned).ToList();
 
@@ -179,6 +180,11 @@ public sealed class AppSettings
             agent.EphemeralEnvironment = (agent.EphemeralEnvironment ?? builtIn?.EphemeralEnvironment) is { } environment
                 ? IgnoringCase(environment.Where(v => IsVariableName(v.Key) && v.Value is not null))
                 : null;
+            // Missing in files written before Quick Conversation answered on its card; an empty list turns that off.
+            agent.AnswerArgs ??= builtIn?.AnswerArgs is { } answer ? new List<string>(answer) : null;
+            agent.AnswerArgs?.RemoveAll(a => a is null);
+            agent.ModelArgs ??= builtIn?.ModelArgs is { } model ? new List<string>(model) : null;
+            agent.ModelArgs?.RemoveAll(a => a is null);
         }
         foreach (var builtIn in BuiltInAgents.Create())
         {
