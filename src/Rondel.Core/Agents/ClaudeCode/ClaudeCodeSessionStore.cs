@@ -156,6 +156,10 @@ public sealed partial class ClaudeCodeSessionStore : ISessionStore
             {
                 foreach (string file in Directory.EnumerateFiles(folder, "*.jsonl", SearchOption.TopDirectoryOnly))
                 {
+                    // A session's transcript is named by its id, which Resume passes on (--resume <id>); Claude Code's
+                    // other files there (<id>.orphaned-….jsonl) are not sessions.
+                    if (!Guid.TryParseExact(Path.GetFileNameWithoutExtension(file), "D", out _))
+                        continue;
                     var info = new FileInfo(file);
                     string? cwd = ReadCwd(info);
                     if (cwd is null || string.Equals(Normalize(cwd), target, StringComparison.OrdinalIgnoreCase))

@@ -30,9 +30,62 @@ public class LaunchRoundTripTests
         Assert.SkipWhen(shellPath is null, $"{shell} is not installed.");
 
         string echo = Path.Combine(AppContext.BaseDirectory, "ArgEcho.exe");
-        var plan = new LaunchPlan(Path.GetTempPath(), "Echo", $"\"{echo}\"", Arguments);
-        string script = PowerShellScript.Build(plan);
-        var start = new ProcessStartInfo(shellPath!, "-NoLogo -NoProfile -NonInteractive -EncodedCommand "
+        Assert.Equal(Arguments, Run(shellPath!, $"\"{echo}\"", Arguments));
+    }
+
+    /// <summary>What cmd.exe would take for its own: an npm install runs the agent through a .cmd file.</summary>
+    static readonly string[] BatchArguments =
+    [
+        "R&D",
+        "a&echo.INJECTED",
+        "a|b",
+        "x>y<z",
+        "^caret",
+        "(paren)",
+        "two words & more",
+        @"ends with a backslash\",
+        "",
+    ];
+
+    [Theory]
+    [InlineData("powershell", null)]
+    [InlineData("pwsh", null)]
+    [InlineData("pwsh", "Standard")] // set in a profile: the script passes the batch file's arguments as they are anyway
+    public void ABatchFileGetsTheArgumentsAsTheyAreAndRunsNothingElse(string shell, string? passing)
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "The launch script runs on Windows.");
+        string? shellPath = FindShell(shell);
+        Assert.SkipWhen(shellPath is null, $"{shell} is not installed.");
+
+        // As npm's shim does: the program, then %*.
+        var folder = Directory.CreateTempSubdirectory("rondel-tests-");
+        try
+        {
+            string shim = Path.Combine(folder.FullName, "agent.cmd");
+            File.WriteAllText(shim, $"@\"{Path.Combine(AppContext.BaseDirectory, "ArgEcho.exe")}\" %*\r\n");
+            string? before = passing is null ? null : $"$PSNativeCommandArgumentPassing = '{passing}'";
+            string after = "Write-Output \"MODE=$PSNativeCommandArgumentPassing\"";
+
+            Assert.Equal(BatchArguments, Run(shellPath!, $"\"{shim}\"", BatchArguments, folder.FullName, before, after, out string output));
+            if (passing is not null)
+                Assert.Contains($"MODE={passing}", output); // put back for the window, which stays open
+        }
+        finally
+        {
+            folder.Delete(recursive: true);
+        }
+    }
+
+    static string[]? Run(string shellPath, string command, string[] arguments) =>
+        Run(shellPath, command, arguments, Path.GetTempPath(), null, null, out _);
+
+    /// <summary>Runs the launch script with -EncodedCommand and returns the arguments the echo saw.</summary>
+    static string[]? Run(string shellPath, string command, string[] arguments, string directory, string? before, string? after,
+        out string output)
+    {
+        var plan = new LaunchPlan(directory, "Echo", command, arguments);
+        string script = string.Join(Environment.NewLine, new[] { before, PowerShellScript.Build(plan), after }.Where(part => part is not null));
+        var start = new ProcessStartInfo(shellPath, "-NoLogo -NoProfile -NonInteractive -EncodedCommand "
             + Convert.ToBase64String(Encoding.Unicode.GetBytes(script)))
         {
             RedirectStandardOutput = true,
@@ -41,13 +94,15 @@ public class LaunchRoundTripTests
         };
 
         using var process = Process.Start(start)!;
-        string output = process.StandardOutput.ReadToEnd();
+        output = process.StandardOutput.ReadToEnd();
         string errors = process.StandardError.ReadToEnd();
         Assert.True(process.WaitForExit(60_000), "The shell did not exit.");
 
+        // A second command that ran (echo.INJECTED) prints a line of its own.
+        Assert.DoesNotContain(output.Split('\n'), line => line.Trim() == "INJECTED");
         string json = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .LastOrDefault(line => line.StartsWith('[')) ?? throw new Xunit.Sdk.XunitException($"No output.\n{output}\n{errors}");
-        Assert.Equal(Arguments, JsonSerializer.Deserialize<string[]>(json));
+        return JsonSerializer.Deserialize<string[]>(json);
     }
 
     static string? FindShell(string name)

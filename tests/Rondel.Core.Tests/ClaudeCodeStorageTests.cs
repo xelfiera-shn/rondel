@@ -9,6 +9,7 @@ public class ClaudeCodeStorageTests
     const string Old = "11111111-1111-4111-8111-111111111111";
     const string Open = "22222222-2222-4222-8222-222222222222";
     const string Gone = "33333333-3333-4333-8333-333333333333";
+    const string Elsewhere = "44444444-4444-4444-8444-444444444444";
 
     [Fact]
     public void ASessionIsItsTranscriptAndWhatIsKeptForIt()
@@ -116,13 +117,17 @@ public class ClaudeCodeStorageTests
             Make(temp, hashed, Gone, "images", "b.png"); // ended a moment ago: fresh, but its end was reported
             Make(temp, hashed, Open, "scratchpad", "c.md"); // just started, its end not reported: kept
             Make(config, "projects", key, "memory", "MEMORY.md");
+            Make(config, "projects", "C--Work-Other", Elsewhere + ".jsonl"); // a session of another project
+            Make(config, "file-history", Elsewhere, "b");
             Age(Path.Combine(temp, key, Old));
             Age(Path.Combine(config, "file-history", Old));
             var storage = new ClaudeCodeStorage(config, temp);
 
-            var first = storage.Sweep(quick, ended: [Gone]);
+            // An end reported for it here (wrong, or made up by whoever got the hooks' token) leaves it alone.
+            var first = storage.Sweep(quick, ended: [Gone, Elsewhere]);
             Assert.Equal(2, first.Sessions);
             Assert.Equal([Open], first.Skipped);
+            Assert.True(Directory.Exists(Path.Combine(config, "file-history", Elsewhere)));
             Assert.False(Directory.Exists(Path.Combine(config, "file-history", Old)));
             Assert.True(Directory.Exists(Path.Combine(temp, hashed, Open)));
             Assert.True(Directory.Exists(Path.Combine(config, "projects", key, "memory"))); // one still runs: its memory stays
