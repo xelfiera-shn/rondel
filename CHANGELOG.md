@@ -2,6 +2,13 @@
 
 Every version of Rondel, newest first. Until 1.0 only the two newest [releases](https://github.com/xelfiera-shn/rondel/releases) are kept for download; the notes of all versions are here.
 
+## 0.15.2 (2026-11-05)
+
+### Bug fixes
+
+- **core:** Keep starting when settings.json or a transcript holds an odd value (#96)
+- **core:** Harden agent launching, the hooks token and Quick sweeps (#97)
+
 ## 0.15.1 (2026-11-05)
 
 ### macOS
