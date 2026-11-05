@@ -97,6 +97,39 @@ public sealed class HookServerTests : IDisposable
         Assert.Equal(port, again.Port);
     }
 
+    [Fact]
+    public void ANewPortGetsANewTokenSinceWhoeverHoldsTheOldOneHasSeenIt()
+    {
+        int port;
+        string token;
+        using (var server = new HookServer(_activity))
+        {
+            Assert.True(server.Start(_directory));
+            port = server.Port;
+            token = HookServer.Read(_activity.HooksFile!).Token!;
+        }
+        using (var again = new HookServer(_activity))
+        {
+            Assert.True(again.Start(_directory));
+            Assert.Equal(token, HookServer.Read(_activity.HooksFile!).Token); // the port could be had: agents keep working
+        }
+
+        // Someone else took the port while Rondel was not running: agents started before post to them.
+        var other = new System.Net.Sockets.TcpListener(IPAddress.Loopback, port);
+        other.Start();
+        try
+        {
+            using var moved = new HookServer(_activity);
+            Assert.True(moved.Start(_directory));
+            Assert.NotEqual(port, moved.Port);
+            Assert.NotEqual(token, HookServer.Read(_activity.HooksFile!).Token);
+        }
+        finally
+        {
+            other.Stop();
+        }
+    }
+
     Task<HttpResponseMessage> Post(int port, string token, string session, string body)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, $"http://127.0.0.1:{port}/hook")

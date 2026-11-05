@@ -44,15 +44,22 @@ public static class PowerShellScript
         s.AppendLine("}");
         s.AppendLine("$rondelTarget = $rondelCommand");
         s.AppendLine("while ($rondelTarget.CommandType -eq 'Alias' -and $rondelTarget.ResolvedCommand) { $rondelTarget = $rondelTarget.ResolvedCommand }");
-        // An npm install exposes the agent as a .cmd file: cmd.exe cannot carry line breaks or quotes in one argument.
+        // An npm install exposes the agent as a .cmd file. cmd.exe reads its arguments twice (its command line, then %* in
+        // the file), takes & | < > ^ ( ) outside quotes for its own, and cannot carry line breaks or quotes in one
+        // argument. So every argument goes in double quotes, with the backslashes before the closing one doubled, and
+        // as it is: pwsh's Standard mode would escape those quotes the way programs read them, which cmd.exe does not.
         s.AppendLine("$rondelBatch = $rondelTarget.CommandType -eq 'Application' -and $rondelTarget.Extension -in '.cmd', '.bat'");
-        s.AppendLine("if ($rondelBatch -and ($rondelArgs | Where-Object { $_ -match '[\\r\\n\"%]' })) {");
-        s.AppendLine($"    Write-Host ({Quote(Loc.Format("Launch.BatchNote", name))}) -ForegroundColor Yellow");
-        s.AppendLine("    $rondelArgs = @($rondelArgs | ForEach-Object { ($_ -replace '\\r?\\n', ' ') -replace '\"', \"'\" })");
+        s.AppendLine("$rondelPassing = $null");
+        s.AppendLine("if ($rondelBatch) {");
+        s.AppendLine("    if ($rondelArgs | Where-Object { $_ -match '[\\r\\n\"%]' }) {");
+        s.AppendLine($"        Write-Host ({Quote(Loc.Format("Launch.BatchNote", name))}) -ForegroundColor Yellow");
+        s.AppendLine("    }");
+        s.AppendLine("    $rondelArgs = @($rondelArgs | ForEach-Object { '\"' + ((($_ -replace '\\r?\\n', ' ') -replace '\"', \"'\") -replace '(\\\\+)$', '$1$1') + '\"' })");
+        s.AppendLine("    if ($PSNativeCommandArgumentPassing -eq 'Standard') { $rondelPassing = 'Standard'; $PSNativeCommandArgumentPassing = 'Legacy' }");
         s.AppendLine("}");
         // Windows PowerShell (and pwsh < 7.3 / Legacy mode) passes embedded quotes to native programs unescaped.
         // Escape them the way CommandLineToArgvW expects; pwsh 7.3+ does this itself.
-        s.AppendLine("if ($rondelBatch -or $PSVersionTable.PSVersion -lt [version]'7.3' -or $PSNativeCommandArgumentPassing -eq 'Legacy') {");
+        s.AppendLine("elseif ($PSVersionTable.PSVersion -lt [version]'7.3' -or $PSNativeCommandArgumentPassing -eq 'Legacy') {");
         s.AppendLine("    $rondelArgs = @($rondelArgs | ForEach-Object {");
         s.AppendLine("        $rondelArg = $_ -replace '(\\\\*)\"', '$1$1\\\"'");
         s.AppendLine("        if ($rondelArg -match '\\s') { $rondelArg = $rondelArg -replace '(\\\\+)$', '$1$1' }");
@@ -61,7 +68,9 @@ public static class PowerShellScript
         s.AppendLine("}");
         s.AppendLine("Remove-Variable rondelCommand, rondelTarget, rondelBatch -ErrorAction SilentlyContinue");
         // Anything after the command name is the user's own PowerShell text from settings (e.g. "--model opus").
-        s.AppendLine($"& $rondelName {extra} @rondelArgs".TrimEnd());
+        // The window stays open after the agent, so a mode changed for it is put back, also after Ctrl+C.
+        s.AppendLine($"try {{ & $rondelName {extra} @rondelArgs }}");
+        s.AppendLine("finally { if ($rondelPassing) { $PSNativeCommandArgumentPassing = $rondelPassing }; Remove-Variable rondelPassing -ErrorAction SilentlyContinue }");
         return s.ToString();
     }
 

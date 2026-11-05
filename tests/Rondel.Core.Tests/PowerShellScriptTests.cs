@@ -20,7 +20,7 @@ public class PowerShellScriptTests
         Assert.Contains("Set-Location -LiteralPath 'C:\\Projects\\O''Brien $x' -ErrorAction Stop", script);
         Assert.Contains("$rondelName = 'claude'", script);
         Assert.Contains("$rondelArgs = @('say \"hi\"; rm `$HOME', 'ikinci satır\nson')", script);
-        Assert.EndsWith("& $rondelName --model opus @rondelArgs" + Environment.NewLine, script);
+        Assert.Contains("try { & $rondelName --model opus @rondelArgs }" + Environment.NewLine, script);
     }
 
     [Fact]

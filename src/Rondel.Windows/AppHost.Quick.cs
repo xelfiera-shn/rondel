@@ -18,6 +18,9 @@ internal sealed partial class AppHost
     /// <summary>Quick Conversation sessions whose end was reported and that are not swept yet.</summary>
     readonly HashSet<string> _quickEnded = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>The log said once that Claude Code keeps no list of its running sessions.</summary>
+    bool _toldNoSessionList;
+
     void StartQuickConversations()
     {
         _flow.QuickConversationStarting += SweepQuick;
@@ -58,7 +61,18 @@ internal sealed partial class AppHost
             {
                 try
                 {
-                    var result = new ClaudeCodeStorage().Sweep(_flow.QuickDirectory, [.. _quickEnded], running, inUse: followed.Count > 0);
+                    // A Quick Conversation Rondel does not follow (following is off, or it started before Rondel) is told
+                    // from one that ended only by Claude Code's list of the sessions it runs: without it nothing is swept.
+                    var storage = new ClaudeCodeStorage();
+                    if (!Directory.Exists(Path.Combine(storage.ConfigDirectory, "sessions")))
+                    {
+                        if (!_toldNoSessionList)
+                            Log.Info("Claude Code lists no running sessions; Quick Conversations are not swept");
+                        _toldNoSessionList = true;
+                        return;
+                    }
+                    _toldNoSessionList = false;
+                    var result = storage.Sweep(_flow.QuickDirectory, [.. _quickEnded], running, inUse: followed.Count > 0);
                     _quickEnded.IntersectWith(result.Skipped); // one still closing is swept the next time
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)

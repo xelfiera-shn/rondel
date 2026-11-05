@@ -232,7 +232,10 @@ public sealed class ClaudeCodeStorage
         string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
         string key = ClaudeCodeSessionStore.Encode(full);
         string project = Path.Combine(ProjectsDirectory, key);
-        var over = new HashSet<string>((ended ?? []).Where(IsSessionId), StringComparer.OrdinalIgnoreCase);
+        // A session reported as ended here whose transcript another project keeps is not one of this folder's: the report
+        // is wrong, and what Claude Code keeps for that session is not this sweep's to delete.
+        var over = new HashSet<string>((ended ?? []).Where(id => IsSessionId(id) && !KeptByAnotherProject(id, key)),
+            StringComparer.OrdinalIgnoreCase);
         var kept = new HashSet<string>(keep ?? [], StringComparer.OrdinalIgnoreCase);
         var ids = new HashSet<string>(over, StringComparer.OrdinalIgnoreCase);
         foreach (string name in EntryNames(project))
@@ -292,6 +295,21 @@ public sealed class ClaudeCodeStorage
         foreach (string folder in TempFolders(key))
             RemoveIfEmpty(folder);
         return new CleanupResult(sessions, memoryGoes ? 1 : 0, bytes, skipped, files);
+    }
+
+    /// <summary>Whether a project other than <paramref name="key"/> has a transcript of the session; true when unsure.</summary>
+    bool KeptByAnotherProject(string id, string key)
+    {
+        try
+        {
+            return Directory.Exists(ProjectsDirectory) && Directory.EnumerateDirectories(ProjectsDirectory)
+                .Any(folder => !string.Equals(Path.GetFileName(folder), key, StringComparison.OrdinalIgnoreCase)
+                    && File.Exists(Path.Combine(folder, id + ".jsonl")));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return true;
+        }
     }
 
     /// <summary>When <paramref name="path"/>, or anything inside it, was last written to.</summary>
