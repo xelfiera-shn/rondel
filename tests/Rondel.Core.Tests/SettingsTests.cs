@@ -180,6 +180,36 @@ public class SettingsTests
     }
 
     [Fact]
+    public void KeysThatDifferOnlyInCaseAreReadAsOneAndTheLaterWins()
+    {
+        var folder = Directory.CreateTempSubdirectory("rondel-tests-");
+        try
+        {
+            File.WriteAllText(Path.Combine(folder.FullName, "settings.json"), """
+                {
+                  "Menus": { "FolderItem": ["open"], "folderitem": ["ask"] },
+                  "Agents": [ { "Id": "claude-code",
+                                "Capabilities": { "Prompt": ["-a"], "prompt": ["-b"] },
+                                "EphemeralEnvironment": { "QUIET": "1", "quiet": "2" } } ]
+                }
+                """);
+            using var store = new SettingsStore(new SynchronizationContext(), folder.FullName);
+
+            store.Load(); // threw before, and Rondel could not start
+
+            Assert.Null(store.LoadError);
+            Assert.Equal(["ask"], store.Current.Menus["FolderItem"]);
+            var agent = store.Current.FindAgent("claude-code")!;
+            Assert.Equal(["-b"], agent.Capabilities["Prompt"]);
+            Assert.Equal("2", agent.EphemeralEnvironment!["QUIET"]);
+        }
+        finally
+        {
+            folder.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public void ProjectsRootExpandsTheHomeFolder()
     {
         string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

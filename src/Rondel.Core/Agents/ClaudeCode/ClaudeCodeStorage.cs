@@ -85,7 +85,7 @@ public sealed class ClaudeCodeStorage
                 new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
             if (settings.RootElement.ValueKind == JsonValueKind.Object
                 && settings.RootElement.TryGetProperty("cleanupPeriodDays", out var days)
-                && days.TryGetInt32(out int value) && value >= 1)
+                && days.ValueKind == JsonValueKind.Number && days.TryGetInt32(out int value) && value >= 1)
                 return value;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)

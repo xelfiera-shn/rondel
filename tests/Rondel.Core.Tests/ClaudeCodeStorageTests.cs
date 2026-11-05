@@ -76,6 +76,9 @@ public class ClaudeCodeStorageTests
             Assert.Equal(8, recycled.Count); // the seven of the session and the memory folder; the made-up id reaches nothing
             Assert.All(recycled, path => Assert.True(File.Exists(path) || Directory.Exists(path))); // the bin moves them, not this
             Assert.Equal(ClaudeCodeStorage.DefaultCleanupDays, new ClaudeCodeStorage(Path.Combine(root.FullName, "none")).CleanupPeriodDays());
+            string written = Directory.CreateDirectory(Path.Combine(root.FullName, "quoted")).FullName;
+            File.WriteAllText(Path.Combine(written, "settings.json"), "{ \"cleanupPeriodDays\": \"7\" }"); // a string, not a number
+            Assert.Equal(ClaudeCodeStorage.DefaultCleanupDays, new ClaudeCodeStorage(written).CleanupPeriodDays());
         }
         finally
         {
