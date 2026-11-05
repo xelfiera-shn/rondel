@@ -33,6 +33,24 @@ public static class LaunchPlanner
         return plan with { Arguments = [.. arguments, .. plan.Arguments], ActivityId = activityId };
     }
 
+    /// <summary>
+    /// The plan that has <paramref name="agent"/> answer one question without a terminal (<see cref="AgentProfile.AnswerArgs"/>,
+    /// with the model), in <paramref name="directory"/>; the question goes to its standard input.
+    /// </summary>
+    /// <returns>The plan, or null when the agent cannot answer that way.</returns>
+    public static LaunchPlan? Answer(AgentProfile agent, string directory, string? model)
+    {
+        if (agent.AnswerArgs is not { Count: > 0 } templates)
+            return null;
+        return new LaunchPlan(directory, agent.Name, agent.Command, [.. templates.Where(t => !string.IsNullOrEmpty(t)), .. ModelArguments(agent, model)]);
+    }
+
+    /// <summary>The agent's <see cref="AgentProfile.ModelArgs"/> for <paramref name="model"/>; none for the agent's own default.</summary>
+    public static List<string> ModelArguments(AgentProfile agent, string? model) =>
+        string.IsNullOrWhiteSpace(model) || agent.ModelArgs is not { Count: > 0 } templates
+            ? []
+            : [.. templates.Where(t => !string.IsNullOrEmpty(t)).Select(t => t.Replace("{model}", model.Trim(), StringComparison.Ordinal))];
+
     /// <summary>Fills in "{prompt}" and "{id}"; an argument whose value is missing is left out.</summary>
     internal static List<string> Expand(IEnumerable<string> templates, string? prompt, string? sessionId)
     {

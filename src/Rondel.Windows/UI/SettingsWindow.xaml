@@ -472,6 +472,20 @@
                 </Border>
 
                 <Border Style="{StaticResource Card}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="{l:Loc Settings.Quick.Model}" />
+                            <TextBlock Style="{StaticResource Description}" Text="{l:Loc Settings.Quick.Model.Desc}" />
+                        </StackPanel>
+                        <ComboBox x:Name="QuickModelBox" Grid.Column="1" Width="200" VerticalAlignment="Center" SelectionChanged="OnQuickModelChanged" />
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <Grid>
                             <Grid.ColumnDefinitions>

@@ -109,6 +109,10 @@ internal static class DevTools
                 RenderAsk(output, options);
                 return true;
 
+            case ["--render-answer", var output, .. var options]:
+                RenderAnswer(output, options);
+                return true;
+
             case ["--render-shot-picker", var output, .. var options]:
                 RenderShotPicker(output, options);
                 return true;
@@ -434,6 +438,50 @@ internal static class DevTools
             : dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6);
         string? picked = options.Contains("picked", StringComparer.OrdinalIgnoreCase) ? prompts.Pinned[0] : null;
         var bitmap = window.RenderAskPreview(spec, PaletteFrom(options, dark), background, picked);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using (var file = File.Create(output))
+            encoder.Save(file);
+        window.Close();
+    }
+
+    /// <summary>
+    /// Draws a Quick Conversation's card with a made-up answer, for checking its design:
+    /// <c>--render-answer out.png [dark|light] [en|tr] [starting|search|writing|done|stopped|failed] [shot]</c>.
+    /// </summary>
+    static void RenderAnswer(string output, string[] options)
+    {
+        bool dark = !options.Contains("light", StringComparer.OrdinalIgnoreCase);
+        bool tr = options.Contains("tr", StringComparer.OrdinalIgnoreCase);
+        bool shot = options.Contains("shot", StringComparer.OrdinalIgnoreCase);
+        Loc.SetLanguage(tr ? "tr" : "en");
+        string state = new[] { "starting", "search", "writing", "stopped", "failed" }.FirstOrDefault(s => options.Contains(s, StringComparer.OrdinalIgnoreCase)) ?? "done";
+        // Made up, like everything these pictures show.
+        string question = shot
+            ? tr ? "Bu hata kodu ne anlama geliyor?" : "What does this error code mean?"
+            : tr ? "PowerShell'de bir klasörün boyutunu nasıl bulurum?" : "How do I find the size of a folder in PowerShell?";
+        string answer = shot
+            ? tr
+                ? "**ORCHID-58**, Hava Durumu API'sine bağlanırken **zaman aşımı** olduğunu söylüyor: sunucu 30 saniye içinde yanıt vermemiş.\n\n- İnternet bağlantınızı ya da VPN'i kontrol edin.\n- `api.example.com` o sırada yavaşlamış olabilir; birkaç dakika sonra yeniden deneyin.\n\nKodda bekleyerek yeniden denemek şöyle olur:\n\n```python\nfor attempt in range(3):\n    response = client.get(\"/forecast\", timeout=30)\n    if response.ok:\n        break\n    time.sleep(2 ** attempt)\n```"
+                : "**ORCHID-58** means the connection to the Weather API **timed out**: the server did not answer within 30 seconds.\n\n- Check your network connection or VPN.\n- `api.example.com` may have been slow at the time; try again in a few minutes.\n\nIn code, a retry with a growing pause looks like this:\n\n```python\nfor attempt in range(3):\n    response = client.get(\"/forecast\", timeout=30)\n    if response.ok:\n        break\n    time.sleep(2 ** attempt)\n```"
+            : tr
+                ? "Dosyaların uzunluklarını **Get-ChildItem** ile toplayın:\n\n```powershell\n(Get-ChildItem -Recurse -File | Measure-Object -Property Length -Sum).Sum / 1MB\n```\n\n- `-File` klasörleri dışarıda bırakır, yalnızca dosyalar sayılır.\n- Okunur bir sayı için `1MB` ya da `1GB` ile bölün.\n\n| Seçenek | Ne yapar |\n|---|---|\n| `-Force` | Gizli dosyaları da sayar |\n| `-Depth 2` | İki seviye aşağıda durur |"
+                : "Add up the files' lengths with **Get-ChildItem**:\n\n```powershell\n(Get-ChildItem -Recurse -File | Measure-Object -Property Length -Sum).Sum / 1MB\n```\n\n- `-File` leaves the folders out, so only files are counted.\n- Divide by `1MB` or `1GB` for a readable number.\n\n| Option | What it does |\n|---|---|\n| `-Force` | Counts hidden files too |\n| `-Depth 2` | Stops two levels down |";
+        var view = state switch
+        {
+            "starting" => new AnswerView(question, "", AnswerState.Starting, null, null, false),
+            "search" => new AnswerView(question, "", AnswerState.Starting, "WebSearch", null, false),
+            "writing" => new AnswerView(question, answer[..(answer.IndexOf("```", StringComparison.Ordinal) + 40)], AnswerState.Writing, null, null, false),
+            "stopped" => new AnswerView(question, answer[..(answer.IndexOf("```", StringComparison.Ordinal) + 40)], AnswerState.Stopped, null, null, true),
+            "failed" => new AnswerView(question, "", AnswerState.Failed, null, "Not logged in · Please run /login", false),
+            _ => new AnswerView(question, answer, AnswerState.Done, null, null, true),
+        };
+        var header = new AnswerHeader(Loc.Get(shot ? "Action.Screenshot" : "Action.Quick"), shot ? '' : '',
+            Loc.Get("Quick.Location"), shot ? MadeUpShot(tr, 520, 230) : null, "Claude Code");
+        var window = new AnswerCardWindow(null, header, PaletteFrom(options, dark));
+        window.Show(view);
+        var background = dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6);
+        var bitmap = window.RenderPreview(background);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using (var file = File.Create(output))

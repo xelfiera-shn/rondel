@@ -59,7 +59,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         // Developer aids read the saved prompts next to their copy of the settings.
         Prompts = settingsDirectory is null ? SavedPrompts.Default : new SavedPrompts(Path.Combine(settingsDirectory, "Prompts"));
         _flow = new MenuFlow(this, new WindowsTerminalLauncher(_agentWindows), new FolderNameValidator(), () => Store.Current,
-            change => Store.Update(change), activity: _activity, prompts: Prompts);
+            change => Store.Update(change), activity: _activity, prompts: Prompts, answers: new AnswerLauncher());
         // Developer aids keep the update checks' state with their copy of the settings.
         string updateState = settingsDirectory is null ? Path.Combine(UpdatesDirectory, "state.json") : Path.Combine(settingsDirectory, "update-state.json");
         // A release that changes only the macOS app is not announced here.
@@ -199,6 +199,8 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         var palette = RondelPalette.For(appearance, SystemTheme.Read());
         _menu.ApplyLook(palette);
         _card?.ApplyLook(palette);
+        foreach (var answer in _answerCards)
+            answer.ApplyLook(palette);
     }
 
     void ApplySettings(AppSettings settings)
@@ -350,6 +352,8 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 
     void IMenuHost.ShowCard(InputSpec spec) => _menu.ShowCard(spec, Native.GetCursorPosition());
 
+    void IMenuHost.ShowAnswer(QuickAnswer answer) => ShowAnswerCard(answer);
+
     void IMenuHost.StartNewProject(NewProjectSpec spec) => _menu.StartNewProject(spec);
 
     void IMenuHost.ShowWarning(string message) => ShowBalloon(AppInfo.Name, message, warning: true);
@@ -444,6 +448,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 
     public void Dispose()
     {
+        CloseAnswerCards();
         _card?.Dispose();
         StopUpdates();
         StopFollowingAgents();

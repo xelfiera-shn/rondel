@@ -388,6 +388,9 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
 
     void IMenuHost.ShowCard(InputSpec spec) => Log.Warn("Ask About a Screenshot is not supported on macOS yet");
 
+    // Never called: the flow answers on the card only when it was given an IAnswerLauncher, which macOS does not pass yet.
+    void IMenuHost.ShowAnswer(QuickAnswer answer) => answer.Close();
+
     void IMenuHost.StartNewProject(NewProjectSpec spec) => _menu?.StartNewProject(spec);
 
     void IMenuHost.ShowWarning(string message) => Warn(message);
