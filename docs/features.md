@@ -34,7 +34,7 @@ Which features Rondel has on Windows and on macOS, and since which version. Down
 | **Resume** opens into the newest sessions | ✅ 0.1.0 | ✅ 0.8.0 |
 | **Recent Projects** on the desktop, opening into the projects and their sessions | ✅ 0.2.0 | ✅ 0.8.0 |
 | **Ask**, **Ask Here** and **Ask About This File** | ✅ 0.3.0 | ✅ 0.8.0 |
-| **Ask About These Files**: several selected files in one prompt | ✅ 0.10.0 | ⬜ |
+| **Ask About These Files**: several selected files in one prompt | ✅ 0.10.0 | ✅ 0.15.0 |
 | Saved prompts: up to five on an arc of the Ask slices, all of them on the Ask card | ✅ 0.11.0 | ⬜ |
 | **Quick Conversation** on the desktop: a talk in a folder of its own, not saved, with what is left of it deleted once it ends | ✅ 0.13.0 | ⬜ |
 | **Ask About a Screenshot**: a frozen screen to pick an area or a window from, asked about in a Quick Conversation (tray menu, optional shortcut) | ✅ 0.14.0 | ⬜ |

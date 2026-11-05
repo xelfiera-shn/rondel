@@ -96,6 +96,8 @@ internal static class DevTools
         report.AppendLine($"Folder: {context.TargetDir}");
         if (context.FilePath is not null)
             report.AppendLine($"File: {context.FilePath}");
+        if (context.SelectedFiles.Count > 1)
+            report.AppendLine($"Files: {string.Join(" | ", context.SelectedFiles)}");
         report.AppendLine($"Name: {context.DisplayName}");
         report.AppendLine($"Reason: {context.Reason}");
         if (context.Kind != Core.Context.ContextKind.None)
@@ -117,9 +119,10 @@ internal static class DevTools
 
     /// <summary>
     /// Draws the menu into a PNG without showing it, for checking the design:
-    /// <c>--render-menu out.png [dark|light] [en|tr] [desktop|item] [theme=ID] [hover=N] [open|deep] [edge] [FOLDER|FILE]</c>.
+    /// <c>--render-menu out.png [dark|light] [en|tr] [desktop|item] [theme=ID] [hover=N] [open|deep] [edge] [FOLDER|FILE...]</c>.
     /// The Finder-window menu for a folder by default (the desktop menu with <c>desktop</c>, the folder's own menu with
-    /// <c>item</c>, a file's menu when given a file), with its real session hints and items. <c>open</c> hovers the first
+    /// <c>item</c>, a file's menu when given a file, held in a selection of them when given several), with its real
+    /// session hints and items. <c>open</c> hovers the first
     /// slice that opens and its newest item, <c>deep</c> also the first of its items that opens further; <c>edge</c> draws
     /// it as if opened at the left edge of the screen.
     /// </summary>
@@ -132,10 +135,15 @@ internal static class DevTools
             settings.Appearance.Theme = theme["theme=".Length..];
         int hover = options.FirstOrDefault(o => o.StartsWith("hover=", StringComparison.Ordinal)) is { } h
             ? int.Parse(h["hover=".Length..], CultureInfo.InvariantCulture) : -1;
-        string path = options.LastOrDefault(o => o.StartsWith('/')) ?? settings.ResolveProjectsRoot();
+        string[] paths = [.. options.Where(o => o.StartsWith('/'))];
+        string path = paths.FirstOrDefault() ?? settings.ResolveProjectsRoot();
         string name = Path.GetFileName(Path.TrimEndingDirectorySeparator(path));
         var context = options.Contains("desktop") ? new TriggerContext(ContextKind.DesktopEmpty, settings.ResolveProjectsRoot(), name, "render")
-            : File.Exists(path) ? new TriggerContext(ContextKind.FileItem, Path.GetDirectoryName(path), name, "render") { FilePath = path }
+            : File.Exists(path) ? new TriggerContext(ContextKind.FileItem, Path.GetDirectoryName(path), name, "render")
+            {
+                FilePath = path,
+                SelectedFiles = paths.Length > 1 ? paths : [],
+            }
             : new TriggerContext(options.Contains("item") ? ContextKind.FolderItem : ContextKind.ExplorerEmpty, path, name, "render");
 
         AppBuilder.Configure<App>().UsePlatformDetect()
