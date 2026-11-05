@@ -24,6 +24,13 @@ internal sealed partial class AppHost
     void StartQuickConversations()
     {
         _flow.QuickConversationStarting += SweepQuick;
+        // A card closed with its answer: that session is over, even though no terminal ran it.
+        _flow.QuickSessionEnded += session =>
+        {
+            lock (_sweepLock)
+                _quickEnded.Add(session);
+            SweepQuick();
+        };
         SweepQuick();
     }
 
@@ -36,6 +43,7 @@ internal sealed partial class AppHost
         {
             lock (_sweepLock)
                 _quickEnded.Add(session);
+            _flow.ForgetQuickSession(session); // one an answer on the card continued
         }
         SweepQuick();
         Task.Delay(SweepAgain).ContinueWith(_ => SweepQuick(), TaskScheduler.Default);
@@ -54,7 +62,10 @@ internal sealed partial class AppHost
     void SweepQuick()
     {
         var followed = _activity.Agents.Where(a => IsQuick(a.Directory)).ToList();
-        var running = followed.Select(a => a.SessionId).OfType<string>().ToList();
+        // Answers on an open card, and those continued in a terminal, are kept too; while a card answers, so are the
+        // folder's files (the screenshot it is about).
+        var running = followed.Select(a => a.SessionId).OfType<string>().Concat(_flow.QuickSessions).ToList();
+        bool inUse = followed.Count > 0 || _flow.QuickAnswerOpen;
         Task.Run(() =>
         {
             lock (_sweepLock)
@@ -72,7 +83,7 @@ internal sealed partial class AppHost
                         return;
                     }
                     _toldNoSessionList = false;
-                    var result = storage.Sweep(_flow.QuickDirectory, [.. _quickEnded], running, inUse: followed.Count > 0);
+                    var result = storage.Sweep(_flow.QuickDirectory, [.. _quickEnded], running, inUse);
                     _quickEnded.IntersectWith(result.Skipped); // one still closing is swept the next time
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
