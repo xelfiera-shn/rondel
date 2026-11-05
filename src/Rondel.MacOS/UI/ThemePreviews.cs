@@ -33,16 +33,22 @@ internal sealed class ThemePreviews : IDisposable
         var model = MenuBuilder.Build(new TriggerContext(ContextKind.FolderItem, folder, "Rondel", "preview"), settings);
         var hints = model.Items.Select(_ => ((string?)null, false)).ToList();
         var children = model.Items.Select(_ => (IReadOnlyList<MenuItemModel>)[]).ToList();
-        var full = _window.RenderPreview(model, hints, children, [0], Colors.Transparent);
+        return _cache[key] = Ring(_window.RenderPreview(model, hints, children, [0], Colors.Transparent));
+    }
 
-        // The ring and a little of its shadow, from the middle of the stage (drawn at twice the size). Cropping the 2x
-        // render target itself cuts in the wrong place, so it is cut from a plain bitmap of the same pixels.
+    /// <summary>
+    /// The ring and a little of its shadow, from the middle of a menu preview (drawn at twice the size), as a plain
+    /// bitmap of 2 pixels a point. The 2x render target itself is cropped and drawn in the wrong place, so the pixels
+    /// go through a PNG first.
+    /// </summary>
+    public static CroppedBitmap Ring(Bitmap full)
+    {
         int center = full.PixelSize.Width / 2, half = 2 * (168 + 22);
         using var png = new MemoryStream();
         full.Save(png, new PngBitmapEncoderOptions());
         full.Dispose();
         png.Position = 0;
-        return _cache[key] = new CroppedBitmap(new Bitmap(png), new PixelRect(center - half, center - half, 2 * half, 2 * half));
+        return new CroppedBitmap(new Bitmap(png), new PixelRect(center - half, center - half, 2 * half, 2 * half));
     }
 
     public void Dispose() => _window?.Close();

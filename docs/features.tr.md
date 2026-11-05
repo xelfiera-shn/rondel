@@ -23,7 +23,7 @@ Rondel'in Windows'ta ve macOS'ta hangi özelliklere sahip olduğu ve her birinin
 | Menüde klavye: rakamlar, oklar, Tab, Boşluk, Enter, Esc | ✅ 0.1.0 | ✅ 0.8.0 |
 | Uzun proje adları dilimlerine sığar | ✅ 0.3.0 | ✅ 0.8.0 |
 | Beş tema, koyu ve açık mod, vurgu renkleri | ✅ 0.5.0 | ✅ 0.8.0 |
-| Kendi vurgu renkleriniz için renk seçici | ✅ 0.10.0 | ⬜ |
+| Kendi vurgu renkleriniz için renk seçici | ✅ 0.10.0 | ✅ 0.15.0 |
 | Menüyü fare imlecinin olduğu yerde açan klavye kısayolu | ✅ 0.1.0 | ⬜ |
 
 ## Ajanı başlatma
@@ -34,9 +34,9 @@ Rondel'in Windows'ta ve macOS'ta hangi özelliklere sahip olduğu ve her birinin
 | **Oturum Seç**, en yeni oturumlara açılır | ✅ 0.1.0 | ✅ 0.8.0 |
 | Masaüstünde **Son Projeler**: projelere ve onların oturumlarına açılır | ✅ 0.2.0 | ✅ 0.8.0 |
 | **Sor**, **Burada Sor** ve **Bu Dosyayı Sor** | ✅ 0.3.0 | ✅ 0.8.0 |
-| **Bu Dosyaları Sor**: seçili birden fazla dosya tek prompt'ta | ✅ 0.10.0 | ⬜ |
+| **Bu Dosyaları Sor**: seçili birden fazla dosya tek prompt'ta | ✅ 0.10.0 | ✅ 0.15.0 |
 | Hazır promptlar: en fazla beşi Sor dilimlerinin yayında, hepsi Sor kartında | ✅ 0.11.0 | ⬜ |
-| Masaüstünde **Hızlı Sohbet**: kendi klasöründe, kaydedilmeyen bir sohbet; bitince geride kalanlar silinir | ✅ 0.13.0 | ⬜ |
+| Masaüstünde **Hızlı Sohbet**: kendi klasöründe, kaydedilmeyen bir sohbet; bitince geride kalanlar silinir | ✅ 0.13.0 | ✅ 0.15.0 |
 | **Ekran Görüntüsünü Sor**: donmuş ekrandan bir alan ya da pencere seçip Hızlı Sohbet'te sorma (tray menüsü, isteğe bağlı kısayol) | ✅ 0.14.0 | ⬜ |
 | **Yeni Proje** kartı: ilk prompt, `git init`, plan modu ve şablonlar | ✅ 0.4.0 | ✅ 0.8.0 |
 | Terminal seçimi | ✅ 0.1.0: Windows Terminal ya da konsol penceresi | ✅ 0.8.0: Terminal ya da iTerm2 |
@@ -63,7 +63,7 @@ Rondel'in Windows'ta ve macOS'ta hangi özelliklere sahip olduğu ve her birinin
 | İngilizce ve Türkçe | ✅ 0.1.0 | ✅ 0.8.0 |
 | Rondel'in yayın anahtarıyla doğrulanan, uygulama içinden güncelleme | ✅ 0.7.0 | ✅ 0.15.0 |
 | Tanılama: hata ayıklama logu ve `--probe` | ✅ 0.1.0 | ✅ 0.8.0 |
-| İlk açılışta menünün nasıl açıldığını gösteren hoş geldiniz penceresi; tepsi menüsünden yeniden açılır | ✅ 0.11.0 | ⬜ |
+| İlk açılışta menünün nasıl açıldığını gösteren hoş geldiniz penceresi; tepsi menüsünden yeniden açılır | ✅ 0.11.0 | ✅ 0.15.0 |
 
 ## Planlananlar
 

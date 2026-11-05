@@ -25,6 +25,9 @@ internal sealed class FinderDetector(Func<AppSettings> settings)
     /// <summary>The desktop's windows (Finder's icons, the wallpaper) are far below every app window.</summary>
     const long DesktopLayerBelow = -1_000_000_000;
 
+    /// <summary>Above this many selected items the selection is not read, as on Windows.</summary>
+    const int MaxSelectedItems = 300;
+
     public TriggerContext Detect(CGPoint point)
     {
         var trace = Log.DebugEnabled ? new List<string>() : null;
@@ -59,7 +62,7 @@ internal sealed class FinderDetector(Func<AppSettings> settings)
         // The innermost element below the window that names a file or folder.
         string? item = chain.Take(window >= 0 ? window : chain.Count).FirstOrDefault(n => n.Url is not null)?.Url;
         if (item is not null)
-            return ForItem(item);
+            return ForItem(item, trace);
 
         if (place == Place.Desktop)
         {
@@ -76,7 +79,7 @@ internal sealed class FinderDetector(Func<AppSettings> settings)
             : TriggerContext.None(reason);
     }
 
-    static TriggerContext ForItem(string url)
+    static TriggerContext ForItem(string url, List<string>? trace)
     {
         string path = Trim(Workspace.ResolveAlias(url));
         if (Directory.Exists(path) && !Workspace.IsPackage(path))
@@ -88,9 +91,26 @@ internal sealed class FinderDetector(Func<AppSettings> settings)
                 Directory.Exists(path) ? "package" : "file")
             {
                 FilePath = path,
+                SelectedFiles = File.Exists(path) ? SelectedFilesAround(path, trace) : [],
             };
         }
         return TriggerContext.None($"'{path}' does not exist");
+    }
+
+    /// <summary>The selected files when <paramref name="file"/> is one of several (<see cref="FileSelection.Around"/>).</summary>
+    static IReadOnlyList<string> SelectedFilesAround(string file, List<string>? trace)
+    {
+        var selected = FinderScript.Selection(MaxSelectedItems, out string reason);
+        trace?.Add($"Selection: {reason}");
+        if (selected is null)
+        {
+            if (reason.StartsWith("more than", StringComparison.Ordinal))
+                Log.Info($"More than {MaxSelectedItems} items are selected; the menu is about the held file only");
+            return [];
+        }
+        var files = FileSelection.Around(file, [.. selected.Select(Trim)], File.Exists);
+        trace?.Add($"{files.Count} file(s) asked about together");
+        return files;
     }
 
     enum Place { Other, FinderWindow, Desktop }

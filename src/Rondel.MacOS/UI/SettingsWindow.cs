@@ -50,13 +50,18 @@ internal sealed class SettingsWindow : Window
     TextBlock _rootStatus = null!, _commandLabel = null!, _commandStatus = null!, _terminalStatus = null!;
     TextBlock _accentName = null!, _accentStatus = null!, _holdValue = null!, _autostartStatus = null!;
     Slider _hold = null!;
-    CheckBox _cardPrompt = null!, _cardGit = null!, _cardPlan = null!, _cardTemplates = null!, _autostart = null!, _debug = null!;
+    CheckBox _cardPrompt = null!, _cardGit = null!, _cardPlan = null!, _cardTemplates = null!, _autostart = null!, _debug = null!, _quickCard = null!;
     WrapPanel _themeCards = null!;
     StackPanel _swatches = null!, _customAccent = null!;
     Button _openLoginItems = null!, _checkNow = null!;
     CheckBox _checkUpdates = null!;
     TextBlock _updateStatus = null!;
     PermissionRow _accessibility = null!, _finder = null!;
+    ColorDot _accentFromDot = null!, _accentToDot = null!;
+    readonly ColorPicker _picker = new();
+    readonly Flyout _pickerFlyout = new() { Placement = PlacementMode.BottomEdgeAlignedLeft };
+    /// <summary>The hex box the open color picker edits.</summary>
+    TextBox? _pickingBox;
 
     public SettingsWindow(AppHost host)
     {
@@ -81,9 +86,16 @@ internal sealed class SettingsWindow : Window
         };
         KeyDown += (_, e) =>
         {
-            if (e.Key == Key.Escape)
+            if (e.Key != Key.Escape)
+                return;
+            // Esc closes the color picker first, then the window.
+            if (_pickerFlyout.IsOpen)
+                _pickerFlyout.Hide();
+            else
                 Close();
+            e.Handled = true;
         };
+        SetUpAccentPicker();
         Closed += (_, _) =>
         {
             Loc.Changed -= Rebuild;
@@ -126,6 +138,7 @@ internal sealed class SettingsWindow : Window
             _debug.IsChecked = s.DebugLogging;
             _checkUpdates.IsChecked = s.Updates.Check;
             _cardPrompt.IsChecked = s.NewProjectCard.Prompt;
+            _quickCard.IsChecked = s.Quick.PromptCard;
             _cardGit.IsChecked = s.NewProjectCard.Git;
             _cardPlan.IsChecked = s.NewProjectCard.Plan;
             _cardTemplates.IsChecked = s.NewProjectCard.Templates;
@@ -247,7 +260,17 @@ internal sealed class SettingsWindow : Window
             _mode = Combo(OnModeChanged, ("Auto", Loc.Get("Settings.Mode.Auto.Mac")), ("Dark", Loc.Get("Settings.Mode.Dark")), ("Light", Loc.Get("Settings.Mode.Light"))))));
         _accentFrom = Box(CommitCustomAccent);
         _accentTo = Box(CommitCustomAccent);
-        _accentFrom.Width = _accentTo.Width = 110;
+        _accentFrom.Width = _accentTo.Width = 130;
+        _accentFromDot = new ColorDot(_look);
+        _accentToDot = new ColorDot(_look);
+        foreach (var (box, dot) in new[] { (_accentFrom, _accentFromDot), (_accentTo, _accentToDot) })
+        {
+            ToolTip.SetTip(dot, Loc.Get("Settings.Accent.Pick"));
+            AutomationProperties.SetName(dot, Loc.Get("Settings.Accent.Pick"));
+            dot.Clicked += () => PickAccentColor(box);
+            box.InnerLeftContent = dot;
+            box.TextChanged += (_, _) => ShowAccentDots();
+        }
         page.Children.Add(Card(new StackPanel
         {
             Children =
@@ -344,11 +367,21 @@ internal sealed class SettingsWindow : Window
         page.Children.Add(Card(Row(Loc.Get("Settings.Templates"), Loc.Get("Settings.Templates.Desc"),
             Button(Loc.Get("NewProject.OpenTemplates"), _host.OpenTemplatesFolder))));
 
+        page.Children.Add(Section("Settings.Quick"));
+        page.Children.Add(Card(new StackPanel
+        {
+            Children =
+            {
+                (_quickCard = Check(Loc.Get("Settings.Quick.Card"), OnQuickCardClicked)),
+                Description(Loc.Get("Settings.Quick.Card.Desc"), new Thickness(28, 2, 0, 0)),
+            },
+        }));
+
         page.Children.Add(Section("Settings.Permissions"));
         page.Children.Add(Card(_accessibility = new PermissionRow(Loc.Get("Settings.Permissions.Accessibility"),
-            Loc.Get("Settings.Permissions.Accessibility.Desc"), _host.AllowAccessibility, this)));
+            Loc.Get("Settings.Permissions.Accessibility.Desc"), _host.AllowAccessibility, _look)));
         page.Children.Add(Card(_finder = new PermissionRow(Loc.Get("Settings.Permissions.Finder"),
-            Loc.Get("Settings.Permissions.Finder.Desc"), _host.AllowFinderAccess, this)));
+            Loc.Get("Settings.Permissions.Finder.Desc"), _host.AllowFinderAccess, _look)));
 
         page.Children.Add(Section("Settings.System"));
         page.Children.Add(Card(new StackPanel
@@ -624,6 +657,48 @@ internal sealed class SettingsWindow : Window
         RefreshPreviews(Store.Current.Appearance);
     }
 
+    /// <summary>
+    /// The color picker of a custom accent color: it edits the hex box as it is dragged and saves the color once the
+    /// mouse is released, as Enter in the box does.
+    /// </summary>
+    void SetUpAccentPicker()
+    {
+        _pickerFlyout.Content = _picker;
+        _picker.Changing += color =>
+        {
+            if (_pickingBox is not null)
+                _pickingBox.Text = AppearanceOptions.FormatColor(color);
+        };
+        _picker.Committed += color =>
+        {
+            if (_pickingBox is null)
+                return;
+            _pickingBox.Text = AppearanceOptions.FormatColor(color);
+            CommitCustomAccent();
+        };
+        _pickerFlyout.Closed += (_, _) => _pickingBox = null;
+    }
+
+    /// <summary>Opens the color picker under <paramref name="box"/>, on the color in it.</summary>
+    void PickAccentColor(TextBox box)
+    {
+        _pickingBox = box;
+        _picker.SetColor(PickerStart(box));
+        _pickerFlyout.ShowAt(box);
+    }
+
+    /// <summary>The box's color; an empty end is the start color once more, so the picker starts from it.</summary>
+    uint PickerStart(TextBox box) =>
+        AppearanceOptions.ParseColor(box.Text) ?? AppearanceOptions.ParseColor(_accentFrom.Text) ?? 0xFF6B7280;
+
+    /// <summary>The dots show the colors as they are typed; an empty end shows the start color it repeats.</summary>
+    void ShowAccentDots()
+    {
+        uint? from = AppearanceOptions.ParseColor(_accentFrom.Text);
+        _accentFromDot.Show(from);
+        _accentToDot.Show(AppearanceOptions.ParseColor(_accentTo.Text) ?? ((_accentTo.Text ?? "").Trim().Length == 0 ? from : null));
+    }
+
     void CommitCustomAccent()
     {
         if (_loading)
@@ -751,6 +826,14 @@ internal sealed class SettingsWindow : Window
             Store.Update(s => s.Terminal = terminal);
             UpdateStatus();
         }
+    }
+
+    void OnQuickCardClicked()
+    {
+        if (_loading)
+            return;
+        bool card = _quickCard.IsChecked == true;
+        Store.Update(s => s.Quick.PromptCard = card);
     }
 
     void OnNewProjectCardClicked()
@@ -990,49 +1073,6 @@ internal sealed class SettingsWindow : Window
                 : IsFocused ? _look.SubText
                 : IsPointerOver ? _look.Hover
                 : Brushes.Transparent;
-        }
-    }
-
-    /// <summary>A permission: what it is for, whether it is granted, and a button that asks for it while it is not.</summary>
-    sealed class PermissionRow : Grid
-    {
-        readonly Ellipse _dot = new() { Width = 8, Height = 8, Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center };
-        readonly TextBlock _state;
-        readonly Button _allow;
-
-        public PermissionRow(string title, string description, Action allow, SettingsWindow page)
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto");
-            _state = page.Inline("");
-            _allow = Button(Loc.Get("Settings.Permissions.Allow"), allow);
-            _allow.Margin = new Thickness(12, 0, 0, 0);
-            var text = new StackPanel
-            {
-                Margin = new Thickness(0, 0, 16, 0),
-                Children =
-                {
-                    page.Label(title),
-                    page.Description(description),
-                },
-            };
-            var right = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center,
-                Children = { _dot, _state, _allow },
-            };
-            Children.Add(text);
-            SetColumn(right, 1);
-            Children.Add(right);
-        }
-
-        /// <param name="granted">Null while it is not known yet.</param>
-        public void Show(bool? granted)
-        {
-            _state.Text = granted is null ? "" : Loc.Get(granted.Value ? "Settings.Permissions.Granted" : "Settings.Permissions.Missing");
-            _dot.IsVisible = granted is not null;
-            _dot.Fill = granted == true ? new SolidColorBrush(Color.FromRgb(0x34, 0xC7, 0x59)) : new SolidColorBrush(Color.FromRgb(0xFF, 0x9F, 0x0A));
-            _allow.IsVisible = granted == false;
         }
     }
 }

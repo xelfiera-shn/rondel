@@ -60,6 +60,9 @@ internal static class DevTools
             case ["--render-settings", var output, .. var options]:
                 RenderSettings(output, options);
                 return true;
+            case ["--render-welcome", var output, .. var options]:
+                RenderWelcome(output, options);
+                return true;
             case ["--render-update", var output, .. var options]:
                 RenderUpdate(output, options);
                 return true;
@@ -93,6 +96,8 @@ internal static class DevTools
         report.AppendLine($"Folder: {context.TargetDir}");
         if (context.FilePath is not null)
             report.AppendLine($"File: {context.FilePath}");
+        if (context.SelectedFiles.Count > 1)
+            report.AppendLine($"Files: {string.Join(" | ", context.SelectedFiles)}");
         report.AppendLine($"Name: {context.DisplayName}");
         report.AppendLine($"Reason: {context.Reason}");
         if (context.Kind != Core.Context.ContextKind.None)
@@ -114,9 +119,10 @@ internal static class DevTools
 
     /// <summary>
     /// Draws the menu into a PNG without showing it, for checking the design:
-    /// <c>--render-menu out.png [dark|light] [en|tr] [desktop|item] [theme=ID] [hover=N] [open|deep] [edge] [FOLDER|FILE]</c>.
+    /// <c>--render-menu out.png [dark|light] [en|tr] [desktop|item] [theme=ID] [hover=N] [open|deep] [edge] [FOLDER|FILE...]</c>.
     /// The Finder-window menu for a folder by default (the desktop menu with <c>desktop</c>, the folder's own menu with
-    /// <c>item</c>, a file's menu when given a file), with its real session hints and items. <c>open</c> hovers the first
+    /// <c>item</c>, a file's menu when given a file, held in a selection of them when given several), with its real
+    /// session hints and items. <c>open</c> hovers the first
     /// slice that opens and its newest item, <c>deep</c> also the first of its items that opens further; <c>edge</c> draws
     /// it as if opened at the left edge of the screen.
     /// </summary>
@@ -129,10 +135,15 @@ internal static class DevTools
             settings.Appearance.Theme = theme["theme=".Length..];
         int hover = options.FirstOrDefault(o => o.StartsWith("hover=", StringComparison.Ordinal)) is { } h
             ? int.Parse(h["hover=".Length..], CultureInfo.InvariantCulture) : -1;
-        string path = options.LastOrDefault(o => o.StartsWith('/')) ?? settings.ResolveProjectsRoot();
+        string[] paths = [.. options.Where(o => o.StartsWith('/'))];
+        string path = paths.FirstOrDefault() ?? settings.ResolveProjectsRoot();
         string name = Path.GetFileName(Path.TrimEndingDirectorySeparator(path));
         var context = options.Contains("desktop") ? new TriggerContext(ContextKind.DesktopEmpty, settings.ResolveProjectsRoot(), name, "render")
-            : File.Exists(path) ? new TriggerContext(ContextKind.FileItem, Path.GetDirectoryName(path), name, "render") { FilePath = path }
+            : File.Exists(path) ? new TriggerContext(ContextKind.FileItem, Path.GetDirectoryName(path), name, "render")
+            {
+                FilePath = path,
+                SelectedFiles = paths.Length > 1 ? paths : [],
+            }
             : new TriggerContext(options.Contains("item") ? ContextKind.FolderItem : ContextKind.ExplorerEmpty, path, name, "render");
 
         AppBuilder.Configure<App>().UsePlatformDetect()
@@ -188,10 +199,6 @@ internal static class DevTools
         bitmap.Save(output, new PngBitmapEncoderOptions());
     }
 
-    /// <summary>
-    /// Draws the whole settings page, without scrolling, into a PNG at 2x: <c>--render-settings out.png [dark|light] [en|tr]</c>.
-    /// It works on a copy of settings.json, so a running Rondel and the real file are not touched.
-    /// </summary>
     /// <summary>
     /// Draws the update window for a made-up 0.15.0 over 0.14.0 into a PNG at 2x:
     /// <c>--render-update out.png [dark|light] [en|tr] [working|failed]</c>. The notes mix lines for both apps; the
@@ -263,6 +270,54 @@ internal static class DevTools
             throw new InvalidOperationException($"iconutil failed ({process.ExitCode})");
     }
 
+    /// <summary>
+    /// Draws the welcome window at one moment of its picture into a PNG at 2x:
+    /// <c>--render-welcome out.png [dark|light] [en|tr] [t=SECONDS]</c>, by default the still moment shown when Reduce
+    /// Motion is on. It works on a copy of settings.json, so a running Rondel and the real file are not touched.
+    /// </summary>
+    static void RenderWelcome(string output, string[] options)
+    {
+        AppBuilder.Configure<App>().UsePlatformDetect()
+            .With(new FontManagerOptions { DefaultFamilyName = ".AppleSystemUIFont" })
+            .SetupWithoutStarting();
+        string copy = Directory.CreateTempSubdirectory("rondel-settings-").FullName;
+        string file = Path.Combine(AppInfo.SettingsDirectory, "settings.json");
+        if (File.Exists(file))
+            File.Copy(file, Path.Combine(copy, "settings.json"));
+        var host = new AppHost(copy);
+        if (options.FirstOrDefault(o => o is "en" or "tr") is { } language)
+            Loc.SetLanguage(language);
+        double moment = options.FirstOrDefault(o => o.StartsWith("t=", StringComparison.Ordinal)) is { } t
+            ? double.Parse(t[2..], CultureInfo.InvariantCulture) : WelcomeWindow.StillMoment;
+        var window = new WelcomeWindow(host)
+        {
+            RequestedThemeVariant = options.Contains("light") ? Avalonia.Styling.ThemeVariant.Light : Avalonia.Styling.ThemeVariant.Dark,
+        };
+        const double Width = 600, Height = 900;
+        var page = (Control)window.Content!;
+        window.Content = null;
+        var root = new Avalonia.Controls.Panel { Width = Width, Height = Height, Background = window.Background, Children = { page } };
+        window.Content = root;
+        window.ShowMoment(moment);
+        for (int pass = 0; pass < 3; pass++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            window.Measure(new Size(Width, Height));
+            window.Arrange(new Rect(0, 0, Width, Height));
+        }
+        var bitmap = new RenderTargetBitmap(new PixelSize((int)(Width * 2), (int)(Height * 2)), new Vector(192, 192));
+        bitmap.Render(root);
+        bitmap.Save(output, new PngBitmapEncoderOptions());
+        window.Close();
+        host.Dispose();
+        Directory.Delete(copy, recursive: true);
+    }
+
+    /// <summary>
+    /// Draws the whole settings page, without scrolling, into a PNG at 2x:
+    /// <c>--render-settings out.png [dark|light] [en|tr] [custom]</c>, with <c>custom</c> a custom accent and its color
+    /// dots. It works on a copy of settings.json, so a running Rondel and the real file are not touched.
+    /// </summary>
     static void RenderSettings(string output, string[] options)
     {
         AppBuilder.Configure<App>().UsePlatformDetect()
@@ -275,6 +330,14 @@ internal static class DevTools
         var host = new AppHost(copy);
         if (options.FirstOrDefault(o => o is "en" or "tr") is { } language)
             Loc.SetLanguage(language);
+        if (options.Contains("custom"))
+        {
+            host.Store.Update(s =>
+            {
+                s.Appearance.AccentFrom = "#F97316";
+                s.Appearance.AccentTo = "#DB2777";
+            });
+        }
         var window = new SettingsWindow(host)
         {
             RequestedThemeVariant = options.Contains("light") ? Avalonia.Styling.ThemeVariant.Light : Avalonia.Styling.ThemeVariant.Dark,
