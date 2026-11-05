@@ -1,5 +1,7 @@
 using System.Windows;
 using System.Windows.Threading;
+using Rondel.Core;
+using Rondel.Core.Localization;
 using Rondel.Core.Logging;
 using Rondel.Windows.Updates;
 
@@ -56,8 +58,21 @@ public partial class App : Application
             args.SetObserved();
         };
 
-        _host = new AppHost();
-        _host.Start();
+        // A tray app that fails here would keep running without its icon and its hook, and hold the single-instance
+        // mutex, so every later start would only knock on it and leave. Say why, and exit instead.
+        try
+        {
+            _host = new AppHost();
+            _host.Start();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Starting failed", ex);
+            MessageBox.Show(Loc.Format("Startup.Failed", ex.Message, Log.Directory), AppInfo.Name,
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown();
+            return;
+        }
         if (updatedFrom is { } from)
             _host.ShowUpdated(from);
         if (e.Args.Contains("--show-menu", StringComparer.OrdinalIgnoreCase))

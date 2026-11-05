@@ -77,6 +77,35 @@ public class ClaudeCodeSessionStoreTests
     }
 
     [Fact]
+    public void LinesOfAnotherShapeAreSkippedOnTheWayToTheTitle()
+    {
+        var root = Directory.CreateTempSubdirectory("rondel-tests-");
+        try
+        {
+            string target = Path.Combine(root.FullName, "work");
+            string projects = Path.Combine(root.FullName, "projects");
+            string sessions = Directory.CreateDirectory(Path.Combine(projects, ClaudeCodeSessionStore.Encode(target))).FullName;
+            File.WriteAllLines(Path.Combine(sessions, "odd.jsonl"),
+            [
+                "{\"type\":1}",
+                "[{\"type\":\"user\"}]",
+                "{\"type\":\"custom-title\",\"customTitle\":5}",
+                "{\"type\":\"user\",\"message\":\"not an object\"}",
+                "{\"type\":\"user\",\"message\":{\"content\":[42,{\"type\":\"text\",\"text\":7},{\"type\":3}]}}",
+                "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"Check the build\"}]}}",
+            ]);
+
+            var recent = new ClaudeCodeSessionStore(projects).Recent(target, 5);
+
+            Assert.Equal(["Check the build"], recent.Select(s => s.Title)); // one odd line used to leave the whole list empty
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public void RecentFoldersListsTheNewestProjectsAndSkipsIgnoredAndDeletedFolders()
     {
         var root = Directory.CreateTempSubdirectory("rondel-tests-");

@@ -281,8 +281,9 @@ public sealed partial class ClaudeCodeSessionStore : ISessionStore
             {
                 using var json = JsonDocument.Parse(line);
                 var root = json.RootElement;
-                string? type = root.TryGetProperty("type", out var t) ? t.GetString() : null;
-                switch (type)
+                if (root.ValueKind != JsonValueKind.Object)
+                    continue;
+                switch (StringField(root, "type"))
                 {
                     case "custom-title":
                         custom = StringField(root, "customTitle") ?? custom;
@@ -298,9 +299,9 @@ public sealed partial class ClaudeCodeSessionStore : ISessionStore
                         break;
                 }
             }
-            catch (JsonException)
+            catch (Exception ex) when (ex is JsonException or InvalidOperationException)
             {
-                // A line being written right now, or a format change: skip it.
+                // A line being written right now, or a format change (a value of another kind): skip it.
             }
         }
     }
@@ -313,15 +314,16 @@ public sealed partial class ClaudeCodeSessionStore : ISessionStore
     {
         if (root.TryGetProperty("isMeta", out var meta) && meta.ValueKind == JsonValueKind.True)
             return null;
-        if (!root.TryGetProperty("message", out var message) || !message.TryGetProperty("content", out var content))
+        if (!root.TryGetProperty("message", out var message) || message.ValueKind != JsonValueKind.Object
+            || !message.TryGetProperty("content", out var content))
             return null;
         string? text = content.ValueKind switch
         {
             JsonValueKind.String => content.GetString(),
             JsonValueKind.Array => content.EnumerateArray()
-                .Where(b => b.TryGetProperty("type", out var t) && t.GetString() == "text" && b.TryGetProperty("text", out _))
-                .Select(b => b.GetProperty("text").GetString())
-                .FirstOrDefault(),
+                .Where(b => b.ValueKind == JsonValueKind.Object && StringField(b, "type") == "text")
+                .Select(b => StringField(b, "text"))
+                .FirstOrDefault(t => t is not null),
             _ => null,
         };
         text = text?.Trim();

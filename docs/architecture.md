@@ -136,7 +136,7 @@ Claude Code keeps each session as `~/.claude/projects/<encoded folder>/<session 
 
 ## Settings
 
-- `%APPDATA%\Rondel\settings.json` (macOS: `~/Library/Application Support/Rondel/settings.json`). The file is watched, so edits apply without a restart; saves are atomic, and an unreadable file is backed up before it is overwritten.
+- `%APPDATA%\Rondel\settings.json` (macOS: `~/Library/Application Support/Rondel/settings.json`). The file is watched, so edits apply without a restart; saves are atomic, and an unreadable file is backed up before it is overwritten. Keys are read regardless of case; of two that differ only in case, the later one wins. A file that cannot be read or repaired means the defaults, never a failed start; and if starting fails anyway, Windows says so in a message and exits, instead of running on without its icon and holding the single-instance mutex.
 - Comments and trailing commas are accepted. Non-ASCII characters are written as they are, so Turkish paths stay readable. Icons are Segoe Fluent Icons code points in hex (`"E8F4"`).
 - Enum values are written as names. A value this version does not know (written by a newer Rondel) reads as the default, with a warning in the log, instead of making the whole file unreadable.
 - The serializer is generated at build time (`SettingsJsonContext`), without reflection, so the core works in a NativeAOT build; `IsAotCompatible` makes the build warn about anything that would break that.
