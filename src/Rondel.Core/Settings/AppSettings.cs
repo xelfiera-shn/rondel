@@ -148,9 +148,7 @@ public sealed class AppSettings
         NormalizeAgents();
         NormalizeActions();
 
-        Menus = Menus is null
-            ? DefaultMenus()
-            : new Dictionary<string, List<string>>(Menus, StringComparer.OrdinalIgnoreCase);
+        Menus = Menus is null ? DefaultMenus() : IgnoringCase(Menus);
         foreach (var (context, ids) in DefaultMenus())
         {
             if (!Menus.TryGetValue(context, out var list) || list is null)
@@ -170,18 +168,17 @@ public sealed class AppSettings
             agent.Id = agent.Id.Trim();
             agent.Name = string.IsNullOrWhiteSpace(agent.Name) ? builtIn?.Name ?? agent.Id : agent.Name.Trim();
             agent.Command = string.IsNullOrWhiteSpace(agent.Command) ? builtIn?.Command ?? agent.Id : agent.Command.Trim();
-            agent.Capabilities = new Dictionary<string, List<string>>(
-                (agent.Capabilities ?? builtIn?.Capabilities ?? new Dictionary<string, List<string>>()).Where(c => c.Value is not null),
-                StringComparer.OrdinalIgnoreCase);
+            agent.Capabilities = IgnoringCase(
+                (agent.Capabilities ?? builtIn?.Capabilities ?? new Dictionary<string, List<string>>()).Where(c => c.Value is not null));
             // Missing in files written before file mentions existed; an empty string turns them off.
             agent.FileMention = (agent.FileMention ?? builtIn?.FileMention)?.Trim();
             // Missing in files written before Rondel followed agents; an empty list turns following off for the agent.
             agent.ActivityArgs ??= builtIn?.ActivityArgs is { } args ? new List<string>(args) : null;
             agent.ActivityArgs?.RemoveAll(a => a is null);
             // Missing in files written before Quick Conversation; an empty one hides it for the agent.
-            agent.EphemeralEnvironment = (agent.EphemeralEnvironment ?? builtIn?.EphemeralEnvironment)?
-                .Where(v => IsVariableName(v.Key) && v.Value is not null)
-                .ToDictionary(v => v.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
+            agent.EphemeralEnvironment = (agent.EphemeralEnvironment ?? builtIn?.EphemeralEnvironment) is { } environment
+                ? IgnoringCase(environment.Where(v => IsVariableName(v.Key) && v.Value is not null))
+                : null;
         }
         foreach (var builtIn in BuiltInAgents.Create())
         {
@@ -248,6 +245,18 @@ public sealed class AppSettings
             InsertIfDefault(nameof(ContextKind.DesktopEmpty), ["new-project", "recents", "agents"], "quick", after: "agents");
         SchemaVersion = CurrentSchemaVersion;
         WasMigrated = true;
+    }
+
+    /// <summary>
+    /// A copy that looks its keys up regardless of case, as Rondel reads them. A hand-edited file may hold two keys that
+    /// differ only in case ("FolderItem" and "folderitem"): the later one wins, as with a key written twice.
+    /// </summary>
+    static Dictionary<string, T> IgnoringCase<T>(IEnumerable<KeyValuePair<string, T>> entries)
+    {
+        var copy = new Dictionary<string, T>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in entries)
+            copy[key] = value;
+        return copy;
     }
 
     /// <summary>An environment variable's name: letters, digits and underscores, not starting with a digit.</summary>

@@ -5,6 +5,10 @@ namespace Rondel.Core.Tests;
 
 public class ClaudeCodeSessionStoreTests
 {
+    const string One = "11111111-2222-4333-8444-555555555555";
+    const string Two = "66666666-7777-4888-9999-aaaaaaaaaaaa";
+    const string Three = "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff";
+
     [Fact]
     public void EncodeReplacesEverythingButAsciiLettersAndDigits()
     {
@@ -21,9 +25,12 @@ public class ClaudeCodeSessionStoreTests
             string collidingFolder = Path.Combine(root.FullName, "work", "a-b"); // encodes to the same name
             string projects = Path.Combine(root.FullName, "projects");
             string sessions = Directory.CreateDirectory(Path.Combine(projects, ClaudeCodeSessionStore.Encode(target))).FullName;
-            File.WriteAllText(Path.Combine(sessions, "1.jsonl"), $"{{\"type\":\"user\",\"cwd\":{JsonSerializer.Serialize(target)}}}\n");
-            File.WriteAllText(Path.Combine(sessions, "2.jsonl"), $"{{\"type\":\"user\",\"cwd\":{JsonSerializer.Serialize(collidingFolder)}}}\n");
-            File.WriteAllText(Path.Combine(sessions, "3.jsonl"), ""); // just started, no cwd yet: counted
+            File.WriteAllText(Path.Combine(sessions, $"{One}.jsonl"), $"{{\"type\":\"user\",\"cwd\":{JsonSerializer.Serialize(target)}}}\n");
+            File.WriteAllText(Path.Combine(sessions, $"{Two}.jsonl"), $"{{\"type\":\"user\",\"cwd\":{JsonSerializer.Serialize(collidingFolder)}}}\n");
+            File.WriteAllText(Path.Combine(sessions, $"{Three}.jsonl"), ""); // just started, no cwd yet: counted
+            // Not a session: Claude Code's other files there, and nothing whose name is not a session id reaches --resume.
+            File.WriteAllText(Path.Combine(sessions, $"{One}.orphaned-1700000000-ab.jsonl"), $"{{\"type\":\"user\",\"cwd\":{JsonSerializer.Serialize(target)}}}\n");
+            File.WriteAllText(Path.Combine(sessions, "x&calc.jsonl"), $"{{\"type\":\"user\",\"cwd\":{JsonSerializer.Serialize(target)}}}\n");
 
             var info = new ClaudeCodeSessionStore(projects).Lookup(target);
 
@@ -47,14 +54,14 @@ public class ClaudeCodeSessionStoreTests
             string projects = Path.Combine(root.FullName, "projects");
             string sessions = Directory.CreateDirectory(Path.Combine(projects, ClaudeCodeSessionStore.Encode(target))).FullName;
             string cwd = JsonSerializer.Serialize(target);
-            string older = Path.Combine(sessions, "older.jsonl");
+            string older = Path.Combine(sessions, $"{One}.jsonl");
             File.WriteAllLines(older,
             [
                 $"{{\"type\":\"user\",\"cwd\":{cwd},\"isMeta\":true,\"message\":{{\"role\":\"user\",\"content\":\"Caveat: meta\"}}}}",
                 $"{{\"type\":\"user\",\"cwd\":{cwd},\"message\":{{\"role\":\"user\",\"content\":\"<command-name>/clear</command-name>\"}}}}",
                 $"{{\"type\":\"user\",\"cwd\":{cwd},\"message\":{{\"role\":\"user\",\"content\":[{{\"type\":\"text\",\"text\":\"  Fix the\\n login   page \"}}]}}}}",
             ]);
-            string newer = Path.Combine(sessions, "newer.jsonl");
+            string newer = Path.Combine(sessions, $"{Two}.jsonl");
             File.WriteAllLines(newer,
             [
                 $"{{\"type\":\"user\",\"cwd\":{cwd},\"message\":{{\"role\":\"user\",\"content\":\"first prompt\"}}}}",
@@ -67,8 +74,37 @@ public class ClaudeCodeSessionStoreTests
 
             var recent = new ClaudeCodeSessionStore(projects).Recent(target, 5);
 
-            Assert.Equal(["newer", "older"], recent.Select(s => s.Id));
+            Assert.Equal([Two, One], recent.Select(s => s.Id));
             Assert.Equal(["Rondel UI redesign", "Fix the login page"], recent.Select(s => s.Title));
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
+    public void LinesOfAnotherShapeAreSkippedOnTheWayToTheTitle()
+    {
+        var root = Directory.CreateTempSubdirectory("rondel-tests-");
+        try
+        {
+            string target = Path.Combine(root.FullName, "work");
+            string projects = Path.Combine(root.FullName, "projects");
+            string sessions = Directory.CreateDirectory(Path.Combine(projects, ClaudeCodeSessionStore.Encode(target))).FullName;
+            File.WriteAllLines(Path.Combine(sessions, $"{One}.jsonl"),
+            [
+                "{\"type\":1}",
+                "[{\"type\":\"user\"}]",
+                "{\"type\":\"custom-title\",\"customTitle\":5}",
+                "{\"type\":\"user\",\"message\":\"not an object\"}",
+                "{\"type\":\"user\",\"message\":{\"content\":[42,{\"type\":\"text\",\"text\":7},{\"type\":3}]}}",
+                "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"Check the build\"}]}}",
+            ]);
+
+            var recent = new ClaudeCodeSessionStore(projects).Recent(target, 5);
+
+            Assert.Equal(["Check the build"], recent.Select(s => s.Title)); // one odd line used to leave the whole list empty
         }
         finally
         {

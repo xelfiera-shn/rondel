@@ -119,7 +119,10 @@ public sealed class SettingsStore : IDisposable
             error = null;
             return true;
         }
-        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException or NotSupportedException)
+        // ArgumentException and InvalidOperationException: a value Normalize cannot repair. The file is then as unreadable
+        // as one with a syntax error, so the defaults are used and the file is kept, instead of Rondel failing to start.
+        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException or NotSupportedException
+            or ArgumentException or InvalidOperationException)
         {
             error = ex.Message;
             Log.Error($"Reading {FilePath} failed", ex);

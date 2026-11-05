@@ -60,7 +60,7 @@ Windows 11 Home's start page has no `UIItemsView`, so it does not trigger.
 - `CreateProcess` cannot start in a directory longer than `MAX_PATH`; in that case the process starts in the user profile and the script's `Set-Location` still goes to the target.
 - **Single-quoted literals:** double every `'` **and** the typographic quotes `‘ ’ ‚ ‛`, which PowerShell also treats as quotes.
 - **Embedded double quotes:** Windows PowerShell 5.1 (and pwsh below 7.3, or in `Legacy` mode) does not escape `"` inside arguments passed to native programs. The script escapes them at run time following `CommandLineToArgvW` rules; pwsh 7.3+ does it itself.
-- **npm `.cmd` shims:** `cmd.exe` cannot carry line breaks or quotes in one argument and may expand `%VAR%`. For such a shim the prompt is simplified and a warning is printed in the terminal. The native `claude.exe` has no such limitation.
+- **npm `.cmd` shims:** `cmd.exe` cannot carry line breaks or quotes in one argument and may expand `%VAR%`. For such a shim the prompt is simplified and a warning is printed in the terminal. It also reads the arguments twice (its command line, then `%*` in the shim) and takes `& | < > ^ ( )` outside quotes for its own, so every argument goes in double quotes, passed as it is (pwsh's Standard mode is set to Legacy for the call and put back after). The native `claude.exe` has no such limitation.
 - `PATH` is re-read from the registry on every launch, so tools installed after Rondel started are found.
 - `AllowSetForegroundWindow(ASFW_ANY)` lets an already-running Windows Terminal bring its new tab to the front.
 - "Command not found" is reported inside the terminal in the user's language. There is no hard pre-check, because aliases from the PowerShell profile are valid commands.

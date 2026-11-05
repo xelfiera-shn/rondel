@@ -67,11 +67,14 @@ public sealed class HookServer(AgentActivity activity) : IDisposable
     {
         string path = Path.Combine(directory, FileName);
         var (savedPort, savedToken) = Read(path);
-        string token = savedToken ?? Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));
         var listener = (savedPort > 0 ? Listen(savedPort) : null) ?? Listen(0);
         if (listener is null)
             return false;
         Port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        // Agents that run on keep the port and the token of the file they started with, so both stay while the port can
+        // be had again. When it cannot, whoever holds it now gets what those agents send, the token too: a new port gets
+        // a new token, which that one does not know.
+        string token = savedToken is not null && Port == savedPort ? savedToken : Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));
         try
         {
             string json = Build(Port, token);
