@@ -100,34 +100,40 @@ public sealed class HookServerTests : IDisposable
     [Fact]
     public void ANewPortGetsANewTokenSinceWhoeverHoldsTheOldOneHasSeenIt()
     {
-        int port;
-        string token;
-        using (var server = new HookServer(_activity))
-        {
-            Assert.True(server.Start(_directory));
-            port = server.Port;
-            token = HookServer.Read(_activity.HooksFile!).Token!;
-        }
-        using (var again = new HookServer(_activity))
-        {
-            Assert.True(again.Start(_directory));
-            Assert.Equal(token, HookServer.Read(_activity.HooksFile!).Token); // the port could be had: agents keep working
-        }
+        // A start reads the port and the token the one before wrote. Another process may take a port just let go (tests
+        // run in parallel), so the rule is checked against the port each start got: the same port keeps the token, so
+        // agents keep working, and another port gets a new one.
+        var (port, token) = StartAndStop();
+        var (againPort, againToken) = StartAndStop();
+        Assert.Equal(againPort == port, againToken == token);
 
-        // Someone else took the port while Rondel was not running: agents started before post to them.
-        var other = new System.Net.Sockets.TcpListener(IPAddress.Loopback, port);
-        other.Start();
+        // Someone else holds the port while Rondel was not running: agents started before post to them.
+        var other = new System.Net.Sockets.TcpListener(IPAddress.Loopback, againPort);
         try
         {
-            using var moved = new HookServer(_activity);
-            Assert.True(moved.Start(_directory));
-            Assert.NotEqual(port, moved.Port);
-            Assert.NotEqual(token, HookServer.Read(_activity.HooksFile!).Token);
+            other.Start();
+        }
+        catch (System.Net.Sockets.SocketException)
+        {
+            // Taken already by another process: the same case.
+        }
+        try
+        {
+            var (movedPort, movedToken) = StartAndStop();
+            Assert.NotEqual(againPort, movedPort);
+            Assert.NotEqual(againToken, movedToken);
         }
         finally
         {
             other.Stop();
         }
+    }
+
+    (int Port, string Token) StartAndStop()
+    {
+        using var server = new HookServer(_activity);
+        Assert.True(server.Start(_directory));
+        return (server.Port, HookServer.Read(_activity.HooksFile!).Token!);
     }
 
     Task<HttpResponseMessage> Post(int port, string token, string session, string body)
