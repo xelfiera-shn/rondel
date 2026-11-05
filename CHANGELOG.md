@@ -2,6 +2,12 @@
 
 Every version of Rondel, newest first. Until 1.0 only the two newest [releases](https://github.com/xelfiera-shn/rondel/releases) are kept for download; the notes of all versions are here.
 
+## 0.16.0 (2026-11-05)
+
+### Features
+
+- **windows:** Answer a Quick Conversation's first question on a card of its own (#101)
+
 ## 0.15.2 (2026-11-05)
 
 ### Bug fixes
