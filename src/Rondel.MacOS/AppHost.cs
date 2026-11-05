@@ -33,6 +33,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
     readonly FinderDetector _detector;
     readonly EventTap _tap;
     readonly MenuFlow _flow;
+    readonly QuickSweeper _quick;
     IDisposable? _accessibilityPoll;
     nint _activity;
     RadialMenuWindow? _menu;
@@ -49,6 +50,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         _tap = new EventTap(this);
         var launcher = new MacTerminalLauncher(message => Dispatcher.UIThread.Post(() => Warn(message)));
         _flow = new MenuFlow(this, launcher, new MacFolderNameValidator(), () => Store.Current, change => Store.Update(change));
+        _quick = new QuickSweeper(_flow);
         Updates = new MacUpdates(Store, () => QuitRequested?.Invoke());
         ApplySettings(Store.Current);
     }
@@ -124,6 +126,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
             };
         }
 
+        _quick.Start();
         // The event tap must answer within a fraction of a second, also after hours in the background.
         _activity = Native.BeginLatencyCriticalActivity("Rondel watches for Option + hold");
         // The first time, the welcome window says what the two permissions are for and asks for them; on later
@@ -356,11 +359,11 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
 
     /// <summary>
     /// Rondel does not follow agents on macOS yet (C-24), so an Active Agents slice could only ever say there are none:
-    /// it is left out. So is Quick Conversation (C-30), which needs that to delete what a session leaves once it ends.
+    /// it is left out.
     /// </summary>
     static MenuModel WithoutActiveAgents(MenuModel model) =>
-        model.Items.Any(item => MenuBuilder.ListsActiveAgents(item) || item.Action.Ephemeral)
-            ? model with { Items = [.. model.Items.Where(item => !MenuBuilder.ListsActiveAgents(item) && !item.Action.Ephemeral)] }
+        model.Items.Any(MenuBuilder.ListsActiveAgents)
+            ? model with { Items = [.. model.Items.Where(item => !MenuBuilder.ListsActiveAgents(item))] }
             : model;
 
     /// <summary>Session hints, a Resume slice's sessions and the recent projects are filled in when they arrive.</summary>
@@ -395,6 +398,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
     public void Dispose()
     {
         _accessibilityPoll?.Dispose();
+        _quick.Dispose();
         Updates.Dispose();
         _worker.Dispose();
         _menuBar.Dispose();
