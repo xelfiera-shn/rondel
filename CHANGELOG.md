@@ -2,6 +2,18 @@
 
 Every version of Rondel, newest first. Until 1.0 only the two newest [releases](https://github.com/xelfiera-shn/rondel/releases) are kept for download; the notes of all versions are here.
 
+## 0.15.0 (2026-11-05)
+
+### macOS
+
+- **macos:** Sign with a Developer ID and notarize the app (#81)
+- **macos:** Update Rondel from within the app (#83)
+- **macos:** Show a welcome window at the first start (#85)
+- **macos:** Give each menu key one job (#86)
+- **macos:** Pick the custom accent colors with a color picker (#87)
+- **macos:** Ask about several selected files (#89)
+- **macos:** Have a Quick Conversation that is not kept (#90)
+
 ## 0.14.0 (2026-11-03)
 
 ### Features
