@@ -119,6 +119,29 @@ public class SettingsTests
     }
 
     [Fact]
+    public void SchemaSevenLetsTheCardsAnswerSearchTheWebOnlyWhereItsArgumentsAreStillTheOldDefault()
+    {
+        const string old = """
+            ["-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
+             "--tools", "Read,WebSearch,WebFetch", "--permission-mode", "dontAsk"]
+            """;
+        string json = $$"""
+            { "SchemaVersion": 6, "Agents": [
+              { "Id": "claude-code", "Command": "claude", "AnswerArgs": {{old}} },
+              { "Id": "other", "Command": "other", "AnswerArgs": ["-p", "--permission-mode", "dontAsk"] } ] }
+            """;
+        var settings = SettingsJson.Deserialize(json)!;
+
+        settings.Normalize();
+
+        var answer = settings.FindAgent(BuiltInAgents.ClaudeCodeId)!.AnswerArgs!;
+        Assert.Equal(BuiltInAgents.ClaudeCode().AnswerArgs, answer);
+        Assert.Equal("WebSearch,WebFetch", answer[answer.IndexOf("--allowedTools") + 1]);
+        Assert.DoesNotContain("dontAsk", answer);
+        Assert.Equal(["-p", "--permission-mode", "dontAsk"], settings.FindAgent("other")!.AnswerArgs);
+    }
+
+    [Fact]
     public void TheAgentsCardIsOffUntilTurnedOnAndKeepsTheUsersChoices()
     {
         var fresh = new AppSettings();
