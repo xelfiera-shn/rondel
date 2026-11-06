@@ -31,7 +31,7 @@ public sealed class AppSettings
     /// Bumped whenever a default changes, so <see cref="Normalize"/> can migrate saved files.
     /// A migration only touches values that are still at the old default.
     /// </summary>
-    public const int CurrentSchemaVersion = 6;
+    public const int CurrentSchemaVersion = 7;
 
     /// <summary>0 for a file written by hand without the field.</summary>
     public int SchemaVersion { get; set; }
@@ -213,6 +213,13 @@ public sealed class AppSettings
         }
     }
 
+    /// <summary>Claude Code's <see cref="AgentProfile.AnswerArgs"/> as 0.16.0 saved them, before schema 7.</summary>
+    static readonly string[] AnswerArgsBeforeSeven =
+    [
+        "-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
+        "--tools", "Read,WebSearch,WebFetch", "--permission-mode", "dontAsk",
+    ];
+
     void Migrate()
     {
         if (SchemaVersion >= CurrentSchemaVersion)
@@ -249,6 +256,17 @@ public sealed class AppSettings
         // 6: Quick Conversation joined the desktop menu, after Active Agents.
         if (SchemaVersion < 6)
             InsertIfDefault(nameof(ContextKind.DesktopEmpty), ["new-project", "recents", "agents"], "quick", after: "agents");
+        // 7: The card's answer may search the web, and a conversation continued in a terminal is no longer held in
+        // dontAsk mode there. Only arguments still at the 0.16.0 default change.
+        if (SchemaVersion < 7)
+        {
+            foreach (var agent in Agents)
+            {
+                if (agent.AnswerArgs is { } answer && answer.SequenceEqual(AnswerArgsBeforeSeven, StringComparer.Ordinal)
+                    && BuiltInAgents.Find(agent.Id)?.AnswerArgs is { } builtIn)
+                    agent.AnswerArgs = [.. builtIn];
+            }
+        }
         SchemaVersion = CurrentSchemaVersion;
         WasMigrated = true;
     }
