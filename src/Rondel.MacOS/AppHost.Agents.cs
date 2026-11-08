@@ -22,7 +22,11 @@ internal sealed partial class AppHost
 
     void StartFollowingAgents()
     {
-        _agents.Changed += change => Dispatcher.UIThread.Post(() => OnAgentChanged(change));
+        _agents.Changed += change => Dispatcher.UIThread.Post(() =>
+        {
+            OnAgentChanged(change);
+            UpdateCard();
+        });
         _hooks = new HookServer(_agents);
         if (!_hooks.Start(Store.DirectoryPath))
             return;
@@ -96,6 +100,11 @@ internal sealed partial class AppHost
         if (_agentTerminals.IsForeground(change.Agent.Id))
         {
             Log.Debug($"Agent {change.Agent.Id}: {notice} not shown, its terminal is in front");
+            return;
+        }
+        if (options.Card.MuteNotifications && _card?.IsShown == true)
+        {
+            Log.Debug($"Agent {change.Agent.Id}: {notice} not shown, the agents card shows it");
             return;
         }
         var (title, text) = AgentNotices.Describe(change.Agent, notice);

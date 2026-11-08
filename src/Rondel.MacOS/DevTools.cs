@@ -68,6 +68,9 @@ internal static class DevTools
             case ["--render-sessions", var output, .. var options]:
                 RenderSessions(output, options);
                 return true;
+            case ["--render-card", var output, .. var options]:
+                RenderCard(output, options);
+                return true;
             case ["--render-update", var output, .. var options]:
                 RenderUpdate(output, options);
                 return true;
@@ -208,6 +211,28 @@ internal static class DevTools
         var bitmap = window.RenderNewProjectPreview(spec, "hava-durumu-api", prompt ? "Bir hava durumu API'si kur: şehir adıyla sorgulansın." : null,
             isDark ? Color.FromRgb(0x1E, 0x1E, 0x1E) : Color.FromRgb(0xEC, 0xEC, 0xEC));
         bitmap.Save(output, new PngBitmapEncoderOptions());
+    }
+
+    /// <summary>
+    /// Draws the agents card with made-up agents into a PNG at 2x:
+    /// <c>--render-card out.png [dark|light] [en|tr] [collapsed] [options] [empty]</c> (<c>options</c>: its own options open).
+    /// </summary>
+    static void RenderCard(string output, string[] options)
+    {
+        AppBuilder.Configure<App>().UsePlatformDetect()
+            .With(new FontManagerOptions { DefaultFamilyName = ".AppleSystemUIFont" })
+            .SetupWithoutStarting();
+        bool dark = !options.Contains("light");
+        Loc.SetLanguage(options.Contains("tr") ? "tr" : "en");
+        var settings = new AppSettings();
+        settings.Normalize();
+        var window = new AgentsCardWindow(MenuPalette.For(settings.Appearance, dark));
+        window.ShowAgents(options.Contains("empty") ? [] : MadeUpAgents());
+        window.SetOptions(settings.ActiveAgents.Card);
+        var background = dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6);
+        using var bitmap = window.RenderPreview(background, collapsed: options.Contains("collapsed"), options: options.Contains("options"));
+        bitmap.Save(output, new PngBitmapEncoderOptions());
+        window.Close();
     }
 
     /// <summary>Made-up agents in every state, for the pictures.</summary>

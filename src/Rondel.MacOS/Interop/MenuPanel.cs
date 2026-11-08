@@ -60,6 +60,22 @@ internal static unsafe class MenuPanel
         return true;
     }
 
+    /// <summary>
+    /// The agents card's layer: above other windows (NSFloatingWindowLevel), or on the desktop, right above its icons
+    /// and behind every window. On every Space; over full-screen apps only when <paramref name="overFullScreen"/>.
+    /// </summary>
+    public static void SetCardLayer(nint window, bool onDesktop, bool overFullScreen)
+    {
+        if (window == 0)
+            return;
+        const int DesktopIconLevelKey = 18;
+        long level = onDesktop ? CGWindowLevelForKey(DesktopIconLevelKey) + 1 : 3;
+        // canJoinAllSpaces | stationary (stays put in Mission Control) | ignoresCycle, and fullScreenAuxiliary when asked.
+        long behavior = 1 | 16 | 64 | (overFullScreen ? 256 : 0);
+        SendVoid(window, Sel("setLevel:"), level);
+        SendVoid(window, Sel("setCollectionBehavior:"), behavior);
+    }
+
     [UnmanagedCallersOnly]
     static byte IsNonactivatingPanel(nint self, nint selector) =>
         Panels.Contains(self) ? (byte)1 : ((delegate* unmanaged<nint, nint, byte>)s_original)(self, selector);

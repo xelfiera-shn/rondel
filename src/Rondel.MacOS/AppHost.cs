@@ -89,6 +89,11 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         _menuBar.SettingsClicked += OpenSettings;
         _menuBar.SessionsClicked += OpenSessions;
         _menuBar.HowToUseClicked += ShowWelcome;
+        _menuBar.ShowCardClicked += () =>
+        {
+            _card?.ShowAgain();
+            UpdateCardMenu();
+        };
         _menuBar.PauseClicked += () => Store.Update(s => s.Paused = !s.Paused);
         _menuBar.OpenLogsClicked += OpenLogFolder;
         _menuBar.QuitClicked += () => QuitRequested?.Invoke();
@@ -132,6 +137,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 
         _quick.Start();
         StartFollowingAgents();
+        StartCard();
         // The event tap must answer within a fraction of a second, also after hours in the background.
         _activity = Native.BeginLatencyCriticalActivity("Rondel watches for Option + hold");
         // The first time, the welcome window says what the two permissions are for and asks for them; on later
@@ -158,6 +164,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         _tap.Configure(settings.HoldMs, settings.Paused);
         _menuBar.Update(s => s with { Paused = settings.Paused });
         ApplyLook(settings);
+        UpdateCard();
     }
 
     /// <summary>The menu's theme, mode and accent; redrawn only when one of them changed (or macOS switched modes).</summary>
@@ -168,7 +175,9 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         if (_menu is null || (!force && look == _look))
             return;
         _look = look;
-        _menu.ApplyLook(Palette(settings));
+        var palette = Palette(settings);
+        _menu.ApplyLook(palette);
+        _card?.ApplyLook(palette);
     }
 
     static MenuPalette Palette(AppSettings settings) => MenuPalette.For(settings.Appearance, SystemIsDark);
@@ -422,6 +431,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
     {
         _accessibilityPoll?.Dispose();
         StopFollowingAgents();
+        _card?.Dispose();
         _quick.Dispose();
         Updates.Dispose();
         _worker.Dispose();

@@ -51,7 +51,9 @@ internal sealed class SettingsWindow : Window
     TextBlock _accentName = null!, _accentStatus = null!, _holdValue = null!, _autostartStatus = null!;
     Slider _hold = null!;
     CheckBox _cardPrompt = null!, _cardGit = null!, _cardPlan = null!, _cardTemplates = null!, _autostart = null!, _debug = null!, _quickCard = null!;
-    CheckBox _followAgents = null!, _notifyAsks = null!, _notifyFinished = null!;
+    CheckBox _followAgents = null!, _notifyAsks = null!, _notifyFinished = null!, _cardShow = null!, _cardFullScreen = null!, _cardMute = null!;
+    ComboBox _cardPlacement = null!;
+    StackPanel _cardOptions = null!;
     WrapPanel _themeCards = null!;
     StackPanel _swatches = null!, _customAccent = null!;
     Button _openLoginItems = null!, _checkNow = null!;
@@ -143,6 +145,13 @@ internal sealed class SettingsWindow : Window
             _followAgents.IsChecked = s.ActiveAgents.Follow;
             _notifyAsks.IsChecked = s.ActiveAgents.NotifyAsks;
             _notifyFinished.IsChecked = s.ActiveAgents.NotifyFinished;
+            var card = s.ActiveAgents.Card;
+            _cardShow.IsChecked = card.Show;
+            Select(_cardPlacement, card.Placement.ToString());
+            _cardFullScreen.IsChecked = card.OverFullScreen;
+            _cardMute.IsChecked = card.MuteNotifications;
+            _cardOptions.IsEnabled = card.Show;
+            _cardOptions.Opacity = card.Show ? 1 : 0.5;
             _cardGit.IsChecked = s.NewProjectCard.Git;
             _cardPlan.IsChecked = s.NewProjectCard.Plan;
             _cardTemplates.IsChecked = s.NewProjectCard.Templates;
@@ -374,6 +383,36 @@ internal sealed class SettingsWindow : Window
                 },
             },
         }));
+        page.Children.Add(Card(new StackPanel
+        {
+            Children =
+            {
+                (_cardShow = Check(Loc.Get("Settings.ActiveAgents.Card.Show"), OnAgentsCardClicked)),
+                Description(Loc.Get("Settings.ActiveAgents.Card.Show.Desc"), new Thickness(28, 2, 0, 0)),
+                (_cardOptions = new StackPanel
+                {
+                    Margin = new Thickness(28, 12, 0, 0),
+                    Children =
+                    {
+                        new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Children =
+                            {
+                                new TextBlock { Text = Loc.Get("Card.Placement"), VerticalAlignment = VerticalAlignment.Center, Foreground = _look.Text, Margin = new Thickness(0, 0, 12, 0) },
+                                (_cardPlacement = Combo(OnAgentsCardClicked, ("OnTop", Loc.Get("Card.OnTop")), ("OnDesktop", Loc.Get("Card.OnDesktop")))),
+                            },
+                        },
+                        (_cardFullScreen = Check(Loc.Get("Settings.ActiveAgents.Card.OverFullScreen"), OnAgentsCardClicked)),
+                        Description(Loc.Get("Settings.ActiveAgents.Card.OverFullScreen.Desc.Mac"), new Thickness(28, 2, 0, 0)),
+                        (_cardMute = Check(Loc.Get("Card.Mute"), OnAgentsCardClicked)),
+                        Description(Loc.Get("Settings.ActiveAgents.Card.Mute.Desc"), new Thickness(28, 2, 0, 0)),
+                    },
+                }),
+            },
+        }));
+        _cardFullScreen.Margin = new Thickness(0, 12, 0, 0);
+        _cardMute.Margin = new Thickness(0, 10, 0, 0);
 
         page.Children.Add(Section("Settings.NewProject"));
         page.Children.Add(Card(new StackPanel
@@ -872,6 +911,23 @@ internal sealed class SettingsWindow : Window
             s.ActiveAgents.NotifyAsks = asks;
             s.ActiveAgents.NotifyFinished = finished;
         });
+    }
+
+    void OnAgentsCardClicked()
+    {
+        if (_loading)
+            return;
+        bool show = _cardShow.IsChecked == true, fullScreen = _cardFullScreen.IsChecked == true, mute = _cardMute.IsChecked == true;
+        var placement = SelectedTag(_cardPlacement) == "OnDesktop" ? CardPlacement.OnDesktop : CardPlacement.OnTop;
+        Store.Update(s =>
+        {
+            s.ActiveAgents.Card.Show = show;
+            s.ActiveAgents.Card.Placement = placement;
+            s.ActiveAgents.Card.OverFullScreen = fullScreen;
+            s.ActiveAgents.Card.MuteNotifications = mute;
+        });
+        _cardOptions.IsEnabled = show;
+        _cardOptions.Opacity = show ? 1 : 0.5;
     }
 
     void OnQuickCardClicked()
