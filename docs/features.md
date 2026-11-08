@@ -50,7 +50,7 @@ Which features Rondel has on Windows and on macOS, and since which version. Down
 | A notification when an agent asks for something, is done or stops with an error; a click brings its terminal to the front | ✅ 0.6.0 | ⬜ |
 | **Active Agents** on the desktop menu, with a status dot for each agent, and a shortcut that opens it | ✅ 0.6.0 | ⬜ |
 | The agents card: the running agents in sight, above other windows or on the desktop, collapsed to a badge with the number that need you | ✅ 0.9.0 | ⬜ |
-| **Sessions**: every saved Claude Code session with the space it takes, to delete into the Recycle Bin or for good | ✅ 0.12.0 | ⬜ |
+| **Sessions**: every saved Claude Code session with the space it takes, to delete into the Recycle Bin (the Trash on macOS) or for good | ✅ 0.12.0 | ✅ 0.17.0 |
 
 ## The app
 

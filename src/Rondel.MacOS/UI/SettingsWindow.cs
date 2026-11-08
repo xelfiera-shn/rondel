@@ -395,6 +395,8 @@ internal sealed class SettingsWindow : Window
         }));
         _openLoginItems.HorizontalAlignment = HorizontalAlignment.Left;
         _openLoginItems.Margin = new Thickness(0, 8, 0, 0);
+        page.Children.Add(Card(Row(Loc.Get("Settings.Sessions"), Loc.Get("Settings.Sessions.Desc"),
+            Button(Loc.Get("Settings.Sessions.Open"), _host.OpenSessions))));
         page.Children.Add(Card(new StackPanel
         {
             Children =

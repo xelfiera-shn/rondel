@@ -20,7 +20,7 @@ internal sealed class QuickSweeper : IDisposable
     /// Where Claude Code keeps its temporary folders on macOS (a session's scratchpad among them); the core knows only
     /// the Windows one. A CLAUDE_CODE_TMPDIR set in the shell does not reach Rondel, so a folder under it stays.
     /// </summary>
-    static readonly string TempDirectory = $"/tmp/claude-{Native.UserId()}";
+    internal static readonly string TempDirectory = $"/tmp/claude-{Native.UserId()}";
 
     readonly string _directory;
     readonly object _lock = new();

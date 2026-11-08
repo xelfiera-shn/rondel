@@ -39,6 +39,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
     RadialMenuWindow? _menu;
     SettingsWindow? _settingsWindow;
     WelcomeWindow? _welcomeWindow;
+    SessionsWindow? _sessionsWindow;
     string? _look;
 
     /// <param name="settingsDirectory">Where settings.json is; the settings folder unless a diagnostic passes a copy.</param>
@@ -84,6 +85,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         _menuBar.AccessibilityClicked += AllowAccessibility;
         _menuBar.FinderAccessClicked += AllowFinderAccess;
         _menuBar.SettingsClicked += OpenSettings;
+        _menuBar.SessionsClicked += OpenSessions;
         _menuBar.HowToUseClicked += ShowWelcome;
         _menuBar.PauseClicked += () => Store.Update(s => s.Paused = !s.Paused);
         _menuBar.OpenLogsClicked += OpenLogFolder;
@@ -181,6 +183,28 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         if (_settingsWindow.WindowState == WindowState.Minimized)
             _settingsWindow.WindowState = WindowState.Normal;
         _settingsWindow.Activate();
+    }
+
+    /// <summary>The Sessions window: Claude Code's saved sessions, to see what they take and delete those not needed.</summary>
+    public void OpenSessions()
+    {
+        if (_sessionsWindow is { } open)
+        {
+            if (open.WindowState == WindowState.Minimized)
+                open.WindowState = WindowState.Normal;
+            open.Activate();
+            open.Refresh();
+            return;
+        }
+        var storage = new Core.Agents.ClaudeCode.ClaudeCodeStorage(tempDirectory: QuickSweeper.TempDirectory);
+        // A Quick Conversation is not a saved session, even while Claude Code still has something of it.
+        string quick = Core.Agents.ClaudeCode.ClaudeCodeSessionStore.Encode(Path.TrimEndingDirectorySeparator(_flow.QuickDirectory));
+        var window = new SessionsWindow(() => [.. storage.List().Where(p => !string.Equals(p.Key, quick, StringComparison.OrdinalIgnoreCase))],
+            storage.Delete, _flow.Resume, storage.CleanupPeriodDays());
+        window.Closed += (_, _) => _sessionsWindow = null;
+        _sessionsWindow = window;
+        window.Show();
+        window.Activate();
     }
 
     /// <summary>
