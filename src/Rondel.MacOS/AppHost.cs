@@ -26,7 +26,7 @@ namespace Rondel.MacOS;
 /// Composition root: wires the tap thread, the detection thread and the main thread together. IGestureSink
 /// callbacks arrive on the tap thread or a timer thread and are only forwarded from here.
 /// </summary>
-internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
+internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 {
     readonly MenuBar _menuBar = new();
     readonly DetectionWorker _worker = new();
@@ -48,8 +48,9 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         Store.Load();
         _detector = new FinderDetector(() => Store.Current);
         _tap = new EventTap(this);
-        var launcher = new MacTerminalLauncher(message => Dispatcher.UIThread.Post(() => Warn(message)));
-        _flow = new MenuFlow(this, launcher, new MacFolderNameValidator(), () => Store.Current, change => Store.Update(change));
+        var launcher = new MacTerminalLauncher(message => Dispatcher.UIThread.Post(() => Warn(message)), _agentTerminals);
+        _flow = new MenuFlow(this, launcher, new MacFolderNameValidator(), () => Store.Current, change => Store.Update(change),
+            activity: _agents);
         _quick = new QuickSweeper(_flow);
         Updates = new MacUpdates(Store, () => QuitRequested?.Invoke());
         ApplySettings(Store.Current);
@@ -127,6 +128,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         }
 
         _quick.Start();
+        StartFollowingAgents();
         // The event tap must answer within a fraction of a second, also after hours in the background.
         _activity = Native.BeginLatencyCriticalActivity("Rondel watches for Option + hold");
         // The first time, the welcome window says what the two permissions are for and asks for them; on later
@@ -343,7 +345,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
     {
         if (_menu is null)
             return;
-        if (_flow.Build(context) is not { } built || WithoutActiveAgents(built) is not { Items.Count: > 0 } model)
+        if (_flow.Build(context) is not { Items.Count: > 0 } model)
             return;
         try
         {
@@ -358,23 +360,17 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
     }
 
     /// <summary>
-    /// Rondel does not follow agents on macOS yet (C-24), so an Active Agents slice could only ever say there are none:
-    /// it is left out.
+    /// Session hints, a Resume slice's sessions, the recent projects and the active agents are filled in when they arrive.
     /// </summary>
-    static MenuModel WithoutActiveAgents(MenuModel model) =>
-        model.Items.Any(MenuBuilder.ListsActiveAgents)
-            ? model with { Items = [.. model.Items.Where(item => !MenuBuilder.ListsActiveAgents(item))] }
-            : model;
-
-    /// <summary>Session hints, a Resume slice's sessions and the recent projects are filled in when they arrive.</summary>
     void RequestDetails(MenuModel model)
     {
         if (!MenuDetails.Needed(model))
             return;
-        Task.Run(() => MenuDetails.Load(model)).ContinueWith(
+        var agents = _agents.Agents;
+        Task.Run(() => MenuDetails.Load(model, agents)).ContinueWith(
             lookup => Dispatcher.UIThread.Post(() =>
             {
-                _menu?.ApplyHints(model, lookup.Result.Hints);
+                _menu?.ApplyHints(model, lookup.Result.Hints, lookup.Result.States);
                 _menu?.ApplyChildren(model, lookup.Result.Children);
             }),
             TaskContinuationOptions.OnlyOnRanToCompletion);
@@ -395,12 +391,12 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
 
     void IMenuHost.ShowWarning(string message) => Warn(message);
 
-    /// <summary>Never called: the Active Agents slice is left out on macOS (<see cref="WithoutActiveAgents"/>).</summary>
-    void IMenuHost.FocusAgent(string id) => Log.Warn($"Bringing agent {id} to the front is not supported on macOS yet");
+    void IMenuHost.FocusAgent(string id) => FocusAgent(id);
 
     public void Dispose()
     {
         _accessibilityPoll?.Dispose();
+        StopFollowingAgents();
         _quick.Dispose();
         Updates.Dispose();
         _worker.Dispose();

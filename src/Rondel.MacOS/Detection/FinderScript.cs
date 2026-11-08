@@ -1,5 +1,4 @@
 using System.Globalization;
-using Avalonia.Threading;
 using Rondel.MacOS.Interop;
 using static Rondel.MacOS.Interop.Native;
 
@@ -8,7 +7,7 @@ namespace Rondel.MacOS.Detection;
 /// <summary>
 /// Asks Finder (Apple Events) which folder the Finder window at a point shows, and which items are selected. Needs
 /// the Automation permission for Finder, which is asked at start or from the menu bar, never here: without it these
-/// return null at once. NSAppleScript is not thread-safe, so the scripts run on the main thread.
+/// return null at once.
 /// </summary>
 internal static class FinderScript
 {
@@ -44,7 +43,7 @@ internal static class FinderScript
                 end tell
             end timeout
             """;
-        string? answer = RunOnMain(source, out string? error);
+        string? answer = AppleScript.Run(source, out string? error);
         if (answer is null)
         {
             reason = $"Finder did not answer: {error}";
@@ -82,7 +81,7 @@ internal static class FinderScript
             end repeat
             return out
             """;
-        string? answer = RunOnMain(source, out string? error);
+        string? answer = AppleScript.Run(source, out string? error);
         if (answer is null)
         {
             reason = $"Finder did not answer: {error}";
@@ -105,31 +104,5 @@ internal static class FinderScript
             : permission == AutomationDenied ? "no Automation permission for Finder (denied)"
             : $"no Automation permission for Finder yet ({permission})";
         return permission == AutomationAllowed;
-    }
-
-    static string? RunOnMain(string source, out string? error)
-    {
-        string? answer = null, failure = null;
-        if (IsMainThread() != 0)
-            answer = Run(source, out failure);
-        else
-            Dispatcher.UIThread.Invoke(() => answer = Run(source, out failure));
-        error = failure;
-        return answer;
-    }
-
-    /// <summary>On the main thread.</summary>
-    static unsafe string? Run(string source, out string? error)
-    {
-        using var pool = new AutoreleasePool();
-        nint text = CFString(source);
-        nint script = Send(Send(Class("NSAppleScript"), Sel("alloc")), Sel("initWithSource:"), text);
-        CFRelease(text);
-        nint errorInfo = 0;
-        nint result = Send(script, Sel("executeAndReturnError:"), (nint)(&errorInfo));
-        string? answer = result == 0 ? null : String(Send(result, Sel("stringValue")));
-        error = result == 0 ? (errorInfo == 0 ? "unknown error" : String(Send(errorInfo, Sel("description")))) : null;
-        Send(script, Sel("release"));
-        return answer;
     }
 }

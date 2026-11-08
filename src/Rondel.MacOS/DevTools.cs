@@ -6,6 +6,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Rondel.Core;
+using Rondel.Core.Activity;
 using Rondel.Core.Agents;
 using Rondel.Core.Context;
 using Rondel.Core.Flow;
@@ -124,7 +125,8 @@ internal static class DevTools
     /// <c>item</c>, a file's menu when given a file, held in a selection of them when given several), with its real
     /// session hints and items. <c>open</c> hovers the first
     /// slice that opens and its newest item, <c>deep</c> also the first of its items that opens further; <c>edge</c> draws
-    /// it as if opened at the left edge of the screen.
+    /// it as if opened at the left edge of the screen; <c>agents</c> opens the Active Agents slice into made-up agents in
+    /// every state.
     /// </summary>
     static void RenderMenu(string output, string[] options)
     {
@@ -151,13 +153,18 @@ internal static class DevTools
             .SetupWithoutStarting();
         bool isDark = dark ?? Application.Current?.PlatformSettings?.GetColorValues().ThemeVariant == Avalonia.Platform.PlatformThemeVariant.Dark;
         var model = MenuBuilder.Build(context, settings);
-        var details = MenuDetails.Needed(model) ? MenuDetails.Load(model) : null;
+        bool showAgents = options.Contains("agents");
+        var details = MenuDetails.Needed(model) ? MenuDetails.Load(model, showAgents ? MadeUpAgents() : null) : null;
         var hints = details?.Hints ?? [];
         var children = details?.Children ?? [.. model.Items.Select(_ => (IReadOnlyList<MenuItemModel>)[])];
         var hoverPath = new List<int>();
         if (hover >= 0)
         {
             hoverPath.Add(hover);
+        }
+        else if (showAgents && model.Items.ToList().FindIndex(MenuBuilder.ListsActiveAgents) is >= 0 and var agentsSlice)
+        {
+            hoverPath = [agentsSlice, 0];
         }
         else if (options.Contains("open") || options.Contains("deep"))
         {
@@ -167,7 +174,7 @@ internal static class DevTools
         }
         var window = new RadialMenuWindow(MenuPalette.For(settings.Appearance, isDark));
         var bitmap = window.RenderPreview(model, hints, children, hoverPath, isDark ? Color.FromRgb(0x1E, 0x1E, 0x1E) : Color.FromRgb(0xEC, 0xEC, 0xEC),
-            atLeftEdge: options.Contains("edge"));
+            atLeftEdge: options.Contains("edge"), states: details?.States);
         bitmap.Save(output, new PngBitmapEncoderOptions());
     }
 
@@ -197,6 +204,23 @@ internal static class DevTools
         var bitmap = window.RenderNewProjectPreview(spec, "hava-durumu-api", prompt ? "Bir hava durumu API'si kur: şehir adıyla sorgulansın." : null,
             isDark ? Color.FromRgb(0x1E, 0x1E, 0x1E) : Color.FromRgb(0xEC, 0xEC, 0xEC));
         bitmap.Save(output, new PngBitmapEncoderOptions());
+    }
+
+    /// <summary>Made-up agents in every state, for the pictures.</summary>
+    static List<ActiveAgent> MadeUpAgents()
+    {
+        string projects = Path.Combine(Path.GetTempPath(), "Projects");
+        var now = DateTime.UtcNow;
+        ActiveAgent Agent(string name, AgentState state, int minutes) =>
+            new(name, Path.Combine(projects, name), "Claude Code") { State = state, Since = now.AddMinutes(-minutes) };
+        return
+        [
+            Agent("weather-api", AgentState.Waiting, 1) with { Tool = "Bash" },
+            Agent("acme-dashboard", AgentState.Waiting, 3) with { Message = "Which database should I use?" },
+            Agent("mobile-app", AgentState.Failed, 6),
+            Agent("billing-service", AgentState.Ready, 4),
+            Agent("docs-site", AgentState.Working, 2),
+        ];
     }
 
     /// <summary>

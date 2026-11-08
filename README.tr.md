@@ -46,7 +46,7 @@ Rondel macOS 15 ve sonrasında çalışır, Dock'ta ikonu yoktur. Çalışırken
 | Bir klasörün üzerinde (masaüstü veya Dosya Gezgini) | Aç, Sor, Devam Et, Oturum Seç | O klasör |
 | Bir dosyanın üzerinde (masaüstü veya Dosya Gezgini) | Bu Dosyayı Sor, Burada Aç, Burada Devam Et, Burada Oturum Seç | Dosyanın bulunduğu klasör |
 
-macOS'ta da aynısıdır; Ctrl yerine ⌥ Option, Dosya Gezgini yerine Finder, varsayılan proje klasörü olarak `~/Projects` kullanılır. Masaüstü menüsünde henüz Aktif Ajanlar ve Hızlı Sohbet yoktur.
+macOS'ta da aynısıdır; Ctrl yerine ⌥ Option, Dosya Gezgini yerine Finder, varsayılan proje klasörü olarak `~/Projects` kullanılır.
 
 - **Aç** yeni bir oturum başlatır, **Devam Et** en son oturumu sürdürür, **Oturum Seç** listeden seçtirir (`claude`, `claude --continue`, `claude --resume`).
 - **Sor** ve **Burada Sor** yalnızca bir prompt sorar ve yeni oturumu onunla başlatır. **Bu Dosyayı Sor** aynısını dosyanın klasöründe yapar ve dosyayı prompt'un başına ekler (`@Program.cs`, boşluklu adlarda `@"Proje Notları.md"`); Claude Code dosyayı hemen okur. Birkaç dosya seçip birinin üzerinde basılı tutarsanız **Bu Dosyaları Sor** olur ve seçili dosyaların hepsi prompt'a eklenir.
@@ -81,7 +81,7 @@ macOS'ta da aynısıdır; Ctrl yerine ⌥ Option, Dosya Gezgini yerine Finder, v
 
 ## Aktif ajanlar
 
-Rondel başlattığı ajanları takip eder; terminallerine göz kulak olmanız gerekmez. Şimdilik yalnızca Windows'ta.
+Rondel başlattığı ajanları takip eder; terminallerine göz kulak olmanız gerekmez. macOS'ta kısayol ve ajan kartı henüz yoktur; Rondel bir ajanın terminalini ilk kez öne getirirken macOS, Rondel'in Terminal'i (ya da iTerm2'yi) kontrol etmesine izin verip vermediğinizi sorar: **İzin Ver**'i seçin.
 
 - **Bildirimler.** Bir ajan izin istediğinde ya da size bir soru sorduğunda, işini bitirdiğinde veya bir hatayla durduğunda gelen bildirim projenin adını ve ne gerektiğini söyler. Bildirime tıklayınca ajanın terminali öne gelir. O terminaldeyken bildirim gösterilmez.
 - **Aktif Ajanlar** (masaüstü menüsü) Rondel'den başlattığınız ajanlara açılır; sizi bekleyenler önce gelir. Her birinin yanındaki nokta ne yaptığını gösterir: sarı, izin ya da cevap bekliyor; yeşil, bitti; kırmızı, bir hatayla durdu; temanın vurgu rengi, çalışıyor. Birini seçince terminali öne gelir. Dilimin kendisi kaç ajanın beklediğini söyler.
@@ -113,7 +113,7 @@ macOS'ta güncelleme yeni Rondel.app'i eskisinin yerine koyar ve açar; bulundu�
 
 Tray ikonu → **Ayarlar…**: dil (Otomatik / English / Türkçe), menünün görünümü, proje klasörü, basılı tutma süresi, klavye kısayolu, ajanın komutu (`claude` ya da `cc` gibi bir alias), terminal (Windows Terminal veya konsol penceresi), kabuk (PowerShell 7 veya Windows PowerShell), ajanların takibi ile bildirimleri, kısayolu ve kartı, güncelleme denetimi, Yeni Proje kartındaki seçenekler, şablon klasörü ve hazır promptlar.
 
-macOS'ta menü çubuğu ikonu → **Ayarlar…** aynısını sunar; klavye kısayolu ve aktif ajanlar yoktur, terminal olarak Terminal ya da iTerm2 seçilir. Ajan giriş kabuğunuzda çalışır, bu yüzden `~/.zprofile` ve `~/.zshrc` içindeki `PATH` ve alias'lar geçerlidir. **İzinler** bölümü Erişilebilirlik ve Finder izinlerinin verilip verilmediğini gösterir; **Oturum açılınca başlat** Rondel'i giriş öğelerinize ekler.
+macOS'ta menü çubuğu ikonu → **Ayarlar…** aynısını sunar; klavye kısayolları ve ajan kartı yoktur, terminal olarak Terminal ya da iTerm2 seçilir. Ajan giriş kabuğunuzda çalışır, bu yüzden `~/.zprofile` ve `~/.zshrc` içindeki `PATH` ve alias'lar geçerlidir. **İzinler** bölümü Erişilebilirlik ve Finder izinlerinin verilip verilmediğini gösterir; **Oturum açılınca başlat** Rondel'i giriş öğelerinize ekler.
 
 **Görünüm**: beş tema — Rondel, İnce Halka, Vurgu, Yörünge ve Yaprak — her biri koyu ve açık; menünün resimlerinden seçilir. Koyu ya da açık mod Windows'u (ya da macOS'u) izleyebilir ya da sabit kalabilir; vurgu rengi temanın kendi rengi, hazır bir çift ya da kendi renkleriniz olabilir; bunları `#RRGGBB` olarak yazabilir ya da kutularındaki noktayla renk seçiciden seçebilirsiniz. Değişiklikler menüye hemen yansır.
 

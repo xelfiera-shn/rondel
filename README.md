@@ -46,7 +46,7 @@ Rondel runs on macOS 15 and later and has no Dock icon. Opening it again while i
 | A folder (on the desktop or in File Explorer) | Open, Ask, Continue, Resume | That folder |
 | A file (on the desktop or in File Explorer) | Ask About This File, Open Here, Continue Here, Resume Here | The folder the file is in |
 
-On macOS it is the same with ⌥ Option instead of Ctrl, Finder instead of File Explorer and `~/Projects` as the default projects folder; the desktop menu has no Active Agents or Quick Conversation yet.
+On macOS it is the same with ⌥ Option instead of Ctrl, Finder instead of File Explorer and `~/Projects` as the default projects folder.
 
 - **Open** starts a new session, **Continue** the most recent one, **Resume** lets you pick (`claude`, `claude --continue`, `claude --resume`).
 - **Ask** and **Ask Here** ask only for a prompt and start a new session with it. **Ask About This File** does the same in the file's folder and puts the file first in the prompt (`@Program.cs`, or `@"My Notes.md"` for a name with spaces), so Claude Code reads it right away. Select several files and hold one of them, and it becomes **Ask About These Files**, with every selected file in the prompt.
@@ -81,7 +81,7 @@ On macOS it is the same with ⌥ Option instead of Ctrl, Finder instead of File 
 
 ## Active agents
 
-Rondel follows the agents it starts, so you don't have to keep an eye on their terminals. Windows only for now.
+Rondel follows the agents it starts, so you don't have to keep an eye on their terminals. On macOS the shortcut and the agents card are not there yet, and the first time Rondel brings an agent's terminal to the front, macOS asks whether Rondel may control Terminal (or iTerm2): choose **Allow**.
 
 - **Notifications.** When an agent asks for a permission or asks you a question, finishes its turn, or stops with an error, a notification names the project and says what it needs. Click it to bring the agent's terminal to the front. No notification appears while you are in that terminal.
 - **Active Agents** (desktop menu) opens into the agents you started from Rondel, those waiting for you first. A dot shows what each is doing: amber, waiting for a permission or an answer; green, done; red, stopped with an error; the theme's accent, working. Pick one to bring its terminal to the front. The slice itself says how many are waiting.
@@ -113,7 +113,7 @@ On macOS the update puts the new Rondel.app in place of the old one and opens it
 
 Tray icon → **Settings…**: language (Automatic / English / Türkçe), the menu's look, projects folder, hold duration, keyboard shortcut, the agent's command (`claude`, or an alias such as `cc`), terminal (Windows Terminal or console window), shell (PowerShell 7 or Windows PowerShell), following agents with their notifications, shortcut and card, update checks, the options on the New Project card, the templates folder and saved prompts.
 
-On macOS, menu bar icon → **Settings…** has the same, except the keyboard shortcut and active agents, with Terminal or iTerm2 as the terminal; the agent runs in your login shell, so `PATH` and aliases from `~/.zprofile` and `~/.zshrc` work. Its **Permissions** section shows whether Accessibility and Finder are allowed, and **Open at login** adds Rondel to your login items.
+On macOS, menu bar icon → **Settings…** has the same, except the keyboard shortcuts and the agents card, with Terminal or iTerm2 as the terminal; the agent runs in your login shell, so `PATH` and aliases from `~/.zprofile` and `~/.zshrc` work. Its **Permissions** section shows whether Accessibility and Finder are allowed, and **Open at login** adds Rondel to your login items.
 
 **Appearance**: five themes — Rondel, Line, Spotlight, Orbit and Petal — each in dark and light, chosen from pictures of the menu; dark or light can follow Windows (or macOS) or stay fixed, and the accent color is the theme's own, a ready-made pair or your own colors, typed as `#RRGGBB` or picked with the dot in their box. Changes show in the menu at once.
 

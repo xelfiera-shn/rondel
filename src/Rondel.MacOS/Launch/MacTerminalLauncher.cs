@@ -20,7 +20,8 @@ namespace Rondel.MacOS.Launch;
 /// start, so it runs in the background and the menu never waits for it. Null: wait for open(1), and throw
 /// <see cref="LaunchException"/> when it fails (the diagnostics).
 /// </param>
-internal sealed partial class MacTerminalLauncher(Action<string>? failed = null) : ITerminalLauncher
+/// <param name="agents">Learns the terminal of each followed session (whose script writes its tty first), to bring it to the front later.</param>
+internal sealed partial class MacTerminalLauncher(Action<string>? failed = null, AgentTerminals? agents = null) : ITerminalLauncher
 {
     const int OpenTimeoutMs = 10_000;
 
@@ -40,7 +41,15 @@ internal sealed partial class MacTerminalLauncher(Action<string>? failed = null)
         File.SetUnixFileMode(Folder, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         RemoveLeftovers();
         string file = Path.Combine(Folder, $"rondel-{Guid.NewGuid():N}"[..15] + ".command");
-        File.WriteAllText(file, PosixShellScript.Build(plan, shell), new UTF8Encoding(false));
+        string script = PosixShellScript.Build(plan, shell);
+        if (plan.ActivityId is { } id && agents is not null)
+        {
+            // First of all, the script tells which terminal tab it runs in (after the #! line).
+            int body = script.IndexOf('\n', StringComparison.Ordinal) + 1;
+            script = script[..body] + AgentTerminals.TtyLine(id) + script[body..];
+            agents.Started(id, terminal);
+        }
+        File.WriteAllText(file, script, new UTF8Encoding(false));
         File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 
         string what = $"{terminal} + {Path.GetFileName(shell)} in '{plan.Directory}' with {plan.Arguments.Count} argument(s)";
