@@ -26,6 +26,12 @@ internal static partial class MarkdownView
     const double BaseSize = 13;
     static readonly FontFamily Mono = new("Menlo");
 
+    /// <summary>
+    /// Emphasis in a family that has an italic face: the system font Avalonia gets on macOS (and Inter) has none, and
+    /// asking it for one throws while the text is laid out.
+    /// </summary>
+    static readonly FontFamily ItalicFamily = new("Helvetica Neue");
+
     public static Control Build(string markdown, MarkdownLook look)
     {
         var document = new StackPanel();
@@ -293,7 +299,7 @@ internal static partial class MarkdownView
             }
             else if (match.Groups["italic"].Success || match.Groups["italic2"].Success)
             {
-                var italic = new Italic();
+                var italic = new Italic { FontFamily = ItalicFamily };
                 italic.Inlines.AddRange(Emphasis(match.Groups["italic"].Success ? match.Groups["italic"].Value : match.Groups["italic2"].Value, look));
                 yield return italic;
             }
