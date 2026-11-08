@@ -45,7 +45,7 @@ internal sealed class SettingsWindow : Window
     bool _loading;
     int _commandVersion;
 
-    ComboBox _language = null!, _mode = null!, _terminal = null!;
+    ComboBox _language = null!, _mode = null!, _terminal = null!, _quickModel = null!;
     TextBox _root = null!, _command = null!, _accentFrom = null!, _accentTo = null!;
     TextBlock _rootStatus = null!, _commandLabel = null!, _commandStatus = null!, _terminalStatus = null!;
     TextBlock _accentName = null!, _accentStatus = null!, _holdValue = null!, _autostartStatus = null!;
@@ -139,6 +139,7 @@ internal sealed class SettingsWindow : Window
             _checkUpdates.IsChecked = s.Updates.Check;
             _cardPrompt.IsChecked = s.NewProjectCard.Prompt;
             _quickCard.IsChecked = s.Quick.PromptCard;
+            LoadQuickModel(s);
             _cardGit.IsChecked = s.NewProjectCard.Git;
             _cardPlan.IsChecked = s.NewProjectCard.Plan;
             _cardTemplates.IsChecked = s.NewProjectCard.Templates;
@@ -376,6 +377,8 @@ internal sealed class SettingsWindow : Window
                 Description(Loc.Get("Settings.Quick.Card.Desc"), new Thickness(28, 2, 0, 0)),
             },
         }));
+        page.Children.Add(Card(Row(Loc.Get("Settings.Quick.Model"), Loc.Get("Settings.Quick.Model.Desc"),
+            _quickModel = Combo(OnQuickModelChanged))));
 
         page.Children.Add(Section("Settings.Permissions"));
         page.Children.Add(Card(_accessibility = new PermissionRow(Loc.Get("Settings.Permissions.Accessibility"),
@@ -826,6 +829,26 @@ internal sealed class SettingsWindow : Window
             Store.Update(s => s.Terminal = terminal);
             UpdateStatus();
         }
+    }
+
+    /// <summary>The agent's own default, the models Rondel knows, and one written into settings.json by hand.</summary>
+    void LoadQuickModel(AppSettings settings)
+    {
+        _quickModel.Items.Clear();
+        _quickModel.Items.Add(new ComboBoxItem { Tag = "", Content = Loc.Format("Settings.Quick.Model.Default", DefaultAgent(settings)?.Name ?? "") });
+        foreach (string model in QuickConversationOptions.Models)
+            _quickModel.Items.Add(new ComboBoxItem { Tag = model, Content = char.ToUpperInvariant(model[0]) + model[1..] });
+        string current = settings.Quick.Model;
+        if (current.Length > 0 && !QuickConversationOptions.Models.Contains(current, StringComparer.OrdinalIgnoreCase))
+            _quickModel.Items.Add(new ComboBoxItem { Tag = current, Content = current });
+        Select(_quickModel, current);
+    }
+
+    void OnQuickModelChanged()
+    {
+        if (_loading || SelectedTag(_quickModel) is not { } model)
+            return;
+        Store.Update(s => s.Quick.Model = model);
     }
 
     void OnQuickCardClicked()
