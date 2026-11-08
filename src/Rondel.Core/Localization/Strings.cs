@@ -201,6 +201,7 @@ static class Strings
         ["Input.SavedPrompts"] = "Saved prompts",
         ["Input.NoSavedPrompts"] = "The .md files you put in the prompts folder appear here.",
         ["Input.HintSavedPrompt"] = "Space to use this prompt · Ctrl+Enter to start · Esc to cancel",
+        ["Input.HintSavedPrompt.Mac"] = "Space to use this prompt · ⌘↩ to start · Esc to cancel",
 
         ["Validation.Empty"] = "Type a folder name.",
         ["Validation.DotNames"] = "\".\" and \"..\" are not valid folder names.",
@@ -608,6 +609,7 @@ static class Strings
         ["Input.SavedPrompts"] = "Hazır promptlar",
         ["Input.NoSavedPrompts"] = "Prompt klasörüne koyduğunuz .md dosyaları burada görünür.",
         ["Input.HintSavedPrompt"] = "Space ile bu prompt'u kullan · Ctrl+Enter ile başlat · Esc ile vazgeç",
+        ["Input.HintSavedPrompt.Mac"] = "Space ile bu prompt'u kullan · ⌘↩ ile başlat · Esc ile vazgeç",
 
         ["Validation.Empty"] = "Bir klasör adı yazın.",
         ["Validation.DotNames"] = "\".\" ve \"..\" geçerli klasör adı değildir.",

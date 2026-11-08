@@ -510,6 +510,21 @@ internal sealed class RadialMenuWindow : Window
     {
         _card.Start(spec, _ => { });
         _card.Fill(name, prompt);
+        return RenderCard(background);
+    }
+
+    /// <summary>Developer aid (--render-ask): draws the Ask card into a bitmap at 2x without showing the window.</summary>
+    /// <param name="picked">A saved prompt to pick, as a click would; null for the empty box.</param>
+    public Bitmap RenderAskPreview(InputSpec spec, string? picked, Color background)
+    {
+        _card.Start(spec, _ => { });
+        if (picked is not null)
+            _card.PickSavedPrompt(picked);
+        return RenderCard(background);
+    }
+
+    Bitmap RenderCard(Color background)
+    {
         const double Size = 540;
         var root = new Panel { Width = Size, Height = Size, Background = new SolidColorBrush(background) };
         _surface.Children.Remove(_card);

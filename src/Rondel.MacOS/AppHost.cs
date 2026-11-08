@@ -11,6 +11,7 @@ using Rondel.Core.Localization;
 using Rondel.Core.Logging;
 using Rondel.Core.Menus;
 using Rondel.Core.Platform;
+using Rondel.Core.Prompts;
 using Rondel.Core.Settings;
 using Rondel.MacOS.Detection;
 using Rondel.MacOS.Interop;
@@ -49,11 +50,17 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         _detector = new FinderDetector(() => Store.Current);
         _tap = new EventTap(this);
         var launcher = new MacTerminalLauncher(message => Dispatcher.UIThread.Post(() => Warn(message)));
-        _flow = new MenuFlow(this, launcher, new MacFolderNameValidator(), () => Store.Current, change => Store.Update(change));
+        // Developer aids read the saved prompts next to their copy of the settings.
+        Prompts = settingsDirectory is null ? SavedPrompts.Default : new SavedPrompts(Path.Combine(settingsDirectory, "Prompts"));
+        _flow = new MenuFlow(this, launcher, new MacFolderNameValidator(), () => Store.Current, change => Store.Update(change),
+            prompts: Prompts);
         _quick = new QuickSweeper(_flow);
         Updates = new MacUpdates(Store, () => QuitRequested?.Invoke());
         ApplySettings(Store.Current);
     }
+
+    /// <summary>The saved prompts the Ask slices offer.</summary>
+    public SavedPrompts Prompts { get; }
 
     /// <summary>Looking for newer releases, and updating Rondel.app in place.</summary>
     public MacUpdates Updates { get; }
@@ -223,6 +230,21 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         Workspace.Open(directory);
     }
 
+    /// <summary>Opens the folder of the saved prompts, creating it the first time.</summary>
+    public void OpenPromptsFolder()
+    {
+        try
+        {
+            Directory.CreateDirectory(Prompts.Directory);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Warn($"Creating the prompts folder '{Prompts.Directory}' failed", ex);
+            return;
+        }
+        Workspace.Open(Prompts.Directory);
+    }
+
     void Warn(string message)
     {
         Log.Warn(message);
@@ -366,12 +388,15 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
             ? model with { Items = [.. model.Items.Where(item => !MenuBuilder.ListsActiveAgents(item))] }
             : model;
 
-    /// <summary>Session hints, a Resume slice's sessions and the recent projects are filled in when they arrive.</summary>
+    /// <summary>
+    /// Session hints, a Resume slice's sessions, the recent projects and the saved prompts pinned to the Ask slices are
+    /// filled in when they arrive.
+    /// </summary>
     void RequestDetails(MenuModel model)
     {
         if (!MenuDetails.Needed(model))
             return;
-        Task.Run(() => MenuDetails.Load(model)).ContinueWith(
+        Task.Run(() => MenuDetails.Load(model, prompts: Prompts)).ContinueWith(
             lookup => Dispatcher.UIThread.Post(() =>
             {
                 _menu?.ApplyHints(model, lookup.Result.Hints);

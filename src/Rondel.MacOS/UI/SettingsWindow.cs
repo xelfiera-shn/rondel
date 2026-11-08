@@ -15,6 +15,7 @@ using Rondel.Core;
 using Rondel.Core.Agents;
 using Rondel.Core.Launch;
 using Rondel.Core.Localization;
+using Rondel.Core.Prompts;
 using Rondel.Core.Sessions;
 using Rondel.Core.Settings;
 using Rondel.Core.Themes;
@@ -51,6 +52,9 @@ internal sealed class SettingsWindow : Window
     TextBlock _accentName = null!, _accentStatus = null!, _holdValue = null!, _autostartStatus = null!;
     Slider _hold = null!;
     CheckBox _cardPrompt = null!, _cardGit = null!, _cardPlan = null!, _cardTemplates = null!, _autostart = null!, _debug = null!, _quickCard = null!;
+    CheckBox _promptsUse = null!;
+    StackPanel _promptsPanel = null!, _promptRows = null!;
+    TextBlock _pinnedCount = null!, _noPrompts = null!;
     WrapPanel _themeCards = null!;
     StackPanel _swatches = null!, _customAccent = null!;
     Button _openLoginItems = null!, _checkNow = null!;
@@ -80,6 +84,8 @@ internal sealed class SettingsWindow : Window
         ActualThemeVariantChanged += (_, _) => Rebuild();
         Activated += (_, _) =>
         {
+            // The prompts folder may have changed while the window was in the background.
+            LoadPrompts(Store.Current);
             RefreshAutostart();
             _host.CheckFinderAccess();
             RefreshPermissions();
@@ -139,6 +145,7 @@ internal sealed class SettingsWindow : Window
             _checkUpdates.IsChecked = s.Updates.Check;
             _cardPrompt.IsChecked = s.NewProjectCard.Prompt;
             _quickCard.IsChecked = s.Quick.PromptCard;
+            LoadPrompts(s);
             _cardGit.IsChecked = s.NewProjectCard.Git;
             _cardPlan.IsChecked = s.NewProjectCard.Plan;
             _cardTemplates.IsChecked = s.NewProjectCard.Templates;
@@ -374,6 +381,28 @@ internal sealed class SettingsWindow : Window
             {
                 (_quickCard = Check(Loc.Get("Settings.Quick.Card"), OnQuickCardClicked)),
                 Description(Loc.Get("Settings.Quick.Card.Desc"), new Thickness(28, 2, 0, 0)),
+            },
+        }));
+
+        page.Children.Add(Section("Settings.Prompts"));
+        page.Children.Add(Card(new StackPanel
+        {
+            Children =
+            {
+                (_promptsUse = Check(Loc.Get("Settings.Prompts.Use"), OnPromptsClicked)),
+                Description(Loc.Get("Settings.Prompts.Use.Desc"), new Thickness(28, 2, 0, 0)),
+            },
+        }));
+        page.Children.Add(Card(_promptsPanel = new StackPanel
+        {
+            Children =
+            {
+                Row(Loc.Get("Settings.Prompts.List"), Loc.Format("Settings.Prompts.List.Desc", SavedPrompts.MaxPinned),
+                    Button(Loc.Get("Prompts.Open"), _host.OpenPromptsFolder)),
+                // One row per prompt, A to Z; a pinned one shows its place on the arc.
+                (_promptRows = new StackPanel { Margin = new Thickness(0, 10, 0, 0) }),
+                (_pinnedCount = Description("", new Thickness(0, 8, 0, 0))),
+                (_noPrompts = Description(Loc.Get("Settings.Prompts.None"), new Thickness(0, 10, 0, 0))),
             },
         }));
 
@@ -826,6 +855,109 @@ internal sealed class SettingsWindow : Window
             Store.Update(s => s.Terminal = terminal);
             UpdateStatus();
         }
+    }
+
+    /// <summary>
+    /// Saved prompts: whether the Ask slices offer them, and which are pinned to the slices' arc. The list is the prompts
+    /// folder as it is now, read again whenever the window comes to the front.
+    /// </summary>
+    void LoadPrompts(AppSettings settings)
+    {
+        bool wasLoading = _loading;
+        _loading = true;
+        try
+        {
+            _promptsUse.IsChecked = settings.Prompts.Enabled;
+            _promptsPanel.IsEnabled = settings.Prompts.Enabled;
+            _promptsPanel.Opacity = settings.Prompts.Enabled ? 1 : 0.5;
+            var names = _host.Prompts.List();
+            var pinned = _host.Prompts.Existing(settings.Prompts.Pinned).ToList();
+            _promptRows.Children.Clear();
+            foreach (string name in names)
+            {
+                int place = pinned.FindIndex(p => string.Equals(p, name, StringComparison.OrdinalIgnoreCase));
+                _promptRows.Children.Add(PromptRow(name, place, canPin: place >= 0 || pinned.Count < SavedPrompts.MaxPinned, first: _promptRows.Children.Count == 0));
+            }
+            _promptRows.IsVisible = names.Count > 0;
+            _pinnedCount.Text = Loc.Format("Settings.Prompts.Pinned", pinned.Count, SavedPrompts.MaxPinned);
+            _pinnedCount.IsVisible = names.Count > 0;
+            _noPrompts.IsVisible = names.Count == 0;
+        }
+        finally
+        {
+            _loading = wasLoading;
+        }
+    }
+
+    /// <summary>A prompt's row: its place on the arc when pinned, its name, and the pin.</summary>
+    /// <param name="place">0-based place on the arc, or -1 when not pinned.</param>
+    Border PromptRow(string name, int place, bool canPin, bool first)
+    {
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("30,*,Auto") };
+        if (place >= 0)
+        {
+            grid.Children.Add(new Border
+            {
+                Width = 20, Height = 20, CornerRadius = new CornerRadius(10), Background = _look.Accent,
+                HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock
+                {
+                    Text = (place + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), FontSize = 11, FontWeight = FontWeight.SemiBold,
+                    Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                },
+            });
+        }
+        var label = new TextBlock { Text = name, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, Foreground = _look.Text };
+        ToolTip.SetTip(label, name);
+        Grid.SetColumn(label, 1);
+        grid.Children.Add(label);
+
+        bool isPinned = place >= 0;
+        string action = Loc.Get(isPinned ? "Settings.Prompts.Unpin" : "Settings.Prompts.Pin");
+        var mask = SymbolIcons.Mask(isPinned ? "pin.fill" : "pin", 14);
+        var pin = new Button
+        {
+            IsEnabled = canPin,
+            Width = 36, Height = 28, Padding = new Thickness(0), Margin = new Thickness(12, 0, 0, 0),
+            HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
+            Content = new Rectangle
+            {
+                Width = 14, Height = 14, Fill = isPinned ? _look.Accent : _look.Text,
+                OpacityMask = mask is null ? null : new ImageBrush(mask) { Stretch = Stretch.Uniform },
+            },
+        };
+        ToolTip.SetTip(pin, action);
+        AutomationProperties.SetName(pin, action + ": " + name);
+        pin.Click += (_, _) => SetPinned(name, !isPinned);
+        Grid.SetColumn(pin, 2);
+        grid.Children.Add(pin);
+        return new Border
+        {
+            Padding = new Thickness(0, 6), BorderThickness = new Thickness(0, first ? 0 : 1, 0, 0), BorderBrush = _look.CardStroke, Child = grid,
+        };
+    }
+
+    /// <summary>Pins a prompt at the end of the arc or takes it off; pins whose files are gone are dropped on the way.</summary>
+    void SetPinned(string name, bool pin)
+    {
+        if (_loading)
+            return;
+        var pinned = _host.Prompts.Existing(Store.Current.Prompts.Pinned)
+            .Where(p => !string.Equals(p, name, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (pin && pinned.Count < SavedPrompts.MaxPinned)
+            pinned.Add(name);
+        Store.Update(s => s.Prompts.Pinned = pinned);
+        LoadPrompts(Store.Current);
+    }
+
+    void OnPromptsClicked()
+    {
+        if (_loading)
+            return;
+        bool use = _promptsUse.IsChecked == true;
+        Store.Update(s => s.Prompts.Enabled = use);
+        LoadPrompts(Store.Current);
     }
 
     void OnQuickCardClicked()
