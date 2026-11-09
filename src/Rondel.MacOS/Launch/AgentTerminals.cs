@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using Rondel.Core.Logging;
 using Rondel.MacOS.Interop;
 using static Rondel.MacOS.Interop.Native;
@@ -13,10 +15,12 @@ namespace Rondel.MacOS.Launch;
 /// </summary>
 /// <remarks>
 /// macOS does not let one process read another's environment, so the session cannot be found from Claude Code's own
-/// process. A tab is closed when no process uses its tty any more. The terminal app is written next to the tty, so a
-/// restarted Rondel, which follows a session again at its next event, still finds its tab.
+/// process. The file also holds the script's pid: the script ends in <c>exec</c>, so that process lives as long as the
+/// tab, and a tab is closed once it is gone or no longer on that tty (macOS hands a freed tty to the next tab at once).
+/// The terminal app is written next to the tty, so a restarted Rondel, which follows a session again at its next event,
+/// still finds its tab.
 /// </remarks>
-internal sealed class AgentTerminals
+internal sealed partial class AgentTerminals
 {
     const string TerminalId = "com.apple.Terminal";
 
@@ -27,17 +31,26 @@ internal sealed class AgentTerminals
     /// <summary>The terminal app (bundle id) each followed session was started in.</summary>
     readonly Dictionary<string, string> _terminals = [];
 
-    /// <summary>Takes away what sessions that were never followed again left, a week after they started.</summary>
+    /// <summary>
+    /// Takes away what sessions that were never followed again left, a week after they started, unless their tab still
+    /// runs.
+    /// </summary>
     public AgentTerminals()
     {
         try
         {
             if (!Directory.Exists(Folder))
                 return;
-            foreach (var file in new DirectoryInfo(Folder).EnumerateFiles())
+            var old = new DirectoryInfo(Folder).EnumerateFiles().Where(f => DateTime.UtcNow - f.LastWriteTimeUtc > TimeSpan.FromDays(7)).ToList();
+            if (old.Count == 0)
+                return;
+            var running = ProcessTtys();
+            foreach (var file in old)
             {
-                if (DateTime.UtcNow - file.LastWriteTimeUtc > TimeSpan.FromDays(7))
-                    file.Delete();
+                string id = Path.GetFileNameWithoutExtension(file.Name);
+                if (running is not null && ReadTty(id) is { } tab && IsOpen(tab, running))
+                    continue;
+                file.Delete();
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -46,12 +59,15 @@ internal sealed class AgentTerminals
         }
     }
 
-    /// <summary>The line the launch script runs first: it writes the script's tty into the session's file.</summary>
+    /// <summary>The line the launch script runs first: it writes the script's tty and pid into the session's file.</summary>
     public static string TtyLine(string activityId)
     {
         Directory.CreateDirectory(Folder);
-        return $"tty > '{TtyFile(activityId)}' 2>/dev/null\n";
+        return $"printf '%s %s\\n' \"$(tty)\" \"$$\" > {Quote(TtyFile(activityId))} 2>/dev/null\n";
     }
+
+    /// <summary>Single quotes for the shell, as PosixShellScript quotes.</summary>
+    static string Quote(string value) => "'" + value.Replace("'", "'\\''", StringComparison.Ordinal) + "'";
 
     static string TtyFile(string activityId) => Path.Combine(Folder, activityId + ".tty");
 
@@ -88,7 +104,10 @@ internal sealed class AgentTerminals
         }
     }
 
-    (string Terminal, string Tty)? Find(string activityId)
+    /// <summary>Where the script of a session ran: its tty, and its pid when the file has one (older builds wrote none).</summary>
+    readonly record struct Tab(string Tty, int? Pid);
+
+    (string Terminal, Tab Tab)? Find(string activityId)
     {
         string? terminal;
         lock (_gate)
@@ -102,16 +121,38 @@ internal sealed class AgentTerminals
                 lock (_gate)
                     _terminals[activityId] = terminal;
             }
-            if (terminal is null)
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+        if (terminal is not (TerminalId or MacTerminalLauncher.ITermId))
+            return null;
+        return ReadTty(activityId) is { } tab ? (terminal, tab) : null;
+    }
+
+    /// <summary>
+    /// The session's tty and pid. The file is the user's to write, and its tty goes into an AppleScript: only a real
+    /// tty path is taken.
+    /// </summary>
+    static Tab? ReadTty(string activityId)
+    {
+        try
+        {
+            string[] parts = File.ReadAllText(TtyFile(activityId)).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0 || !TtyPath().IsMatch(parts[0]))
                 return null;
-            string tty = File.ReadAllText(TtyFile(activityId)).Trim();
-            return tty.StartsWith("/dev/", StringComparison.Ordinal) ? (terminal, tty) : null;
+            int? pid = parts.Length > 1 && int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out int value) ? value : null;
+            return new Tab(parts[0], pid);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return null;
         }
     }
+
+    [GeneratedRegex(@"^/dev/ttys\d{1,4}$")]
+    private static partial Regex TtyPath();
 
     /// <summary>
     /// Brings the agent's tab to the front, asking for the Automation permission the first time. Blocks while macOS asks:
@@ -120,7 +161,7 @@ internal sealed class AgentTerminals
     /// <returns>False when its tab was not found (closed, or the permission was refused).</returns>
     public bool Focus(string activityId)
     {
-        if (Find(activityId) is not var (terminal, tty))
+        if (Find(activityId) is not var (terminal, tab))
         {
             Log.Info($"Agent {activityId}: its terminal is not known");
             return false;
@@ -131,52 +172,67 @@ internal sealed class AgentTerminals
             Log.Warn($"Agent {activityId}: no Automation permission for {terminal} ({permission})");
             return false;
         }
-        string? answer = AppleScript.Run(FocusScript(terminal, tty), out string? error);
+        string? answer = AppleScript.Run(FocusScript(terminal, tab.Tty), out string? error);
         if (answer != "ok")
-            Log.Info($"Agent {activityId}: no tab on {tty} in {terminal} ({answer ?? error})");
+            Log.Info($"Agent {activityId}: no tab on {tab.Tty} in {terminal} ({answer ?? error})");
         return answer == "ok";
     }
 
     /// <summary>
     /// Whether the agent's tab is the one in front, so a notification about it would only repeat what is on the screen.
-    /// Asks the terminal only when the permission is already given; otherwise false.
+    /// Asks the terminal only when the permission is already given, and for a second at most; otherwise false.
     /// </summary>
     public bool IsForeground(string activityId)
     {
-        if (Find(activityId) is not var (terminal, tty) || Workspace.FrontmostBundleId() != terminal
+        if (Find(activityId) is not var (terminal, tab) || Workspace.FrontmostBundleId() != terminal
             || AutomationPermission(terminal, ask: false) != AutomationAllowed)
         {
             return false;
         }
         string source = terminal == TerminalId
-            ? "tell application id \"com.apple.Terminal\" to return tty of selected tab of front window"
-            : $"tell application id \"{MacTerminalLauncher.ITermId}\" to return tty of current session of current window";
-        return AppleScript.Run(source, out _) == tty;
+            ? "with timeout of 1 second\ntell application id \"com.apple.Terminal\" to return tty of selected tab of front window\nend timeout"
+            : $"with timeout of 1 second\ntell application id \"{MacTerminalLauncher.ITermId}\" to return tty of current session of current window\nend timeout";
+        return AppleScript.Run(source, out _) == tab.Tty;
     }
 
-    /// <summary>Those of <paramref name="activityIds"/> whose tab was closed: no process uses its tty any more.</summary>
+    /// <summary>
+    /// Those of <paramref name="activityIds"/> whose tab was closed: its script's process is gone or no longer on that tty
+    /// (without a pid: no process uses the tty any more).
+    /// </summary>
     public IReadOnlyList<string> Closed(IEnumerable<string> activityIds)
     {
-        List<(string Id, string Tty)> known = [.. activityIds.Select(id => (id, Find(id)?.Tty)).Where(k => k.Item2 is not null).Select(k => (k.id, k.Item2!))];
+        List<(string Id, Tab Tab)> known = [.. activityIds.Select(id => (id, Find(id)?.Tab)).Where(k => k.Item2 is not null).Select(k => (k.id, k.Item2!.Value))];
         if (known.Count == 0)
             return [];
-        var inUse = TtysInUse();
-        return inUse is null ? [] : [.. known.Where(k => !inUse.Contains(k.Tty)).Select(k => k.Id)];
+        var running = ProcessTtys();
+        return running is null ? [] : [.. known.Where(k => !IsOpen(k.Tab, running)).Select(k => k.Id)];
     }
 
-    /// <summary>The ttys some process uses (from ps), as /dev paths; null when ps could not tell.</summary>
-    static HashSet<string>? TtysInUse()
+    static bool IsOpen(Tab tab, Dictionary<int, string> running) =>
+        tab.Pid is { } pid ? running.TryGetValue(pid, out string? tty) && tty == tab.Tty : running.ContainsValue(tab.Tty);
+
+    /// <summary>Each process that has a tty, with it as a /dev path (from ps); null when ps could not tell.</summary>
+    static Dictionary<int, string>? ProcessTtys()
     {
         try
         {
-            var start = new ProcessStartInfo("/bin/ps", ["-A", "-o", "tty="]) { UseShellExecute = false, RedirectStandardOutput = true };
+            var start = new ProcessStartInfo("/bin/ps", ["-A", "-o", "pid=,tty="]) { UseShellExecute = false, RedirectStandardOutput = true };
             using var process = Process.Start(start);
             if (process is null)
                 return null;
             string output = process.StandardOutput.ReadToEnd();
             process.WaitForExit(5000);
-            return [.. output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Where(t => t.StartsWith("tty", StringComparison.Ordinal)).Select(t => "/dev/" + t)];
+            var ttys = new Dictionary<int, string>();
+            foreach (string line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            {
+                string[] parts = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+                if (parts is [var pid, var tty] && tty.StartsWith("tty", StringComparison.Ordinal)
+                    && int.TryParse(pid, NumberStyles.None, CultureInfo.InvariantCulture, out int id))
+                {
+                    ttys[id] = "/dev/" + tty;
+                }
+            }
+            return ttys;
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
         {
@@ -191,6 +247,7 @@ internal sealed class AgentTerminals
     /// </remarks>
     static string FocusScript(string terminal, string tty) => terminal == TerminalId
         ? $$"""
+            with timeout of 3 seconds
             tell application id "com.apple.Terminal"
                 repeat with i from 1 to count of windows
                     try
@@ -207,8 +264,10 @@ internal sealed class AgentTerminals
                 end repeat
                 return "none"
             end tell
+            end timeout
             """
         : $$"""
+            with timeout of 3 seconds
             tell application id "{{MacTerminalLauncher.ITermId}}"
                 repeat with i from 1 to count of windows
                     try
@@ -230,5 +289,6 @@ internal sealed class AgentTerminals
                 end repeat
                 return "none"
             end tell
+            end timeout
             """;
 }
