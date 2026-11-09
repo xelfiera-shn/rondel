@@ -44,7 +44,7 @@ What every platform gets, with a mark per platform. A Linux column is added when
 | C-10 | Long project names fit their tiles | ✅ 0.3.0 | ✅ 0.8.0 | |
 | C-11 | Tray icon; starting Rondel again opens Settings | ✅ 0.1.0 | ✅ 0.8.0 | A menu bar icon without a Dock icon on macOS |
 | C-12 | Settings window | ✅ 0.1.0 | ✅ 0.8.0 | |
-| C-13 | Keyboard shortcut that opens the menu at the mouse cursor | ✅ 0.1.0 | ⏸️ | On hold on macOS: left for later |
+| C-13 | Keyboard shortcut that opens the menu at the mouse cursor | ✅ 0.1.0 | 🔄 burakseyitkara1 | Mac: none by default; recorded in Settings, ⌃⌥Space suggested |
 | C-14 | Start at sign-in | ✅ 0.1.0 | ✅ 0.8.0 | Run key on Windows, `SMAppService` on macOS |
 | C-15 | Choice of terminal | ✅ 0.1.0 | ✅ 0.8.0 | Windows Terminal or console window; Terminal.app or iTerm2 |
 | C-16 | Menus, actions and agents in `settings.json`, applied when the file is saved | ✅ 0.1.0 | ✅ 0.8.0 | |
