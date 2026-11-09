@@ -332,7 +332,7 @@ internal sealed class SettingsWindow : Window
         page.Children.Add(Card(Row(Loc.Get("Settings.HoldMs"), Loc.Get("Settings.HoldMs.Desc.Mac"),
             new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Children = { _hold, _holdValue } })));
         _shortcut = new ShortcutBox(_look, SaveShortcut, _host.PauseShortcuts, "Settings.Hotkey.Example.Mac");
-        page.Children.Add(Card(Row(Loc.Get("Settings.Hotkey"), Loc.Get("Settings.Hotkey.Desc.Mac"), _shortcut)));
+        page.Children.Add(Card(new StackPanel { Children = { Row(Loc.Get("Settings.Hotkey"), Loc.Get("Settings.Hotkey.Desc.Mac"), _shortcut), _shortcut.StatusLine } }));
 
         page.Children.Add(Section("Settings.Launch"));
         _commandLabel = Label("");
@@ -393,7 +393,14 @@ internal sealed class SettingsWindow : Window
         page.Children.Add(Card(Row(Loc.Get("Settings.Quick.Model"), Loc.Get("Settings.Quick.Model.Desc"),
             _quickModel = Combo(OnQuickModelChanged))));
         _screenshotShortcut = new ShortcutBox(_look, SaveScreenshotShortcut, _host.PauseShortcuts, "Settings.Quick.Screenshot.Example.Mac");
-        page.Children.Add(Card(Row(Loc.Get("Settings.Quick.Screenshot"), Loc.Get("Settings.Quick.Screenshot.Desc.Mac"), _screenshotShortcut)));
+        page.Children.Add(Card(new StackPanel
+        {
+            Children =
+            {
+                Row(Loc.Get("Settings.Quick.Screenshot"), Loc.Get("Settings.Quick.Screenshot.Desc.Mac"), _screenshotShortcut),
+                _screenshotShortcut.StatusLine,
+            },
+        }));
 
         page.Children.Add(Section("Settings.Permissions"));
         page.Children.Add(Card(_accessibility = new PermissionRow(Loc.Get("Settings.Permissions.Accessibility"),

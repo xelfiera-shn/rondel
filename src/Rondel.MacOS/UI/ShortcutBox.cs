@@ -12,7 +12,8 @@ namespace Rondel.MacOS.UI;
 /// <summary>
 /// Records a keyboard shortcut, the Mac way: click the box, press the combination, and it reads ⌃⌥R. Esc stops
 /// recording without a change, and the ✕ clears the shortcut. A plain key, or one macOS keeps for itself, is not taken,
-/// and the line under the box says why. While it records, Rondel's own shortcuts are let go.
+/// and <see cref="StatusLine"/> says why: the row puts it under itself, across its width, since a long line beside the
+/// title would take the room of the title. While it records, Rondel's own shortcuts are let go.
 /// </summary>
 internal sealed class ShortcutBox : StackPanel
 {
@@ -48,8 +49,10 @@ internal sealed class ShortcutBox : StackPanel
             ShowStatus(null);
             _save("");
         };
-        Children.Add(new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Children = { _box, clear } });
-        Children.Add(_status);
+        Orientation = Orientation.Horizontal;
+        HorizontalAlignment = HorizontalAlignment.Right;
+        Children.Add(_box);
+        Children.Add(clear);
         _box.PointerPressed += (_, e) =>
         {
             e.Handled = true;
@@ -61,6 +64,9 @@ internal sealed class ShortcutBox : StackPanel
         _box.AddHandler(KeyUpEvent, OnKeyUp, RoutingStrategies.Tunnel);
         Paint();
     }
+
+    /// <summary>Why a combination was not taken, or why the shortcut is not active; hidden when there is nothing to say.</summary>
+    public TextBlock StatusLine => _status;
 
     /// <summary>Shows the stored shortcut and, when it is not active, why.</summary>
     public void Show(string shortcut, string? error)
