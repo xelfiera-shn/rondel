@@ -26,7 +26,7 @@ namespace Rondel.MacOS;
 /// Composition root: wires the tap thread, the detection thread and the main thread together. IGestureSink
 /// callbacks arrive on the tap thread or a timer thread and are only forwarded from here.
 /// </summary>
-internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
+internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 {
     readonly MenuBar _menuBar = new();
     readonly DetectionWorker _worker = new();
@@ -82,6 +82,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
                 _settingsWindow?.LoadValues();
         };
         Store.LoadFailed += _ => Warn(Loc.Get("Tray.SettingsInvalid"));
+        StartShortcuts();
 
         _menuBar.AccessibilityClicked += AllowAccessibility;
         _menuBar.FinderAccessClicked += AllowFinderAccess;
@@ -155,6 +156,7 @@ internal sealed class AppHost : IGestureSink, IMenuHost, IDisposable
         _tap.Configure(settings.HoldMs, settings.Paused);
         _menuBar.Update(s => s with { Paused = settings.Paused });
         ApplyLook(settings);
+        ApplyShortcuts(settings.Hotkey);
     }
 
     /// <summary>The menu's theme, mode and accent; redrawn only when one of them changed (or macOS switched modes).</summary>
