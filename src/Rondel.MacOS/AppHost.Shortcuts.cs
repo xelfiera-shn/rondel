@@ -2,69 +2,86 @@ using Avalonia.Threading;
 using Rondel.Core.Context;
 using Rondel.Core.Localization;
 using Rondel.Core.Logging;
+using Rondel.Core.Settings;
 using Rondel.MacOS.Interop;
 using Rondel.MacOS.Trigger;
 using static Rondel.MacOS.Interop.Native;
 
 namespace Rondel.MacOS;
 
-/// <summary>The keyboard shortcut that opens the menu at the mouse cursor, as on Windows.</summary>
+/// <summary>The keyboard shortcuts: the menu at the mouse cursor, and Ask About a Screenshot, as on Windows.</summary>
 internal sealed partial class AppHost
 {
-    const int MenuShortcut = 1;
+    const int MenuShortcut = 1, ScreenshotShortcut = 2;
 
-    string? _menuShortcut;
+    /// <summary>The shortcuts as the settings have them, by id.</summary>
+    readonly Dictionary<int, string> _shortcuts = [];
+    readonly Dictionary<int, string> _shortcutErrors = [];
     bool _shortcutsPaused;
 
     /// <summary>Why the menu's shortcut is not active, or null.</summary>
-    public string? HotkeyError { get; private set; }
+    public string? HotkeyError => _shortcutErrors.GetValueOrDefault(MenuShortcut);
+
+    /// <summary>Why the Ask About a Screenshot shortcut is not active, or null.</summary>
+    public string? ScreenshotHotkeyError => _shortcutErrors.GetValueOrDefault(ScreenshotShortcut);
 
     void StartShortcuts() => HotKeys.Pressed += id =>
     {
         if (id == MenuShortcut)
             OnMenuShortcut();
+        else if (id == ScreenshotShortcut)
+            AskAboutScreenshot();
     };
 
-    /// <summary>Registers the menu's shortcut when it changed in the settings.</summary>
-    void ApplyShortcuts(string menu)
+    /// <summary>Registers the shortcuts that changed in the settings.</summary>
+    void ApplyShortcuts(AppSettings settings)
     {
-        if (menu == _menuShortcut)
-            return;
-        _menuShortcut = menu;
-        if (!_shortcutsPaused)
-            RegisterShortcuts();
+        Apply(MenuShortcut, settings.Hotkey);
+        Apply(ScreenshotShortcut, settings.Quick.ScreenshotHotkey);
+
+        void Apply(int id, string text)
+        {
+            if (_shortcuts.TryGetValue(id, out string? old) && old == text)
+                return;
+            _shortcuts[id] = text;
+            if (!_shortcutsPaused)
+                Register(id);
+        }
     }
 
-    void RegisterShortcuts()
+    void Register(int id)
     {
-        HotkeyError = null;
-        HotKeys.Unregister(MenuShortcut);
-        string text = _menuShortcut ?? "";
+        _shortcutErrors.Remove(id);
+        HotKeys.Unregister(id);
+        string text = _shortcuts.GetValueOrDefault(id) ?? "";
         if (!Hotkey.TryParse(text, out var hotkey))
         {
             if (!string.IsNullOrWhiteSpace(text))
                 Log.Warn($"Shortcut '{text}' could not be parsed");
             return;
         }
-        if (!HotKeys.Register(MenuShortcut, hotkey))
-            HotkeyError = Loc.Get("Settings.Hotkey.Failed");
+        if (!HotKeys.Register(id, hotkey))
+            _shortcutErrors[id] = Loc.Get("Settings.Hotkey.Failed");
         else
-            Log.Info($"Shortcut {hotkey} registered");
+            Log.Info($"Shortcut {hotkey} registered ({(id == MenuShortcut ? "menu" : "screenshot")})");
     }
 
     /// <summary>
     /// While Settings records a new shortcut, the current ones are let go, so pressing one records it instead of
-    /// opening the menu.
+    /// doing what it does.
     /// </summary>
     public void PauseShortcuts(bool paused)
     {
         if (paused == _shortcutsPaused)
             return;
         _shortcutsPaused = paused;
-        if (paused)
-            HotKeys.Unregister(MenuShortcut);
-        else
-            RegisterShortcuts();
+        foreach (int id in _shortcuts.Keys)
+        {
+            if (paused)
+                HotKeys.Unregister(id);
+            else
+                Register(id);
+        }
     }
 
     /// <summary>Opens the menu at the mouse cursor for what is under it; pressed again, closes it.</summary>

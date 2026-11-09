@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Rondel.Core.Flow;
 using Rondel.Core.Localization;
 using Rondel.Core.Logging;
@@ -28,6 +29,7 @@ internal sealed class InputCard : Border
     readonly Rectangle _glyph = new() { Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center };
     readonly TextBlock _title = new() { FontSize = 13.5, FontWeight = FontWeight.SemiBold, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 290 };
     readonly TextBlock _location = new() { FontSize = 11, Margin = new Thickness(0, 3, 0, 10), TextTrimming = TextTrimming.PathSegmentEllipsis };
+    readonly Border _shot = new() { CornerRadius = new CornerRadius(8), ClipToBounds = true, Margin = new Thickness(0, 0, 0, 10), HorizontalAlignment = HorizontalAlignment.Left, IsVisible = false };
     readonly TextBox _name = Box();
     readonly StackPanel _options = new() { Margin = new Thickness(0, 12, 0, 0), IsVisible = false };
     readonly TextBlock _startLabel = Caption(new Thickness(1, 0, 0, 6));
@@ -84,7 +86,7 @@ internal sealed class InputCard : Border
             Children =
             {
                 new StackPanel { Orientation = Orientation.Horizontal, Children = { _glyph, _title } },
-                _location, _name, _options, _promptLabel, _prompt, _message,
+                _location, _shot, _name, _options, _promptLabel, _prompt, _message,
             },
         };
 
@@ -115,7 +117,8 @@ internal sealed class InputCard : Border
         _close = close;
         SetSymbol(spec.Glyph);
         _name.PlaceholderText = Loc.Get("Input.NamePlaceholder");
-        _prompt.PlaceholderText = Loc.Format("Input.PromptPlaceholder", spec.AgentName);
+        _prompt.PlaceholderText = spec.Placeholder ?? Loc.Format("Input.PromptPlaceholder", spec.AgentName);
+        SetUpShot(spec.Image);
         IsVisible = true;
         if (spec.AskName)
             ShowNameStage();
@@ -175,7 +178,26 @@ internal sealed class InputCard : Border
         _promptLabel.IsVisible = false;
         _name.Text = "";
         _prompt.Text = "";
+        _shot.Child = null;
+        _shot.IsVisible = false;
         IsVisible = false;
+    }
+
+    /// <summary>The picture the prompt is about, when there is one (Ask About a Screenshot).</summary>
+    void SetUpShot(byte[]? png)
+    {
+        if (png is not { Length: > 0 })
+            return;
+        try
+        {
+            using var stream = new MemoryStream(png);
+            _shot.Child = new Image { Source = new Bitmap(stream), Stretch = Stretch.Uniform, MaxWidth = 326, MaxHeight = 150 };
+            _shot.IsVisible = true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or InvalidOperationException)
+        {
+            Log.Warn("Showing the screenshot on the card failed", ex);
+        }
     }
 
     public void ApplyPalette(MenuPalette palette)

@@ -170,6 +170,8 @@ static class Strings
         ["Settings.Permissions.Accessibility.Desc"] = "Needed for ⌥ Option + hold: Rondel watches the Option key and the mouse.",
         ["Settings.Permissions.Finder"] = "Finder automation",
         ["Settings.Permissions.Finder.Desc"] = "Lets Rondel ask Finder which folder a window shows, for the empty areas of folder windows.",
+        ["Settings.Permissions.ScreenRecording"] = "Screen recording",
+        ["Settings.Permissions.ScreenRecording.Desc"] = "Needed for Ask About a Screenshot; Rondel captures the screen only when you pick a part of it. macOS may ask to reopen Rondel after it is allowed.",
         ["Settings.Permissions.Granted"] = "Allowed",
         ["Settings.Permissions.Missing"] = "Not allowed",
         ["Settings.Permissions.Allow"] = "Allow…",
@@ -413,6 +415,8 @@ static class Strings
         ["Settings.Quick.Model.Default"] = "Default ({0})",
         ["Settings.Quick.Screenshot"] = "Ask About a Screenshot shortcut",
         ["Settings.Quick.Screenshot.Desc"] = "Freezes the screen: drag over an area or click a window, then ask about it in a Quick Conversation. None by default; it is also in the tray menu.",
+        ["Settings.Quick.Screenshot.Desc.Mac"] = "Drag over an area, or press Space and click a window (as with ⌘⇧4), then ask about it in a Quick Conversation. None by default; it is also in the menu bar.",
+        ["Settings.Quick.Screenshot.Example.Mac"] = "None · e.g. ⌃⌥S",
     };
 
     public static readonly IReadOnlyDictionary<string, string> Tr = new Dictionary<string, string>
@@ -582,6 +586,8 @@ static class Strings
         ["Settings.Permissions.Accessibility.Desc"] = "⌥ Option + basılı tutma için gerekli: Rondel Option tuşunu ve fareyi izler.",
         ["Settings.Permissions.Finder"] = "Finder otomasyonu",
         ["Settings.Permissions.Finder.Desc"] = "Klasör pencerelerinin boş alanları için Rondel'in Finder'a pencerenin hangi klasörü gösterdiğini sormasını sağlar.",
+        ["Settings.Permissions.ScreenRecording"] = "Ekran kaydı",
+        ["Settings.Permissions.ScreenRecording.Desc"] = "Ekran Görüntüsünü Sor için gerekli; Rondel ekranı yalnızca siz bir bölümünü seçtiğinizde alır. İzin verildikten sonra macOS, Rondel'i yeniden açmayı isteyebilir.",
         ["Settings.Permissions.Granted"] = "İzin verildi",
         ["Settings.Permissions.Missing"] = "İzin verilmedi",
         ["Settings.Permissions.Allow"] = "İzin ver…",
@@ -825,5 +831,7 @@ static class Strings
         ["Settings.Quick.Model.Default"] = "Varsayılan ({0})",
         ["Settings.Quick.Screenshot"] = "Ekran Görüntüsünü Sor kısayolu",
         ["Settings.Quick.Screenshot.Desc"] = "Ekranı dondurur: bir alanı sürükleyerek ya da bir pencereye tıklayarak seçin, sonra Hızlı Sohbet'te onu sorun. Varsayılanda kapalıdır; tray menüsünde de bulunur.",
+        ["Settings.Quick.Screenshot.Desc.Mac"] = "Bir alanı sürükleyerek seçin ya da Space'e basıp bir pencereye tıklayın (⌘⇧4'teki gibi), sonra Hızlı Sohbet'te onu sorun. Varsayılanda kapalıdır; menü çubuğunda da bulunur.",
+        ["Settings.Quick.Screenshot.Example.Mac"] = "Yok · örn. ⌃⌥S",
     };
 }

@@ -13,6 +13,7 @@ internal static class Workspace
 
     /// <summary>System Settings → Privacy &amp; Security → Accessibility / Automation.</summary>
     public const string AccessibilitySettings = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility";
+    public const string ScreenRecordingSettings = "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture";
     public const string AutomationSettings = "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation";
 
     static readonly ConcurrentDictionary<long, string> BundleIds = new();

@@ -19,6 +19,7 @@ internal sealed class ShortcutBox : StackPanel
     readonly PageLook _look;
     readonly Action<string> _save;
     readonly Action<bool> _recording;
+    readonly string _example;
     readonly Border _box;
     readonly TextBlock _text = new() { FontSize = 13, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
     readonly TextBlock _status = new() { FontSize = 11.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0), IsVisible = false };
@@ -27,9 +28,11 @@ internal sealed class ShortcutBox : StackPanel
 
     /// <param name="save">Stores the new shortcut ("" for none).</param>
     /// <param name="recording">True while it records, false after.</param>
-    public ShortcutBox(PageLook look, Action<string> save, Action<bool> recording)
+    /// <param name="example">Shown while there is none (a resource key).</param>
+    public ShortcutBox(PageLook look, Action<string> save, Action<bool> recording, string example)
     {
         _look = look;
+        _example = example;
         _save = save;
         _recording = recording;
         _box = new Border
@@ -131,7 +134,7 @@ internal sealed class ShortcutBox : StackPanel
         _box.BorderBrush = _isRecording ? _look.Accent : _look.CardStroke;
         _box.BorderThickness = new Thickness(_isRecording ? 1.5 : 1);
         _text.Text = _isRecording ? Loc.Get("Settings.Hotkey.Recording.Mac")
-            : _current.Length == 0 ? Loc.Get("Settings.Hotkey.Example.Mac")
+            : _current.Length == 0 ? Loc.Get(_example)
             : Hotkey.Display(_current);
         _text.Foreground = _isRecording || _current.Length == 0 ? _look.SubText : _look.Text;
     }
