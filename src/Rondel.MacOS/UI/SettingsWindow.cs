@@ -97,6 +97,12 @@ internal sealed class SettingsWindow : Window
             e.Handled = true;
         };
         SetUpAccentPicker();
+        // Another app took the focus: a shortcut being recorded is left as it was, and Rondel's shortcuts come back.
+        Deactivated += (_, _) =>
+        {
+            _shortcut?.StopRecording();
+            _screenshotShortcut?.StopRecording();
+        };
         Closed += (_, _) =>
         {
             _host.PauseShortcuts(false); // closed while it recorded a shortcut

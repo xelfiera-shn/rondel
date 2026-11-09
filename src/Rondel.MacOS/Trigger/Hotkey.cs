@@ -1,4 +1,5 @@
 using Avalonia.Input;
+using Rondel.MacOS.Interop;
 
 namespace Rondel.MacOS.Trigger;
 
@@ -43,6 +44,16 @@ internal readonly record struct Hotkey(KeyModifiers Modifiers, PhysicalKey Key)
         "Command+Tab", "Shift+Command+Tab", "Command+Q", "Command+W", "Command+H", "Command+M",
         "Control+ArrowLeft", "Control+ArrowRight", "Control+ArrowUp", "Control+ArrowDown", "Control+Command+Q", "Option+Command+D",
     ];
+
+    /// <summary>
+    /// ⌘ (or ⌘⇧) with a letter or digit, without ⌃ or ⌥: the shortcut of a command in the apps (⌘C, ⌘R, ⌘S …), which
+    /// a global shortcut would take away from every app.
+    /// </summary>
+    public bool IsAppShortcut =>
+        Modifiers.HasFlag(KeyModifiers.Meta) && (Modifiers & (KeyModifiers.Control | KeyModifiers.Alt)) == 0 && IsCharacterKey(Key);
+
+    static bool IsCharacterKey(PhysicalKey key) =>
+        key is >= PhysicalKey.A and <= PhysicalKey.Z || key is >= PhysicalKey.Digit0 and <= PhysicalKey.Digit9;
 
     /// <summary>A plain key, or Shift and a key, would steal ordinary typing; F-keys are fine on their own.</summary>
     public bool IsUsable =>
@@ -119,10 +130,15 @@ internal readonly record struct Hotkey(KeyModifiers Modifiers, PhysicalKey Key)
         return string.Join('+', parts);
     }
 
-    /// <summary>As macOS shows it: ⌃⌥⇧⌘ and the key.</summary>
+    /// <summary>
+    /// As macOS shows it: ⌃⌥⇧⌘ and the key. A letter or digit key is named as the current keyboard layout types it
+    /// (the setting keeps its place, which is the US name), falling back to that name.
+    /// </summary>
     public string Display()
     {
         string symbols = Symbols(Modifiers);
+        if (IsCharacterKey(Key) && KeyboardLayout.KeyName(KeyCode) is { } typed)
+            return symbols + typed;
         string key = Key switch
         {
             PhysicalKey.Space => "Space",
