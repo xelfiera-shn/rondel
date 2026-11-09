@@ -17,7 +17,7 @@ internal sealed partial class AppHost
     /// <summary>The shortcuts as the settings have them, by id.</summary>
     readonly Dictionary<int, string> _shortcuts = [];
     readonly Dictionary<int, string> _shortcutErrors = [];
-    bool _shortcutsPaused;
+    bool _shortcutsStarted, _shortcutsPaused;
 
     /// <summary>Why the menu's shortcut is not active, or null.</summary>
     public string? HotkeyError => _shortcutErrors.GetValueOrDefault(MenuShortcut);
@@ -25,13 +25,23 @@ internal sealed partial class AppHost
     /// <summary>Why the Ask About a Screenshot shortcut is not active, or null.</summary>
     public string? ScreenshotHotkeyError => _shortcutErrors.GetValueOrDefault(ScreenshotShortcut);
 
-    void StartShortcuts() => HotKeys.Pressed += id =>
+    /// <summary>
+    /// Registers the shortcuts once Rondel runs, not when the host is built: the developer renders build a host from
+    /// the user's settings and must not take the running Rondel's shortcuts.
+    /// </summary>
+    void StartShortcuts()
     {
-        if (id == MenuShortcut)
-            OnMenuShortcut();
-        else if (id == ScreenshotShortcut)
-            AskAboutScreenshot();
-    };
+        HotKeys.Pressed += id =>
+        {
+            if (id == MenuShortcut)
+                OnMenuShortcut();
+            else if (id == ScreenshotShortcut)
+                AskAboutScreenshot();
+        };
+        _shortcutsStarted = true;
+        foreach (int id in _shortcuts.Keys)
+            Register(id);
+    }
 
     /// <summary>Registers the shortcuts that changed in the settings.</summary>
     void ApplyShortcuts(AppSettings settings)
@@ -44,7 +54,7 @@ internal sealed partial class AppHost
             if (_shortcuts.TryGetValue(id, out string? old) && old == text)
                 return;
             _shortcuts[id] = text;
-            if (!_shortcutsPaused)
+            if (_shortcutsStarted && !_shortcutsPaused)
                 Register(id);
         }
     }
@@ -96,9 +106,7 @@ internal sealed partial class AppHost
         }
         if (Store.Current.Paused)
             return;
-        nint where = CGEventCreate(0);
-        var point = CGEventGetLocation(where);
-        CFRelease(where);
+        var point = CursorLocation();
         _worker.Post(() =>
         {
             var context = Detect(point, "shortcut");
