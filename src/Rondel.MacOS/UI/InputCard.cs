@@ -475,6 +475,8 @@ internal sealed class InputCard : Border
             ToolTip.SetTip(chip, name);
             // A click or Space turns it over; either way the box gets the prompt and the chip stays lit.
             chip.Changed += () => UseSavedPrompt(chip, name);
+            // A click takes the focus; typing goes on in the prompt it filled. Space keeps it on the chip.
+            chip.Clicked += () => _prompt.Focus();
             chip.GotFocus += (_, _) => SetMessage(Loc.Get("Input.HintSavedPrompt.Mac"), isError: false);
             _savedChips.Children.Add(chip);
             _savedChipList.Add(chip);
