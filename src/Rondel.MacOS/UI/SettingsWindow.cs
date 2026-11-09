@@ -325,7 +325,7 @@ internal sealed class SettingsWindow : Window
         page.Children.Add(Card(Row(Loc.Get("Settings.HoldMs"), Loc.Get("Settings.HoldMs.Desc.Mac"),
             new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Children = { _hold, _holdValue } })));
         _shortcut = new ShortcutBox(_look, SaveShortcut, _host.PauseShortcuts);
-        page.Children.Add(Card(Row(Loc.Get("Settings.Hotkey"), Loc.Get("Settings.Hotkey.Desc.Mac"), _shortcut)));
+        page.Children.Add(Card(new StackPanel { Children = { Row(Loc.Get("Settings.Hotkey"), Loc.Get("Settings.Hotkey.Desc.Mac"), _shortcut), _shortcut.StatusLine } }));
 
         page.Children.Add(Section("Settings.Launch"));
         _commandLabel = Label("");
