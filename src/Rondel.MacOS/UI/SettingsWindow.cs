@@ -50,6 +50,7 @@ internal sealed class SettingsWindow : Window
     TextBlock _rootStatus = null!, _commandLabel = null!, _commandStatus = null!, _terminalStatus = null!;
     TextBlock _accentName = null!, _accentStatus = null!, _holdValue = null!, _autostartStatus = null!;
     Slider _hold = null!;
+    ShortcutBox _shortcut = null!;
     CheckBox _cardPrompt = null!, _cardGit = null!, _cardPlan = null!, _cardTemplates = null!, _autostart = null!, _debug = null!, _quickCard = null!;
     WrapPanel _themeCards = null!;
     StackPanel _swatches = null!, _customAccent = null!;
@@ -98,6 +99,7 @@ internal sealed class SettingsWindow : Window
         SetUpAccentPicker();
         Closed += (_, _) =>
         {
+            _host.PauseShortcuts(false); // closed while it recorded a shortcut
             Loc.Changed -= Rebuild;
             _host.PermissionsChanged -= RefreshPermissions;
             CommitHold();
@@ -131,6 +133,7 @@ internal sealed class SettingsWindow : Window
             Select(_language, s.Language);
             _root.Text = s.ProjectsRoot;
             _hold.Value = s.HoldMs;
+            _shortcut.Show(s.Hotkey, _host.HotkeyError);
             _holdValue.Text = Loc.Format("Settings.Ms", s.HoldMs);
             _commandLabel.Text = Loc.Format("Settings.Command", DefaultAgent(s)?.Name ?? "");
             _command.Text = DefaultAgent(s)?.Command ?? "";
@@ -319,6 +322,8 @@ internal sealed class SettingsWindow : Window
         _holdValue = new TextBlock { Width = 60, Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, TextAlignment = TextAlignment.Right, Foreground = _look.Text };
         page.Children.Add(Card(Row(Loc.Get("Settings.HoldMs"), Loc.Get("Settings.HoldMs.Desc.Mac"),
             new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Children = { _hold, _holdValue } })));
+        _shortcut = new ShortcutBox(_look, SaveShortcut, _host.PauseShortcuts);
+        page.Children.Add(Card(Row(Loc.Get("Settings.Hotkey"), Loc.Get("Settings.Hotkey.Desc.Mac"), _shortcut)));
 
         page.Children.Add(Section("Settings.Launch"));
         _commandLabel = Label("");
@@ -826,6 +831,13 @@ internal sealed class SettingsWindow : Window
             Store.Update(s => s.Terminal = terminal);
             UpdateStatus();
         }
+    }
+
+    /// <summary>Stores the menu's shortcut; once Rondel has registered it, the box says whether it is active.</summary>
+    void SaveShortcut(string shortcut)
+    {
+        Store.Update(s => s.Hotkey = shortcut);
+        Dispatcher.UIThread.Post(() => _shortcut.Show(Store.Current.Hotkey, _host.HotkeyError), DispatcherPriority.Background);
     }
 
     void OnQuickCardClicked()
