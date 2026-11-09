@@ -5,7 +5,7 @@ namespace Rondel.MacOS.Interop;
 /// <summary>Moves files and folders to the Trash, as Finder's Move to Trash does (NSFileManager trashItemAtURL).</summary>
 internal static class Trash
 {
-    /// <summary>Moves <paramref name="paths"/> to the Trash, one by one; Finder's Put Back brings each one back.</summary>
+    /// <summary>Moves <paramref name="paths"/> to the Trash, one by one.</summary>
     /// <exception cref="IOException">macOS did not move one; those before it are in the Trash already.</exception>
     public static unsafe void Move(IReadOnlyList<string> paths)
     {

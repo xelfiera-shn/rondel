@@ -34,6 +34,9 @@ internal sealed class SessionsWindow : Window
     PageLook _look = PageLook.Dark;
     bool _building, _loaded;
 
+    /// <summary>A delete or a read of the list is under way: Delete and Refresh wait for it.</summary>
+    bool _busy;
+
     TextBlock _summary = null!, _status = null!, _empty = null!, _selectedText = null!, _confirmTitle = null!, _confirmText = null!, _confirmMemory = null!;
     TextBox _search = null!;
     ComboBox _show = null!, _sort = null!;
@@ -220,10 +223,14 @@ internal sealed class SessionsWindow : Window
     /// <summary>Reads the sessions again, off the main thread, keeping what is still there selected.</summary>
     public void Refresh()
     {
+        if (_busy)
+            return; // a delete or a read is under way; it reads the list again when it ends
+        _busy = true;
         _summary.Text = Loc.Get("Sessions.Loading");
         _refresh.IsEnabled = _deleteButton.IsEnabled = false;
         Task.Run(_list).ContinueWith(read => Dispatcher.UIThread.Post(() =>
         {
+            _busy = false;
             _refresh.IsEnabled = true;
             Show(read.IsCompletedSuccessfully ? read.Result : []);
         }));
@@ -474,7 +481,8 @@ internal sealed class SessionsWindow : Window
             return;
         var (sessions, memories, bytes) = Selection();
         _selectedText.Text = sessions + memories == 0 ? Loc.Get("Sessions.NoneSelected") : Loc.Format("Sessions.Selected", sessions, Size(bytes));
-        _deleteButton.IsEnabled = sessions + memories > 0;
+        _deleteButton.IsEnabled = !_busy && sessions + memories > 0;
+        _refresh.IsEnabled = !_busy;
     }
 
     // ---- deleting ----
@@ -483,7 +491,7 @@ internal sealed class SessionsWindow : Window
     public void ShowConfirm(bool forGood = false)
     {
         var (sessions, memories, _) = Selection();
-        if (sessions + memories == 0)
+        if (_busy || sessions + memories == 0)
             return;
         _confirmTitle.Text = sessions == 0 ? Count("Sessions.Confirm.TitleMemory", memories)
             : sessions == 1 ? Loc.Get("Sessions.Confirm.TitleOne")
@@ -505,6 +513,9 @@ internal sealed class SessionsWindow : Window
     void Delete()
     {
         _confirmLayer.IsVisible = false;
+        if (_busy)
+            return;
+        _busy = true;
         bool forGood = _forGood.IsChecked == true;
         var requests = _projects
             .Select(p => new CleanupRequest(p.Key, [.. p.Sessions.Where(s => _selected.Contains(Key(p, s))).Select(s => s.Id)], _memory.Contains(p.Key)))
@@ -519,17 +530,22 @@ internal sealed class SessionsWindow : Window
             {
                 result = _delete(requests, forGood ? null : Interop.Trash.Move);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
             {
                 Log.Warn("Deleting sessions failed", ex);
                 error = ex.Message;
             }
-            Dispatcher.UIThread.Post(() => Done(result, error, forGood));
+            finally
+            {
+                // Whatever happened, the window gets its buttons back.
+                Dispatcher.UIThread.Post(() => Done(result, error, forGood));
+            }
         });
     }
 
     void Done(CleanupResult? result, string? error, bool forGood)
     {
+        _busy = false;
         if (result is null)
         {
             ShowStatus(Loc.Format("Sessions.Failed", error), isError: true);
