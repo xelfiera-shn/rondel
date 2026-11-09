@@ -55,6 +55,7 @@ internal sealed class ShortcutBox : StackPanel
         };
         _box.LostFocus += (_, _) => StopRecording();
         _box.AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
+        _box.AddHandler(KeyUpEvent, OnKeyUp, RoutingStrategies.Tunnel);
         Paint();
     }
 
@@ -77,7 +78,8 @@ internal sealed class ShortcutBox : StackPanel
         Paint();
     }
 
-    void StopRecording()
+    /// <summary>Stops recording without a change (the window lost the focus to another app).</summary>
+    public void StopRecording()
     {
         if (!_isRecording)
             return;
@@ -105,14 +107,18 @@ internal sealed class ShortcutBox : StackPanel
         }
         if (!Hotkey.IsShortcutKey(e.PhysicalKey))
         {
-            // A modifier on its own: show what is held so far.
-            _text.Text = Hotkey.Symbols(e.KeyModifiers) is { Length: > 0 } held ? held : Loc.Get("Settings.Hotkey.Recording.Mac");
+            ShowHeld(e.KeyModifiers); // a modifier on its own
             return;
         }
         var hotkey = new Hotkey(e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Shift | KeyModifiers.Meta), e.PhysicalKey);
         if (!hotkey.IsUsable)
         {
             ShowStatus(Loc.Get("Settings.Hotkey.NeedsModifier.Mac"));
+            return;
+        }
+        if (hotkey.IsAppShortcut)
+        {
+            ShowStatus(Loc.Get("Settings.Hotkey.AppShortcut.Mac"));
             return;
         }
         if (hotkey.IsReserved)
@@ -124,6 +130,19 @@ internal sealed class ShortcutBox : StackPanel
         StopRecording();
         _save(_current);
     }
+
+    /// <summary>A modifier let go: the box shows what is still held.</summary>
+    void OnKeyUp(object? sender, KeyEventArgs e)
+    {
+        if (!_isRecording)
+            return;
+        e.Handled = true;
+        ShowHeld(e.KeyModifiers);
+    }
+
+    /// <summary>The modifiers held so far, or the request for a combination when none is.</summary>
+    void ShowHeld(KeyModifiers modifiers) =>
+        _text.Text = Hotkey.Symbols(modifiers) is { Length: > 0 } held ? held : Loc.Get("Settings.Hotkey.Recording.Mac");
 
     void Paint()
     {
@@ -139,7 +158,7 @@ internal sealed class ShortcutBox : StackPanel
     void ShowStatus(string? text)
     {
         _status.Text = text ?? "";
-        _status.Foreground = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B));
+        _status.Foreground = _look.SubText; // as the other status lines in Settings
         _status.IsVisible = text is not null;
     }
 }

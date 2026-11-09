@@ -97,7 +97,7 @@ internal static unsafe partial class HotKeys
     private static partial nint GetApplicationEventTarget();
 
     [LibraryImport(Carbon)]
-    private static partial int InstallEventHandler(nint target, delegate* unmanaged<nint, nint, nint, int> handler, uint count,
+    private static partial int InstallEventHandler(nint target, delegate* unmanaged<nint, nint, nint, int> handler, nuint count,
         EventTypeSpec* types, nint userData, nint* handlerRef);
 
     [LibraryImport(Carbon)]
