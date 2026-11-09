@@ -449,6 +449,8 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
     public void Dispose()
     {
         CloseAnswerCards();
+        _usageWatcher?.Dispose();
+        _usageRead?.Stop();
         _card?.Dispose();
         StopUpdates();
         StopFollowingAgents();

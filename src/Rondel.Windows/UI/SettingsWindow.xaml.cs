@@ -94,6 +94,7 @@ public partial class SettingsWindow : Window
             Select(CardPlacementBox, card.Placement.ToString());
             CardFullScreenBox.IsChecked = card.OverFullScreen;
             CardMuteBox.IsChecked = card.MuteNotifications;
+            CardUsageBox.IsChecked = card.ShowUsage;
             CardHotkeyBox.Text = string.IsNullOrEmpty(card.Hotkey) ? Loc.Get("Settings.Hotkey.Off") : card.Hotkey;
             AgentsCardPanel.IsEnabled = s.ActiveAgents.Follow;
             CardOptions.IsEnabled = card.Show;
@@ -266,13 +267,15 @@ public partial class SettingsWindow : Window
     {
         if (_loading)
             return;
-        bool show = CardShowBox.IsChecked == true, fullScreen = CardFullScreenBox.IsChecked == true, mute = CardMuteBox.IsChecked == true;
+        bool show = CardShowBox.IsChecked == true, fullScreen = CardFullScreenBox.IsChecked == true, mute = CardMuteBox.IsChecked == true,
+            usage = CardUsageBox.IsChecked == true;
         CardOptions.IsEnabled = show;
         Store.Update(s =>
         {
             s.ActiveAgents.Card.Show = show;
             s.ActiveAgents.Card.OverFullScreen = fullScreen;
             s.ActiveAgents.Card.MuteNotifications = mute;
+            s.ActiveAgents.Card.ShowUsage = usage;
         });
     }
 
