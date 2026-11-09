@@ -14,16 +14,25 @@ internal sealed partial class AppHost
     const int MenuShortcut = 1;
 
     string? _menuShortcut;
-    bool _shortcutsPaused;
+    bool _shortcutsStarted, _shortcutsPaused;
 
     /// <summary>Why the menu's shortcut is not active, or null.</summary>
     public string? HotkeyError { get; private set; }
 
-    void StartShortcuts() => HotKeys.Pressed += id =>
+    /// <summary>
+    /// Registers the shortcuts once Rondel runs, not when the host is built: the developer renders build a host from
+    /// the user's settings and must not take the running Rondel's shortcut.
+    /// </summary>
+    void StartShortcuts()
     {
-        if (id == MenuShortcut)
-            OnMenuShortcut();
-    };
+        HotKeys.Pressed += id =>
+        {
+            if (id == MenuShortcut)
+                OnMenuShortcut();
+        };
+        _shortcutsStarted = true;
+        RegisterShortcuts();
+    }
 
     /// <summary>Registers the menu's shortcut when it changed in the settings.</summary>
     void ApplyShortcuts(string menu)
@@ -31,7 +40,7 @@ internal sealed partial class AppHost
         if (menu == _menuShortcut)
             return;
         _menuShortcut = menu;
-        if (!_shortcutsPaused)
+        if (_shortcutsStarted && !_shortcutsPaused)
             RegisterShortcuts();
     }
 
@@ -79,9 +88,7 @@ internal sealed partial class AppHost
         }
         if (Store.Current.Paused)
             return;
-        nint where = CGEventCreate(0);
-        var point = CGEventGetLocation(where);
-        CFRelease(where);
+        var point = CursorLocation();
         _worker.Post(() =>
         {
             var context = Detect(point, "shortcut");

@@ -78,7 +78,7 @@ internal readonly record struct Hotkey(KeyModifiers Modifiers, PhysicalKey Key)
                 case "SHIFT": modifiers |= KeyModifiers.Shift; break;
                 case "COMMAND" or "CMD": modifiers |= KeyModifiers.Meta; break;
                 default:
-                    if (key is not null || !Enum.TryParse(part, ignoreCase: true, out PhysicalKey parsed) || !KeyCodes.ContainsKey(parsed))
+                    if (key is not null || ParseKey(part) is not { } parsed)
                         return false;
                     key = parsed;
                     break;
@@ -88,6 +88,19 @@ internal readonly record struct Hotkey(KeyModifiers Modifiers, PhysicalKey Key)
             return false;
         hotkey = new Hotkey(modifiers, key.Value);
         return true;
+    }
+
+    /// <summary>
+    /// A key by its name ("R", "Digit7", "F5"), or a bare digit as Windows writes it ("7"). Other numbers are refused:
+    /// Enum.TryParse would read "7" as the key whose value is 7, and "R,A" as two keys at once.
+    /// </summary>
+    static PhysicalKey? ParseKey(string part)
+    {
+        if (part is [var digit] && char.IsAsciiDigit(digit))
+            part = "Digit" + digit;
+        else if (!part.All(char.IsAsciiLetterOrDigit) || !char.IsAsciiLetter(part[0]))
+            return null;
+        return Enum.TryParse(part, ignoreCase: true, out PhysicalKey key) && KeyCodes.ContainsKey(key) ? key : null;
     }
 
     /// <summary>As settings.json keeps it: "Control+Option+R", modifiers in Apple's order.</summary>
