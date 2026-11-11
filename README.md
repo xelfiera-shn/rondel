@@ -77,7 +77,7 @@ On macOS it is the same with ⌥ Option instead of Ctrl, Finder instead of File 
 - **Saved prompts** (turned on in Settings; Windows for now): every `.md` file in `%APPDATA%\Rondel\Prompts` is a prompt, named after its file. Pin up to five in Settings and the Ask slices open into them, the first one pinned right outside the slice; picking one starts the agent with it at once, after the file on a file's menu. The Ask card lists all of them above the box: pick one (**Tab** to reach them, **Space** to pick) to fill the box, change it if you like, and start.
 - Click a slice, press **1–N**, or move with **Tab** or the arrow keys and press **Enter** to run the selected slice. **Space** opens the items of the selected slice or project (newest first), and **Esc** steps back out and finally closes. You can also keep holding, move onto a slice and release.
 - Ordinary Ctrl+click and Ctrl+drag keep working everywhere (⌥+click and ⌥+drag on macOS). The navigation pane, the address bar, virtual locations such as This PC, and File Explorer windows running as administrator don't open the menu.
-- An optional keyboard shortcut (Settings) opens the menu at the mouse cursor. Windows only for now.
+- An optional keyboard shortcut (Settings) opens the menu at the mouse cursor. None is set at first: click the box and press a combination. On macOS ⌃⌥R is a good choice; Settings refuses the ones macOS keeps for itself, such as ⌘Space, and ⌃⌥Space, which switches the input language.
 
 ## Active agents
 
@@ -113,7 +113,7 @@ On macOS the update puts the new Rondel.app in place of the old one and opens it
 
 Tray icon → **Settings…**: language (Automatic / English / Türkçe), the menu's look, projects folder, hold duration, keyboard shortcut, the agent's command (`claude`, or an alias such as `cc`), terminal (Windows Terminal or console window), shell (PowerShell 7 or Windows PowerShell), following agents with their notifications, shortcut and card, update checks, the options on the New Project card, the templates folder and saved prompts.
 
-On macOS, menu bar icon → **Settings…** has the same, except the keyboard shortcuts, with Terminal or iTerm2 as the terminal; the agent runs in your login shell, so `PATH` and aliases from `~/.zprofile` and `~/.zshrc` work. Its **Permissions** section shows whether Accessibility and Finder are allowed, and **Open at login** adds Rondel to your login items.
+On macOS, menu bar icon → **Settings…** has the same, except the shortcuts for Active Agents and the agents card, with Terminal or iTerm2 as the terminal; the agent runs in your login shell, so `PATH` and aliases from `~/.zprofile` and `~/.zshrc` work. Its **Permissions** section shows whether Accessibility and Finder are allowed, and **Open at login** adds Rondel to your login items.
 
 **Appearance**: five themes — Rondel, Line, Spotlight, Orbit and Petal — each in dark and light, chosen from pictures of the menu; dark or light can follow Windows (or macOS) or stay fixed, and the accent color is the theme's own, a ready-made pair or your own colors, typed as `#RRGGBB` or picked with the dot in their box. Changes show in the menu at once.
 
