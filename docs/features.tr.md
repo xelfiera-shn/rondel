@@ -35,10 +35,10 @@ Rondel'in Windows'ta ve macOS'ta hangi özelliklere sahip olduğu ve her birinin
 | Masaüstünde **Son Projeler**: projelere ve onların oturumlarına açılır | ✅ 0.2.0 | ✅ 0.8.0 |
 | **Sor**, **Burada Sor** ve **Bu Dosyayı Sor** | ✅ 0.3.0 | ✅ 0.8.0 |
 | **Bu Dosyaları Sor**: seçili birden fazla dosya tek prompt'ta | ✅ 0.10.0 | ✅ 0.15.0 |
-| Hazır promptlar: en fazla beşi Sor dilimlerinin yayında, hepsi Sor kartında | ✅ 0.11.0 | ⬜ |
+| Hazır promptlar: en fazla beşi Sor dilimlerinin yayında, hepsi Sor kartında | ✅ 0.11.0 | ✅ 0.17.0 |
 | Masaüstünde **Hızlı Sohbet**: kendi klasöründe, kaydedilmeyen bir sohbet; bitince geride kalanlar silinir | ✅ 0.13.0 | ✅ 0.15.0 |
 | **Ekran Görüntüsünü Sor**: donmuş ekrandan bir alan ya da pencere seçip Hızlı Sohbet'te sorma (tray menüsü, isteğe bağlı kısayol) | ✅ 0.14.0 | ⬜ |
-| Hızlı Sohbet'in ilk cevabı, hiçbir şeyi engellemeyen kendi kartında; Kopyala, Kapat ve Terminalde devam et, model seçimi | ✅ 0.16.0 | ⬜ |
+| Hızlı Sohbet'in ilk cevabı, hiçbir şeyi engellemeyen kendi kartında; Kopyala, Kapat ve Terminalde devam et, model seçimi | ✅ 0.16.0 | ✅ 0.17.0 |
 | **Yeni Proje** kartı: ilk prompt, `git init`, plan modu ve şablonlar | ✅ 0.4.0 | ✅ 0.8.0 |
 | Terminal seçimi | ✅ 0.1.0: Windows Terminal ya da konsol penceresi | ✅ 0.8.0: Terminal ya da iTerm2 |
 | Kabuk seçimi | ✅ 0.1.0: PowerShell 7 ya da Windows PowerShell | — ajan, `PATH` ve alias'larınızla birlikte giriş kabuğunuzda çalışır |

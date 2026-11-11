@@ -11,6 +11,7 @@ using Rondel.Core.Localization;
 using Rondel.Core.Logging;
 using Rondel.Core.Menus;
 using Rondel.Core.Platform;
+using Rondel.Core.Prompts;
 using Rondel.Core.Settings;
 using Rondel.MacOS.Detection;
 using Rondel.MacOS.Interop;
@@ -37,6 +38,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
     IDisposable? _accessibilityPoll;
     nint _activity;
     RadialMenuWindow? _menu;
+    readonly List<AnswerCardWindow> _answerCards = [];
     SettingsWindow? _settingsWindow;
     WelcomeWindow? _welcomeWindow;
     SessionsWindow? _sessionsWindow;
@@ -51,12 +53,17 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         _tap = new EventTap(this);
         var launcher = new MacTerminalLauncher((message, activityId) => Dispatcher.UIThread.Post(() => LaunchFailed(message, activityId)),
             _agentTerminals);
+        // Developer aids read the saved prompts next to their copy of the settings.
+        Prompts = settingsDirectory is null ? SavedPrompts.Default : new SavedPrompts(Path.Combine(settingsDirectory, "Prompts"));
         _flow = new MenuFlow(this, launcher, new MacFolderNameValidator(), () => Store.Current, change => Store.Update(change),
-            activity: _agents);
+            activity: _agents, answers: new MacAnswerLauncher(), prompts: Prompts);
         _quick = new QuickSweeper(_flow);
         Updates = new MacUpdates(Store, () => QuitRequested?.Invoke());
         ApplySettings(Store.Current);
     }
+
+    /// <summary>The saved prompts the Ask slices offer.</summary>
+    public SavedPrompts Prompts { get; }
 
     /// <summary>Looking for newer releases, and updating Rondel.app in place.</summary>
     public MacUpdates Updates { get; }
@@ -170,7 +177,10 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         if (_menu is null || (!force && look == _look))
             return;
         _look = look;
-        _menu.ApplyLook(Palette(settings));
+        var palette = Palette(settings);
+        _menu.ApplyLook(palette);
+        foreach (var card in _answerCards)
+            card.ApplyLook(palette);
     }
 
     static MenuPalette Palette(AppSettings settings) => MenuPalette.For(settings.Appearance, SystemIsDark);
@@ -250,6 +260,21 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
             return;
         }
         Workspace.Open(directory);
+    }
+
+    /// <summary>Opens the folder of the saved prompts, creating it the first time.</summary>
+    public void OpenPromptsFolder()
+    {
+        try
+        {
+            Directory.CreateDirectory(Prompts.Directory);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Warn($"Creating the prompts folder '{Prompts.Directory}' failed", ex);
+            return;
+        }
+        Workspace.Open(Prompts.Directory);
     }
 
     void Warn(string message)
@@ -387,14 +412,15 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
     }
 
     /// <summary>
-    /// Session hints, a Resume slice's sessions, the recent projects and the active agents are filled in when they arrive.
+    /// Session hints, a Resume slice's sessions, the recent projects, the active agents and the saved prompts pinned to
+    /// the Ask slices are filled in when they arrive.
     /// </summary>
     void RequestDetails(MenuModel model)
     {
         if (!MenuDetails.Needed(model))
             return;
         var agents = _agents.Agents;
-        Task.Run(() => MenuDetails.Load(model, agents)).ContinueWith(
+        Task.Run(() => MenuDetails.Load(model, agents, Prompts)).ContinueWith(
             lookup => Dispatcher.UIThread.Post(() =>
             {
                 _menu?.ApplyHints(model, lookup.Result.Hints, lookup.Result.States);
@@ -411,8 +437,23 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 
     void IMenuHost.ShowCard(InputSpec spec) => Log.Warn("Ask About a Screenshot is not supported on macOS yet");
 
-    // Never called: the flow answers on the card only when it was given an IAnswerLauncher, which macOS does not pass yet.
-    void IMenuHost.ShowAnswer(QuickAnswer answer) => answer.Close();
+    /// <summary>
+    /// Quick Conversation's first answer, on a card of its own: the prompt card closes and gives the focus back, and the
+    /// answer card floats where it was until it is closed or continues in a terminal, so a slow answer blocks nothing.
+    /// </summary>
+    void IMenuHost.ShowAnswer(QuickAnswer answer)
+    {
+        var spec = _menu?.CurrentInput;
+        var (card, work) = _menu?.CardPlace() ?? default;
+        var header = new AnswerHeader(spec?.Title ?? Loc.Get("Action.Quick"), spec?.Glyph ?? '\uE945', spec?.Location, spec?.Image,
+            spec?.AgentName ?? "");
+        _menu?.CloseMenu(restoreFocus: true);
+        var window = new AnswerCardWindow(answer, header, Palette(Store.Current));
+        window.ContinuedInTerminal += _quick.Continued;
+        window.Closed += (_, _) => _answerCards.Remove(window);
+        _answerCards.Add(window);
+        window.ShowAt(card, work, offset: _answerCards.Count - 1);
+    }
 
     void IMenuHost.StartNewProject(NewProjectSpec spec) => _menu?.StartNewProject(spec);
 
@@ -423,6 +464,8 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
     public void Dispose()
     {
         _accessibilityPoll?.Dispose();
+        foreach (var card in _answerCards.ToList())
+            card.Close();
         StopFollowingAgents();
         _quick.Dispose();
         Updates.Dispose();

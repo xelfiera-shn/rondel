@@ -27,15 +27,26 @@ namespace Rondel.Core.Flow;
 /// <param name="quickDirectory">Where Quick Conversations run; <see cref="AppInfo.QuickDirectory"/> when null.</param>
 /// <param name="answers">Starts an agent without a terminal, so a Quick Conversation answers on its card; null: it starts in a
 /// terminal.</param>
+/// <param name="time">The clock for <see cref="ContinuedKept"/>; the system's when null.</param>
 public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolderNameValidator folderNames, Func<AppSettings> settings,
     Action<Action<AppSettings>>? updateSettings = null, ProjectTemplates? templates = null, AgentActivity? activity = null,
-    SavedPrompts? prompts = null, string? quickDirectory = null, IAnswerLauncher? answers = null)
+    SavedPrompts? prompts = null, string? quickDirectory = null, IAnswerLauncher? answers = null, TimeProvider? time = null)
 {
     readonly ProjectTemplates _templates = templates ?? ProjectTemplates.Default;
     readonly SavedPrompts _prompts = prompts ?? SavedPrompts.Default;
     readonly object _quickGate = new();
     readonly List<QuickAnswer> _openAnswers = [];
-    readonly HashSet<string> _continued = new(StringComparer.OrdinalIgnoreCase);
+    readonly TimeProvider _time = time ?? TimeProvider.System;
+
+    /// <summary>Quick Conversation sessions continued in a terminal, and when.</summary>
+    readonly Dictionary<string, DateTimeOffset> _continued = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// How long a session continued in a terminal is kept at most when nothing says it ended. Its terminal may never run it
+    /// (closed at Claude Code's trust question, say), and nothing else would tell the sweep to take it before Rondel restarts.
+    /// One that runs by then is kept by Claude Code's list of the sessions it runs.
+    /// </summary>
+    public static readonly TimeSpan ContinuedKept = TimeSpan.FromHours(1);
 
     /// <summary>The folder Quick Conversations run in; everything Claude Code keeps for it is left over from one.</summary>
     public string QuickDirectory { get; } = quickDirectory ?? AppInfo.QuickDirectory;
@@ -51,14 +62,23 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
 
     /// <summary>
     /// The Quick Conversation sessions the sweep keeps although no terminal runs them: answers on an open card, and
-    /// those continued in a terminal until <see cref="ForgetQuickSession"/>. Safe to read from any thread.
+    /// those continued in a terminal until <see cref="ForgetQuickSession"/>, or for <see cref="ContinuedKept"/> at most.
+    /// Safe to read from any thread.
     /// </summary>
     public IReadOnlyCollection<string> QuickSessions
     {
         get
         {
             lock (_quickGate)
-                return [.. _openAnswers.Select(a => a.SessionId).OfType<string>().Concat(_continued)];
+            {
+                var now = _time.GetUtcNow();
+                foreach (string id in _continued.Where(c => now - c.Value >= ContinuedKept).Select(c => c.Key).ToList())
+                {
+                    _continued.Remove(id);
+                    Log.Info($"Quick Conversation {id} was continued in a terminal an hour ago and is not kept any more");
+                }
+                return [.. _openAnswers.Select(a => a.SessionId).OfType<string>().Concat(_continued.Keys)];
+            }
         }
     }
 
@@ -449,7 +469,7 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
         lock (_quickGate)
         {
             _openAnswers.Remove(answer);
-            _continued.Add(id); // kept until that session ends (ForgetQuickSession)
+            _continued[id] = _time.GetUtcNow(); // kept until that session ends (ForgetQuickSession), or for ContinuedKept
         }
         host.CloseMenu(restoreFocus: false);
         Log.Info($"Continuing Quick Conversation {id} in a terminal");

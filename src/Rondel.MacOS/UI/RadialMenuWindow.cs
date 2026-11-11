@@ -327,6 +327,12 @@ internal sealed class RadialMenuWindow : Window
 
     CGRect Frame => new() { X = Position.X, Y = Position.Y, Width = Width, Height = Height };
 
+    /// <summary>The card being shown, if any (an answer card opens with its title, icon and picture).</summary>
+    public InputSpec? CurrentInput => _isOpen ? _card.Spec : null;
+
+    /// <summary>Where the card's top left is on the screen and the work area of that screen: an answer card opens there.</summary>
+    public (PixelPoint Card, PixelRect Work) CardPlace() => (_card.PointToScreen(default), _work);
+
     /// <summary>Replaces the ring with the card that asks for a folder name (and a prompt), or a prompt alone.</summary>
     public void StartInput(InputSpec spec)
     {
@@ -514,6 +520,21 @@ internal sealed class RadialMenuWindow : Window
     {
         _card.Start(spec, _ => { });
         _card.Fill(name, prompt);
+        return RenderCard(background);
+    }
+
+    /// <summary>Developer aid (--render-ask): draws the Ask card into a bitmap at 2x without showing the window.</summary>
+    /// <param name="picked">A saved prompt to pick, as a click would; null for the empty box.</param>
+    public Bitmap RenderAskPreview(InputSpec spec, string? picked, Color background)
+    {
+        _card.Start(spec, _ => { });
+        if (picked is not null)
+            _card.PickSavedPrompt(picked);
+        return RenderCard(background);
+    }
+
+    Bitmap RenderCard(Color background)
+    {
         const double Size = 540;
         var root = new Panel { Width = Size, Height = Size, Background = new SolidColorBrush(background) };
         _surface.Children.Remove(_card);
@@ -780,7 +801,9 @@ internal sealed class RadialMenuWindow : Window
     /// </summary>
     double StageSizeFor(MenuModel model)
     {
-        int depth = model.Items.Any(MenuBuilder.ListsRecentProjects) ? 2 : model.Items.Any(MenuBuilder.CanExpand) ? 1 : 0;
+        // A slice with pinned prompts opens an arc too, though it does not expand otherwise (as on Windows).
+        int depth = model.Items.Any(MenuBuilder.ListsRecentProjects) ? 2
+            : model.Items.Any(item => MenuBuilder.CanExpand(item) || MenuBuilder.OpensPrompts(item)) ? 1 : 0;
         double reach = (depth == 0 ? OuterR : _bands[depth].EdgeR) + ArrowReach + ShadowPad;
         return Math.Min(2 * StageR, Math.Ceiling(2 * reach));
     }
