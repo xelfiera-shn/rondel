@@ -13,7 +13,8 @@ namespace Rondel.MacOS.Launch;
 /// (~/.claude/sessions) tells one that still runs from one that ended, so without that list nothing is swept.
 /// An answer on an open card is kept too, and so are the folder's files while one is open; a card closed with its answer
 /// ends its session at once. One continued in a terminal is kept by the flow until a sweep finds it among the sessions
-/// Claude Code runs; from then on that list keeps it, until it ends.
+/// Claude Code runs; from then on that list keeps it, until it ends. The flow keeps it for an hour at most
+/// (<see cref="MenuFlow.ContinuedKept"/>), so one its terminal never ran is swept then.
 /// </summary>
 internal sealed class QuickSweeper : IDisposable
 {
@@ -32,7 +33,7 @@ internal sealed class QuickSweeper : IDisposable
     readonly string _directory;
     readonly HashSet<string> _ended = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Sessions continued in a terminal that Claude Code has not listed as running yet.</summary>
+    /// <summary>Sessions continued in a terminal that Claude Code has not listed as running yet, while the flow keeps them.</summary>
     readonly HashSet<string> _continued = new(StringComparer.OrdinalIgnoreCase);
     readonly object _lock = new();
     Timer? _timer;
@@ -64,8 +65,8 @@ internal sealed class QuickSweeper : IDisposable
     }
 
     /// <summary>
-    /// An answer went on in a terminal. The flow keeps it until a sweep sees Claude Code run it there, however long the
-    /// terminal takes (a folder trust question first, say); on Windows, until Rondel hears that it ended.
+    /// An answer went on in a terminal. The flow keeps it until a sweep sees Claude Code run it there (a folder trust
+    /// question may come first), or for an hour at most; on Windows, until Rondel hears that it ended, or for that hour.
     /// </summary>
     public void Continued(string session)
     {
@@ -99,6 +100,7 @@ internal sealed class QuickSweeper : IDisposable
                     return;
                 }
                 _toldNoRegistry = false;
+                _continued.IntersectWith(keep); // the flow no longer keeps one its terminal has not run for an hour
                 if (_continued.Count > 0)
                 {
                     var running = storage.RunningSessionIds();
