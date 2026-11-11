@@ -6,9 +6,9 @@ using Rondel.MacOS.Interop;
 namespace Rondel.MacOS.Launch;
 
 /// <summary>
-/// Quick Conversation: what Claude Code keeps of a session there is deleted for good once it is over. Rondel does not
-/// follow agents on macOS yet (C-24), so it never hears that one ended, as Windows does: it sweeps at its start, before
-/// each new Quick Conversation, and from the first one on every two minutes. A session Claude Code still runs, or one
+/// Quick Conversation: what Claude Code keeps of a session there is deleted for good once it is over. On macOS it
+/// sweeps at its start, before each new Quick Conversation, and from the first one on every two minutes, rather than
+/// when it hears that one ended, as Windows does. A session Claude Code still runs, or one
 /// written to in the last minute, is kept until a later sweep. Only Claude Code's list of the sessions it runs
 /// (~/.claude/sessions) tells one that still runs from one that ended, so without that list nothing is swept.
 /// </summary>
