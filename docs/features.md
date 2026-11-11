@@ -24,7 +24,7 @@ Which features Rondel has on Windows and on macOS, and since which version. Down
 | Long project names fit their tiles | ✅ 0.3.0 | ✅ 0.8.0 |
 | Five themes, dark and light, accent colors | ✅ 0.5.0 | ✅ 0.8.0 |
 | A color picker for your own accent colors | ✅ 0.10.0 | ✅ 0.15.0 |
-| A keyboard shortcut that opens the menu at the mouse cursor | ✅ 0.1.0 | ⬜ |
+| A keyboard shortcut that opens the menu at the mouse cursor | ✅ 0.1.0 | ✅ 0.17.0 |
 
 ## Starting the agent
 

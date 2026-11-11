@@ -77,7 +77,7 @@ macOS'ta da aynısıdır; Ctrl yerine ⌥ Option, Dosya Gezgini yerine Finder, v
 - **Hazır promptlar** (Ayarlar'dan açılır; şimdilik Windows'ta): `%APPDATA%\Rondel\Prompts` klasöründeki her `.md` dosyası, dosyanın adıyla bir prompttur. Ayarlar'da en fazla beşini iğnelerseniz Sor dilimleri onlara açılır; ilk iğnelenen dilimin hemen dışında durur. Birini seçince ajan o prompt'la hemen başlar, dosya menüsünde dosyadan sonra. Sor kartı hepsini kutunun üstünde listeler: birini seçin (**Tab** ile ulaşıp **Space** ile), kutuya yazılsın, isterseniz değiştirip başlatın.
 - Dilime tıklayın, **1–N** tuşlarına basın ya da **Tab** veya ok tuşlarıyla gezinip seçili dilimi **Enter** ile çalıştırın. **Boşluk** seçili dilimin ya da projenin öğelerini (en yeniden başlayarak) açar, **Esc** bir seviye geri çıkar ve en sonunda menüyü kapatır. Basılı tutmaya devam edip bir dilimin üzerine gelerek bırakmak da seçer.
 - Normal Ctrl+tık ve Ctrl+sürükle her yerde eskisi gibi çalışır (macOS'ta ⌥+tık ve ⌥+sürükle). Gezinti bölmesi, adres çubuğu, Bu Bilgisayar gibi sanal konumlar ve yönetici olarak çalışan Dosya Gezgini pencereleri menüyü açmaz.
-- İsteğe bağlı bir klavye kısayolu (Ayarlar) menüyü fare imlecinin olduğu yerde açar. Şimdilik yalnızca Windows'ta.
+- İsteğe bağlı bir klavye kısayolu (Ayarlar) menüyü fare imlecinin olduğu yerde açar. Başta hiçbiri ayarlı değildir: kutuya tıklayıp bir kombinasyona basın. macOS'ta ⌃⌥R iyi bir seçimdir; Ayarlar, ⌘Space ya da klavye dilini değiştiren ⌃⌥Space gibi macOS'un kendine ayırdıklarını kabul etmez.
 
 ## Aktif ajanlar
 
@@ -113,7 +113,7 @@ macOS'ta güncelleme yeni Rondel.app'i eskisinin yerine koyar ve açar; bulundu�
 
 Tray ikonu → **Ayarlar…**: dil (Otomatik / English / Türkçe), menünün görünümü, proje klasörü, basılı tutma süresi, klavye kısayolu, ajanın komutu (`claude` ya da `cc` gibi bir alias), terminal (Windows Terminal veya konsol penceresi), kabuk (PowerShell 7 veya Windows PowerShell), ajanların takibi ile bildirimleri, kısayolu ve kartı, güncelleme denetimi, Yeni Proje kartındaki seçenekler, şablon klasörü ve hazır promptlar.
 
-macOS'ta menü çubuğu ikonu → **Ayarlar…** aynısını sunar; klavye kısayolları ve ajan kartı yoktur, terminal olarak Terminal ya da iTerm2 seçilir. Ajan giriş kabuğunuzda çalışır, bu yüzden `~/.zprofile` ve `~/.zshrc` içindeki `PATH` ve alias'lar geçerlidir. **İzinler** bölümü Erişilebilirlik ve Finder izinlerinin verilip verilmediğini gösterir; **Oturum açılınca başlat** Rondel'i giriş öğelerinize ekler.
+macOS'ta menü çubuğu ikonu → **Ayarlar…** aynısını sunar; Aktif Ajanlar kısayolu ve ajan kartı yoktur, terminal olarak Terminal ya da iTerm2 seçilir. Ajan giriş kabuğunuzda çalışır, bu yüzden `~/.zprofile` ve `~/.zshrc` içindeki `PATH` ve alias'lar geçerlidir. **İzinler** bölümü Erişilebilirlik ve Finder izinlerinin verilip verilmediğini gösterir; **Oturum açılınca başlat** Rondel'i giriş öğelerinize ekler.
 
 **Görünüm**: beş tema — Rondel, İnce Halka, Vurgu, Yörünge ve Yaprak — her biri koyu ve açık; menünün resimlerinden seçilir. Koyu ya da açık mod Windows'u (ya da macOS'u) izleyebilir ya da sabit kalabilir; vurgu rengi temanın kendi rengi, hazır bir çift ya da kendi renkleriniz olabilir; bunları `#RRGGBB` olarak yazabilir ya da kutularındaki noktayla renk seçiciden seçebilirsiniz. Değişiklikler menüye hemen yansır.
 

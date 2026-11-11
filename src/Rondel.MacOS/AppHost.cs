@@ -83,6 +83,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
                 _settingsWindow?.LoadValues();
         };
         Store.LoadFailed += _ => Warn(Loc.Get("Tray.SettingsInvalid"));
+        StartShortcuts();
 
         _menuBar.AccessibilityClicked += AllowAccessibility;
         _menuBar.FinderAccessClicked += AllowFinderAccess;
@@ -158,6 +159,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         _tap.Configure(settings.HoldMs, settings.Paused);
         _menuBar.Update(s => s with { Paused = settings.Paused });
         ApplyLook(settings);
+        ApplyShortcuts(settings.Hotkey);
     }
 
     /// <summary>The menu's theme, mode and accent; redrawn only when one of them changed (or macOS switched modes).</summary>
