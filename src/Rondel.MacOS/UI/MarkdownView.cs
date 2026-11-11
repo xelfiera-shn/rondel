@@ -335,6 +335,8 @@ internal static partial class MarkdownView
             Cursor = new Cursor(StandardCursorType.Hand),
         };
         ToolTip.SetTip(link, uri.ToString());
+        // The text around it is selectable: its press would capture the pointer and the release would never get here.
+        link.PointerPressed += (_, e) => e.Handled = true;
         link.PointerReleased += (_, e) =>
         {
             e.Handled = true;

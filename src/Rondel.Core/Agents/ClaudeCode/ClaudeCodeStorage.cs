@@ -394,6 +394,9 @@ public sealed class ClaudeCodeStorage
     internal static string HashedKey(string key) =>
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(key.ToLowerInvariant())))[..16];
 
+    /// <summary>The ids of the sessions a Claude Code that still runs has open.</summary>
+    public IReadOnlySet<string> RunningSessionIds() => RunningSessions();
+
     /// <summary>The ids of the sessions a Claude Code that still runs has open (~/.claude/sessions/&lt;pid&gt;.json).</summary>
     /// <param name="folders">When given, also gets the folders those Claude Codes work in.</param>
     HashSet<string> RunningSessions(HashSet<string>? folders = null)
