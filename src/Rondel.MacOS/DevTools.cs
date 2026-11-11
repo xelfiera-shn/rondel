@@ -74,6 +74,9 @@ internal static class DevTools
             case ["--render-update", var output, .. var options]:
                 RenderUpdate(output, options);
                 return true;
+            case ["--render-answer", var output, .. var options]:
+                RenderAnswer(output, options);
+                return true;
             case ["--install-update", var bundle, var zip, var from]:
                 // Swaps a locally built zip into a bundle once this process exits, as an update does.
                 if (!AppVersion.TryParse(from, out var version))
@@ -308,6 +311,45 @@ internal static class DevTools
         }
         var bitmap = new RenderTargetBitmap(new PixelSize((int)(Width * 2), (int)(Height * 2)), new Vector(192, 192));
         bitmap.Render(root);
+        bitmap.Save(output, new PngBitmapEncoderOptions());
+        window.Close();
+    }
+
+    /// <summary>
+    /// Draws a Quick Conversation's card with a made-up answer, for checking its design:
+    /// <c>--render-answer out.png [dark|light] [en|tr] [starting|search|writing|done|stopped|failed]</c>.
+    /// </summary>
+    static void RenderAnswer(string output, string[] options)
+    {
+        AppBuilder.Configure<App>().UsePlatformDetect()
+            .With(new FontManagerOptions { DefaultFamilyName = ".AppleSystemUIFont" })
+            .SetupWithoutStarting();
+        bool dark = !options.Contains("light");
+        bool tr = options.Contains("tr");
+        Loc.SetLanguage(tr ? "tr" : "en");
+        string state = new[] { "starting", "search", "writing", "stopped", "failed" }.FirstOrDefault(options.Contains) ?? "done";
+        // Made up, like everything these pictures show.
+        string question = tr ? "Terminal'de bir klasörün boyutunu nasıl bulurum?" : "How do I find the size of a folder in Terminal?";
+        string answer = tr
+            ? "Klasörün toplam boyutunu **du** ile okunur biçimde alın:\n\n```zsh\ndu -sh ~/Projects/weather-api\n```\n\n- `-s` yalnızca toplamı yazar, alt klasörleri tek tek saymaz.\n- `-h` boyutu `K`, `M` ya da `G` ile gösterir.\n\n| Seçenek | Ne yapar |\n|---|---|\n| `-d 1` | Bir seviye aşağıdaki klasörleri de yazar |\n| `-c` | Sonuna genel toplamı ekler |"
+            : "Get the folder's total size in a *readable* form with **du**:\n\n```zsh\ndu -sh ~/Projects/weather-api\n```\n\n- `-s` prints only the total, not every subfolder.\n- `-h` shows the size with `K`, `M` or `G`.\n\n| Option | What it does |\n|---|---|\n| `-d 1` | Also lists the folders one level down |\n| `-c` | Adds a grand total at the end |";
+        string partial = answer[..(answer.IndexOf("```", StringComparison.Ordinal) + 20)];
+        var view = state switch
+        {
+            "starting" => new AnswerView(question, "", AnswerState.Starting, null, null, false),
+            "search" => new AnswerView(question, "", AnswerState.Starting, "WebSearch", null, false),
+            "writing" => new AnswerView(question, partial, AnswerState.Writing, null, null, false),
+            "stopped" => new AnswerView(question, partial, AnswerState.Stopped, null, null, true),
+            "failed" => new AnswerView(question, "", AnswerState.Failed, null, "Not logged in · Please run /login", false),
+            _ => new AnswerView(question, answer, AnswerState.Done, null, null, true),
+        };
+        var settings = new AppSettings();
+        settings.Normalize();
+        var header = new AnswerHeader(Loc.Get("Action.Quick"), '\uE945', Loc.Get("Quick.Location"), null, "Claude Code");
+        var window = new AnswerCardWindow(null, header, MenuPalette.For(settings.Appearance, dark));
+        window.Show(view);
+        var background = dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6);
+        using var bitmap = window.RenderPreview(background);
         bitmap.Save(output, new PngBitmapEncoderOptions());
         window.Close();
     }

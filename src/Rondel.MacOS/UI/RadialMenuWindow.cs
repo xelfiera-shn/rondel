@@ -327,6 +327,12 @@ internal sealed class RadialMenuWindow : Window
 
     CGRect Frame => new() { X = Position.X, Y = Position.Y, Width = Width, Height = Height };
 
+    /// <summary>The card being shown, if any (an answer card opens with its title, icon and picture).</summary>
+    public InputSpec? CurrentInput => _isOpen ? _card.Spec : null;
+
+    /// <summary>Where the card's top left is on the screen and the work area of that screen: an answer card opens there.</summary>
+    public (PixelPoint Card, PixelRect Work) CardPlace() => (_card.PointToScreen(default), _work);
+
     /// <summary>Replaces the ring with the card that asks for a folder name (and a prompt), or a prompt alone.</summary>
     public void StartInput(InputSpec spec)
     {
