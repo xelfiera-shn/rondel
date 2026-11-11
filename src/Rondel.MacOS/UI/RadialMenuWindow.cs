@@ -763,7 +763,9 @@ internal sealed class RadialMenuWindow : Window
     /// </summary>
     double StageSizeFor(MenuModel model)
     {
-        int depth = model.Items.Any(MenuBuilder.ListsRecentProjects) ? 2 : model.Items.Any(MenuBuilder.CanExpand) ? 1 : 0;
+        // A slice with pinned prompts opens an arc too, though it does not expand otherwise (as on Windows).
+        int depth = model.Items.Any(MenuBuilder.ListsRecentProjects) ? 2
+            : model.Items.Any(item => MenuBuilder.CanExpand(item) || MenuBuilder.OpensPrompts(item)) ? 1 : 0;
         double reach = (depth == 0 ? OuterR : _bands[depth].EdgeR) + ArrowReach + ShadowPad;
         return Math.Min(2 * StageR, Math.Ceiling(2 * reach));
     }
