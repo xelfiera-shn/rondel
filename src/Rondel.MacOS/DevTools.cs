@@ -15,6 +15,7 @@ using Rondel.Core.Launch;
 using Rondel.Core.Localization;
 using Rondel.Core.Logging;
 using Rondel.Core.Menus;
+using Rondel.Core.Prompts;
 using Rondel.Core.Settings;
 using Rondel.Core.Updates;
 using Rondel.MacOS.Detection;
@@ -44,6 +45,9 @@ internal static class DevTools
                 return true;
             case ["--launch-now", var directory, var command, var promptFile]:
                 new MacTerminalLauncher().Launch(PromptPlan(directory, command, promptFile), ReadSettings());
+                return true;
+            case ["--render-ask", var output, .. var options]:
+                RenderAsk(output, options);
                 return true;
             case ["--render-new", var output, .. var options]:
                 RenderNewProject(output, options);
@@ -130,13 +134,13 @@ internal static class DevTools
 
     /// <summary>
     /// Draws the menu into a PNG without showing it, for checking the design:
-    /// <c>--render-menu out.png [dark|light] [en|tr] [desktop|item] [theme=ID] [hover=N] [open|deep] [edge] [FOLDER|FILE...]</c>.
+    /// <c>--render-menu out.png [dark|light] [en|tr] [desktop|item] [theme=ID] [hover=N] [open|deep] [edge] [prompts] [FOLDER|FILE...]</c>.
     /// The Finder-window menu for a folder by default (the desktop menu with <c>desktop</c>, the folder's own menu with
     /// <c>item</c>, a file's menu when given a file, held in a selection of them when given several), with its real
     /// session hints and items. <c>open</c> hovers the first
     /// slice that opens and its newest item, <c>deep</c> also the first of its items that opens further; <c>edge</c> draws
     /// it as if opened at the left edge of the screen; <c>agents</c> opens the Active Agents slice into made-up agents in
-    /// every state.
+    /// every state; <c>prompts</c> pins made-up saved prompts to the Ask slices.
     /// </summary>
     static void RenderMenu(string output, string[] options)
     {
@@ -162,9 +166,15 @@ internal static class DevTools
             .With(new FontManagerOptions { DefaultFamilyName = ".AppleSystemUIFont" })
             .SetupWithoutStarting();
         bool isDark = dark ?? Application.Current?.PlatformSettings?.GetColorValues().ThemeVariant == Avalonia.Platform.PlatformThemeVariant.Dark;
+        var prompts = options.Contains("prompts") ? MadeUpPrompts() : null;
+        if (prompts is not null)
+        {
+            settings.Prompts.Enabled = true;
+            settings.Prompts.Pinned = [.. prompts.List().Take(3)];
+        }
         var model = MenuBuilder.Build(context, settings);
         bool showAgents = options.Contains("agents");
-        var details = MenuDetails.Needed(model) ? MenuDetails.Load(model, showAgents ? MadeUpAgents() : null) : null;
+        var details = MenuDetails.Needed(model) ? MenuDetails.Load(model, showAgents ? MadeUpAgents() : null, prompts) : null;
         var hints = details?.Hints ?? [];
         var children = details?.Children ?? [.. model.Items.Select(_ => (IReadOnlyList<MenuItemModel>)[])];
         var hoverPath = new List<int>();
@@ -185,6 +195,47 @@ internal static class DevTools
         var window = new RadialMenuWindow(MenuPalette.For(settings.Appearance, isDark));
         var bitmap = window.RenderPreview(model, hints, children, hoverPath, isDark ? Color.FromRgb(0x1E, 0x1E, 0x1E) : Color.FromRgb(0xEC, 0xEC, 0xEC),
             atLeftEdge: options.Contains("edge"), states: details?.States);
+        bitmap.Save(output, new PngBitmapEncoderOptions());
+    }
+
+    /// <summary>Made-up saved prompts in a folder of their own, for the pictures.</summary>
+    static SavedPrompts MadeUpPrompts()
+    {
+        string folder = Directory.CreateTempSubdirectory("rondel-prompts-").FullName;
+        bool tr = Loc.Language == "tr";
+        string[] names = tr
+            ? ["Kodu gözden geçir", "Testleri yaz", "Hatayı bul", "Yeni başlayana anlat", "Commit mesajı öner"]
+            : ["Review the code", "Write the tests", "Find the bug", "Explain like I'm new", "Suggest a commit message"];
+        foreach (string name in names)
+            File.WriteAllText(Path.Combine(folder, name + SavedPrompts.Extension), tr ? $"{name}: kısa ve net ol." : $"{name}: keep it short and clear.");
+        return new SavedPrompts(folder);
+    }
+
+    /// <summary>
+    /// Draws the Ask card with made-up saved prompts into a PNG: <c>--render-ask out.png [dark|light] [en|tr] [empty] [picked]</c>
+    /// (<c>empty</c>: none in the folder; <c>picked</c>: one of them picked into the box).
+    /// </summary>
+    static void RenderAsk(string output, string[] options)
+    {
+        var settings = ReadSettings();
+        Loc.SetLanguage(options.FirstOrDefault(o => o is "en" or "tr") ?? settings.Language);
+        AppBuilder.Configure<App>().UsePlatformDetect()
+            .With(new FontManagerOptions { DefaultFamilyName = ".AppleSystemUIFont" })
+            .SetupWithoutStarting();
+        bool isDark = options.Contains("dark") || (!options.Contains("light")
+            && Application.Current?.PlatformSettings?.GetColorValues().ThemeVariant == Avalonia.Platform.PlatformThemeVariant.Dark);
+        var prompts = options.Contains("empty") ? new SavedPrompts(Directory.CreateTempSubdirectory("rondel-prompts-").FullName) : MadeUpPrompts();
+        string folder = Path.Combine(settings.ResolveProjectsRoot(), "weather-api");
+        var spec = new InputSpec(Loc.Get("Action.AskHere"), '\uE8F2', folder, "Claude Code", AskPrompt: true, ValidateName: _ => null, Submit: (_, _) => null)
+        {
+            AskName = false,
+            Location = folder,
+            SavedPrompts = prompts,
+            PromptNames = prompts.List(),
+        };
+        var window = new RadialMenuWindow(MenuPalette.For(settings.Appearance, isDark));
+        var bitmap = window.RenderAskPreview(spec, options.Contains("picked") ? spec.PromptNames.FirstOrDefault() : null,
+            isDark ? Color.FromRgb(0x1E, 0x1E, 0x1E) : Color.FromRgb(0xEC, 0xEC, 0xEC));
         bitmap.Save(output, new PngBitmapEncoderOptions());
     }
 
@@ -470,8 +521,8 @@ internal static class DevTools
 
     /// <summary>
     /// Draws the whole settings page, without scrolling, into a PNG at 2x:
-    /// <c>--render-settings out.png [dark|light] [en|tr] [custom]</c>, with <c>custom</c> a custom accent and its color
-    /// dots. It works on a copy of settings.json, so a running Rondel and the real file are not touched.
+    /// <c>--render-settings out.png [dark|light] [en|tr] [custom] [prompts]</c>, with <c>custom</c> a custom accent and its
+    /// color dots, and <c>prompts</c> saved prompts turned on with made-up ones, two of them pinned. It works on a copy of settings.json, so a running Rondel and the real file are not touched.
     /// </summary>
     static void RenderSettings(string output, string[] options)
     {
@@ -482,7 +533,23 @@ internal static class DevTools
         string file = Path.Combine(AppInfo.SettingsDirectory, "settings.json");
         if (File.Exists(file))
             File.Copy(file, Path.Combine(copy, "settings.json"));
+        if (options.Contains("prompts"))
+        {
+            Loc.SetLanguage(options.FirstOrDefault(o => o is "en" or "tr") ?? "en");
+            var made = MadeUpPrompts();
+            Directory.CreateDirectory(Path.Combine(copy, "Prompts"));
+            foreach (string prompt in Directory.EnumerateFiles(made.Directory))
+                File.Copy(prompt, Path.Combine(copy, "Prompts", Path.GetFileName(prompt)));
+        }
         var host = new AppHost(copy);
+        if (options.Contains("prompts"))
+        {
+            host.Store.Update(s =>
+            {
+                s.Prompts.Enabled = true;
+                s.Prompts.Pinned = [.. host.Prompts.List().Skip(1).Take(2)];
+            });
+        }
         if (options.FirstOrDefault(o => o is "en" or "tr") is { } language)
             Loc.SetLanguage(language);
         if (options.Contains("custom"))
