@@ -67,7 +67,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>15.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
-  <key>NSAppleEventsUsageDescription</key><string>Rondel asks Finder which folder a window shows, to open its menu there.</string>
+  <key>NSAppleEventsUsageDescription</key><string>Rondel asks Finder which folder a window shows, to open its menu there, and brings an agent's Terminal or iTerm2 tab to the front.</string>
 </dict>
 </plist>
 PLIST

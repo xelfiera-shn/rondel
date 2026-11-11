@@ -24,7 +24,7 @@ Which features Rondel has on Windows and on macOS, and since which version. Down
 | Long project names fit their tiles | ✅ 0.3.0 | ✅ 0.8.0 |
 | Five themes, dark and light, accent colors | ✅ 0.5.0 | ✅ 0.8.0 |
 | A color picker for your own accent colors | ✅ 0.10.0 | ✅ 0.15.0 |
-| A keyboard shortcut that opens the menu at the mouse cursor | ✅ 0.1.0 | ⬜ |
+| A keyboard shortcut that opens the menu at the mouse cursor | ✅ 0.1.0 | ✅ 0.17.0 |
 
 ## Starting the agent
 
@@ -47,11 +47,11 @@ Which features Rondel has on Windows and on macOS, and since which version. Down
 
 | Feature | Windows | macOS |
 |---|---|---|
-| A notification when an agent asks for something, is done or stops with an error; a click brings its terminal to the front | ✅ 0.6.0 | ⬜ |
-| **Active Agents** on the desktop menu, with a status dot for each agent, and a shortcut that opens it | ✅ 0.6.0 | ⬜ |
+| A notification when an agent asks for something, is done or stops with an error; a click brings its terminal to the front | ✅ 0.6.0 | ✅ 0.17.0 |
+| **Active Agents** on the desktop menu, with a status dot for each agent, and a shortcut that opens it | ✅ 0.6.0 | ✅ 0.17.0 (no shortcut yet) |
 | The agents card: the running agents in sight, above other windows or on the desktop, collapsed to a badge with the number that need you | ✅ 0.9.0 | ⬜ |
 | Your Claude plan's 5-hour and weekly usage limits on the agents card, which then stays on screen, small | ✅ 0.17.0 | ⬜ |
-| **Sessions**: every saved Claude Code session with the space it takes, to delete into the Recycle Bin or for good | ✅ 0.12.0 | ⬜ |
+| **Sessions**: every saved Claude Code session with the space it takes, to delete into the Recycle Bin (the Trash on macOS) or for good | ✅ 0.12.0 | ✅ 0.17.0 |
 
 ## The app
 
