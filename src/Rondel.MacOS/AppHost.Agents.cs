@@ -102,7 +102,8 @@ internal sealed partial class AppHost
             Log.Debug($"Agent {change.Agent.Id}: {notice} not shown, its terminal is in front");
             return;
         }
-        if (options.Card.MuteNotifications && _card?.IsShown == true)
+        // Quiet only while the card can be seen: over a full-screen app, or behind a window, it shows nothing.
+        if (options.Card.MuteNotifications && _card?.CanBeSeen == true)
         {
             Log.Debug($"Agent {change.Agent.Id}: {notice} not shown, the agents card shows it");
             return;

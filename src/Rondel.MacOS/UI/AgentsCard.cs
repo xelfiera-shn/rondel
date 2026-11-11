@@ -32,6 +32,9 @@ namespace Rondel.MacOS.UI;
 internal sealed class AgentsCard : IDisposable
 {
     static readonly TimeSpan CollapseDelay = TimeSpan.FromMilliseconds(450);
+
+    /// <summary>The options close this long after the mouse left the card, as the quick settings do on Windows.</summary>
+    static readonly TimeSpan OptionsCloseDelay = TimeSpan.FromMilliseconds(600);
     static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(30);
     static readonly TimeSpan SaveDelay = TimeSpan.FromMilliseconds(400);
 
@@ -45,7 +48,7 @@ internal sealed class AgentsCard : IDisposable
     readonly Action<Action<AgentsCardOptions>> _change;
     readonly string? _stateFile;
     readonly AgentsCardWindow _window;
-    readonly DispatcherTimer _collapse, _refresh, _save;
+    readonly DispatcherTimer _collapse, _closeOptions, _refresh, _save;
     readonly Dictionary<string, PixelPoint> _positions = [];
     IReadOnlyList<ActiveAgent> _agents = [];
     string? _lastScreen;
@@ -64,18 +67,29 @@ internal sealed class AgentsCard : IDisposable
         _window = new AgentsCardWindow(palette);
         _collapse = new DispatcherTimer(CollapseDelay, DispatcherPriority.Normal, (_, _) => Collapse());
         _collapse.Stop();
+        _closeOptions = new DispatcherTimer(OptionsCloseDelay, DispatcherPriority.Normal, (_, _) => CloseOptionsAfterLeaving());
+        _closeOptions.Stop();
         _refresh = new DispatcherTimer(RefreshInterval, DispatcherPriority.Background, (_, _) => _window.ShowAgents(_agents));
         _refresh.Stop();
         _save = new DispatcherTimer(SaveDelay, DispatcherPriority.Background, (_, _) => KeepPlace());
         _save.Stop();
         _window.Opened += (_, _) =>
         {
-            _nsWindow = _window.TryGetPlatformHandle()?.Handle ?? 0;
-            MenuPanel.Configure(_nsWindow);
+            // Once: Opened comes with every show.
+            if (_nsWindow == 0)
+            {
+                _nsWindow = _window.TryGetPlatformHandle()?.Handle ?? 0;
+                MenuPanel.ConfigureCard(_nsWindow);
+            }
             SetLayer();
         };
         _window.PointerEntered += (_, _) => OnPointerEntered();
-        _window.PointerExited += (_, _) => _collapse.Start();
+        _window.PointerExited += (_, _) =>
+        {
+            _collapse.Start();
+            if (_window.OptionsOpen)
+                _closeOptions.Start();
+        };
         _window.DragStarted += e => _window.BeginMoveDrag(e);
         _window.PositionChanged += (_, _) =>
         {
@@ -109,6 +123,15 @@ internal sealed class AgentsCard : IDisposable
 
     /// <summary>The card is on screen (open or collapsed): its badge tells what needs the user.</summary>
     public bool IsShown { get; private set; }
+
+    /// <summary>
+    /// The card is shown and macOS draws some of it: not on a full-screen app's Space it does not join, not behind a
+    /// window (on the desktop). Notifications are kept quiet only then.
+    /// </summary>
+    public bool CanBeSeen =>
+        IsShown && _nsWindow != 0 && (Native.Send(_nsWindow, Native.Sel("occlusionState")) & NSWindowOcclusionStateVisible) != 0;
+
+    const nint NSWindowOcclusionStateVisible = 1 << 1;
 
     public void ApplyLook(MenuPalette palette)
     {
@@ -200,6 +223,9 @@ internal sealed class AgentsCard : IDisposable
     /// <summary>The badge at its anchor; the open card from there toward the free side of the screen, kept on the screen.</summary>
     void Place(bool open)
     {
+        // Dragged a moment ago and not kept yet: keep that place first, or the card would jump back to the old one.
+        if (_save.IsEnabled)
+            KeepPlace();
         var anchor = _anchor ??= StartingPlace();
         double scale = _window.DesktopScaling;
         var size = PixelSize.FromSize(_window.ClientSize, scale);
@@ -257,10 +283,21 @@ internal sealed class AgentsCard : IDisposable
     void OnPointerEntered()
     {
         _collapse.Stop();
+        _closeOptions.Stop();
         if (_hovering)
             return;
         _hovering = true;
         Layout();
+    }
+
+    /// <summary>The mouse left the card with its options open: they close, and the card collapses unless pinned.</summary>
+    void CloseOptionsAfterLeaving()
+    {
+        _closeOptions.Stop();
+        if (_window.IsPointerOver || !_window.OptionsOpen)
+            return;
+        _window.CloseOptions();
+        Collapse();
     }
 
     void Collapse()

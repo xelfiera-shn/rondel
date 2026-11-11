@@ -61,6 +61,24 @@ internal static unsafe class MenuPanel
     }
 
     /// <summary>
+    /// The agents card: a click on it neither activates Rondel nor makes it the key window, so the keyboard stays with
+    /// the app in front (unlike the menu, which takes the keyboard). Only the private _setPreventsActivation: is used;
+    /// without it a click activates Rondel, which then has the keyboard until another app is clicked.
+    /// </summary>
+    public static void ConfigureCard(nint window)
+    {
+        if (window == 0)
+            return;
+        nint prevents = Sel("_setPreventsActivation:");
+        if (InstanceMethod(Class("NSWindow"), prevents) == 0)
+        {
+            Log.Warn("Agents card: this macOS has no _setPreventsActivation:; a click on the card activates Rondel");
+            return;
+        }
+        SendVoid(window, prevents, true);
+    }
+
+    /// <summary>
     /// The agents card's layer: above other windows (NSFloatingWindowLevel), or on the desktop, right above its icons
     /// and behind every window. On every Space; over full-screen apps only when <paramref name="overFullScreen"/>.
     /// </summary>
