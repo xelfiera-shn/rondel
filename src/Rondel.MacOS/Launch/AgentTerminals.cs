@@ -201,11 +201,21 @@ internal sealed partial class AgentTerminals
     /// </summary>
     public IReadOnlyList<string> Closed(IEnumerable<string> activityIds)
     {
-        List<(string Id, Tab Tab)> known = [.. activityIds.Select(id => (id, Find(id)?.Tab)).Where(k => k.Item2 is not null).Select(k => (k.id, k.Item2!.Value))];
+        var ids = activityIds.ToList();
+        // Its terminal was asked for, but the script never wrote its tty: the terminal never ran it.
+        var neverRan = ids.Where(NeverRan).ToList();
+        List<(string Id, Tab Tab)> known = [.. ids.Select(id => (id, Find(id)?.Tab)).Where(k => k.Item2 is not null).Select(k => (k.id, k.Item2!.Value))];
         if (known.Count == 0)
-            return [];
+            return neverRan;
         var running = ProcessTtys();
-        return running is null ? [] : [.. known.Where(k => !IsOpen(k.Tab, running)).Select(k => k.Id)];
+        return running is null ? neverRan : [.. neverRan, .. known.Where(k => !IsOpen(k.Tab, running)).Select(k => k.Id)];
+    }
+
+    /// <summary>The script writes its tty at once; none half a minute after the terminal was asked means it never ran.</summary>
+    static bool NeverRan(string activityId)
+    {
+        var terminal = new FileInfo(TerminalFile(activityId));
+        return terminal.Exists && !File.Exists(TtyFile(activityId)) && DateTime.UtcNow - terminal.LastWriteTimeUtc > TimeSpan.FromSeconds(30);
     }
 
     static bool IsOpen(Tab tab, Dictionary<int, string> running) =>
@@ -220,8 +230,14 @@ internal sealed partial class AgentTerminals
             using var process = Process.Start(start);
             if (process is null)
                 return null;
-            string output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit(5000);
+            var reading = process.StandardOutput.ReadToEndAsync();
+            // A ps that fails or hangs tells nothing: every agent would look closed.
+            if (!process.WaitForExit(5000) || process.ExitCode != 0 || !reading.Wait(1000))
+            {
+                Log.Warn("ps did not list the terminals in use");
+                return null;
+            }
+            string output = reading.Result;
             var ttys = new Dictionary<int, string>();
             foreach (string line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
@@ -255,6 +271,7 @@ internal sealed partial class AgentTerminals
                         repeat with j from 1 to count of tabs of w
                             if tty of tab j of w is "{{tty}}" then
                                 set selected of tab j of w to true
+                                set miniaturized of w to false
                                 set index of w to 1
                                 activate
                                 return "ok"

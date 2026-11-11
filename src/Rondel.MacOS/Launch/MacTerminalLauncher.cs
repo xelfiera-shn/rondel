@@ -16,12 +16,13 @@ namespace Rondel.MacOS.Launch;
 /// asked to open it with open(1), so no AppleScript, no quoting for it and no Automation permission are needed.
 /// </summary>
 /// <param name="failed">
-/// Where a terminal that did not open is reported, from a background thread. open(1) waits for a cold terminal to
+/// Where a terminal that did not open is reported, with the followed session it was for (or null), from a background
+/// thread. open(1) waits for a cold terminal to
 /// start, so it runs in the background and the menu never waits for it. Null: wait for open(1), and throw
 /// <see cref="LaunchException"/> when it fails (the diagnostics).
 /// </param>
 /// <param name="agents">Learns the terminal of each followed session (whose script writes its tty first), to bring it to the front later.</param>
-internal sealed partial class MacTerminalLauncher(Action<string>? failed = null, AgentTerminals? agents = null) : ITerminalLauncher
+internal sealed partial class MacTerminalLauncher(Action<string, string?>? failed = null, AgentTerminals? agents = null) : ITerminalLauncher
 {
     const int OpenTimeoutMs = 10_000;
 
@@ -66,13 +67,13 @@ internal sealed partial class MacTerminalLauncher(Action<string>? failed = null,
             }
             catch (LaunchException ex)
             {
-                failed(ex.Message);
+                failed(ex.Message, plan.ActivityId);
             }
             catch (Exception ex)
             {
                 // Anything else (open(1) itself failing to start) is reported the same way, not lost in the task.
                 Log.Warn($"Starting {terminal} failed", ex);
-                failed(Loc.Format("Launch.TerminalFailed", terminal));
+                failed(Loc.Format("Launch.TerminalFailed", terminal), plan.ActivityId);
             }
         });
     }

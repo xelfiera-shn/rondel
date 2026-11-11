@@ -36,6 +36,17 @@ internal sealed partial class AppHost
         _hooks?.Dispose();
     }
 
+    /// <summary>
+    /// A terminal did not open. The flow forgets a followed session only when the launch throws, which it does not on
+    /// macOS (open(1) runs in the background), so it is forgotten here, or it would stay working for good.
+    /// </summary>
+    void LaunchFailed(string message, string? activityId)
+    {
+        Warn(message);
+        if (activityId is not null)
+            _agents.Forget(activityId);
+    }
+
     /// <summary>Forgets, off the main thread, the agents whose terminal tab is gone.</summary>
     void ForgetClosedTabs()
     {

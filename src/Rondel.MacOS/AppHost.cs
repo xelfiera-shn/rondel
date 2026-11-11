@@ -48,7 +48,8 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         Store.Load();
         _detector = new FinderDetector(() => Store.Current);
         _tap = new EventTap(this);
-        var launcher = new MacTerminalLauncher(message => Dispatcher.UIThread.Post(() => Warn(message)), _agentTerminals);
+        var launcher = new MacTerminalLauncher((message, activityId) => Dispatcher.UIThread.Post(() => LaunchFailed(message, activityId)),
+            _agentTerminals);
         _flow = new MenuFlow(this, launcher, new MacFolderNameValidator(), () => Store.Current, change => Store.Update(change),
             activity: _agents);
         _quick = new QuickSweeper(_flow);
