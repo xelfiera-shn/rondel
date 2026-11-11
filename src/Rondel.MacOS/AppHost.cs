@@ -94,6 +94,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 
         _menuBar.AccessibilityClicked += AllowAccessibility;
         _menuBar.FinderAccessClicked += AllowFinderAccess;
+        _menuBar.ScreenshotClicked += AskAboutScreenshot;
         _menuBar.SettingsClicked += OpenSettings;
         _menuBar.SessionsClicked += OpenSessions;
         _menuBar.HowToUseClicked += ShowWelcome;
@@ -172,7 +173,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         _tap.Configure(settings.HoldMs, settings.Paused);
         _menuBar.Update(s => s with { Paused = settings.Paused });
         ApplyLook(settings);
-        ApplyShortcuts(settings.Hotkey);
+        ApplyShortcuts(settings);
         UpdateCard();
     }
 
@@ -443,7 +444,12 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 
     void IMenuHost.StartInput(InputSpec spec) => _menu?.StartInput(spec);
 
-    void IMenuHost.ShowCard(InputSpec spec) => Log.Warn("Ask About a Screenshot is not supported on macOS yet");
+    void IMenuHost.ShowCard(InputSpec spec)
+    {
+        if (_menu is null)
+            return;
+        _tap.NotifyMenuOpened(_menu.ShowCard(spec, Native.CursorLocation()));
+    }
 
     /// <summary>
     /// Quick Conversation's first answer, on a card of its own: the prompt card closes and gives the focus back, and the

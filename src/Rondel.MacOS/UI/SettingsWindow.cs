@@ -51,7 +51,7 @@ internal sealed class SettingsWindow : Window
     TextBlock _rootStatus = null!, _commandLabel = null!, _commandStatus = null!, _terminalStatus = null!;
     TextBlock _accentName = null!, _accentStatus = null!, _holdValue = null!, _autostartStatus = null!;
     Slider _hold = null!;
-    ShortcutBox _shortcut = null!;
+    ShortcutBox _shortcut = null!, _screenshotShortcut = null!;
     CheckBox _cardPrompt = null!, _cardGit = null!, _cardPlan = null!, _cardTemplates = null!, _autostart = null!, _debug = null!, _quickCard = null!;
     CheckBox _promptsUse = null!;
     StackPanel _promptsPanel = null!, _promptRows = null!;
@@ -64,7 +64,7 @@ internal sealed class SettingsWindow : Window
     Button _openLoginItems = null!, _checkNow = null!;
     CheckBox _checkUpdates = null!;
     TextBlock _updateStatus = null!;
-    PermissionRow _accessibility = null!, _finder = null!;
+    PermissionRow _accessibility = null!, _finder = null!, _screenRecording = null!;
     ColorDot _accentFromDot = null!, _accentToDot = null!;
     readonly ColorPicker _picker = new();
     readonly Flyout _pickerFlyout = new() { Placement = PlacementMode.BottomEdgeAlignedLeft };
@@ -107,7 +107,11 @@ internal sealed class SettingsWindow : Window
         };
         SetUpAccentPicker();
         // Another app took the focus: a shortcut being recorded is left as it was, and Rondel's shortcuts come back.
-        Deactivated += (_, _) => _shortcut?.StopRecording();
+        Deactivated += (_, _) =>
+        {
+            _shortcut?.StopRecording();
+            _screenshotShortcut?.StopRecording();
+        };
         Closed += (_, _) =>
         {
             _host.PauseShortcuts(false); // closed while it recorded a shortcut
@@ -145,6 +149,7 @@ internal sealed class SettingsWindow : Window
             _root.Text = s.ProjectsRoot;
             _hold.Value = s.HoldMs;
             _shortcut.Show(s.Hotkey, _host.HotkeyError);
+            _screenshotShortcut.Show(s.Quick.ScreenshotHotkey, _host.ScreenshotHotkeyError);
             _holdValue.Text = Loc.Format("Settings.Ms", s.HoldMs);
             _commandLabel.Text = Loc.Format("Settings.Command", DefaultAgent(s)?.Name ?? "");
             _command.Text = DefaultAgent(s)?.Command ?? "";
@@ -243,6 +248,7 @@ internal sealed class SettingsWindow : Window
     {
         _accessibility.Show(Native.AXIsProcessTrusted());
         _finder.Show(_host.HasFinderAccess);
+        _screenRecording.Show(Native.CGPreflightScreenCaptureAccess());
     }
 
     // ---- building ----
@@ -345,7 +351,7 @@ internal sealed class SettingsWindow : Window
         _holdValue = new TextBlock { Width = 60, Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, TextAlignment = TextAlignment.Right, Foreground = _look.Text };
         page.Children.Add(Card(Row(Loc.Get("Settings.HoldMs"), Loc.Get("Settings.HoldMs.Desc.Mac"),
             new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Children = { _hold, _holdValue } })));
-        _shortcut = new ShortcutBox(_look, SaveShortcut, _host.PauseShortcuts);
+        _shortcut = new ShortcutBox(_look, SaveShortcut, _host.PauseShortcuts, "Settings.Hotkey.Example.Mac");
         page.Children.Add(Card(new StackPanel { Children = { Row(Loc.Get("Settings.Hotkey"), Loc.Get("Settings.Hotkey.Desc.Mac"), _shortcut), _shortcut.StatusLine } }));
 
         page.Children.Add(Section("Settings.Launch"));
@@ -463,6 +469,15 @@ internal sealed class SettingsWindow : Window
         }));
         page.Children.Add(Card(Row(Loc.Get("Settings.Quick.Model"), Loc.Get("Settings.Quick.Model.Desc"),
             _quickModel = Combo(OnQuickModelChanged))));
+        _screenshotShortcut = new ShortcutBox(_look, SaveScreenshotShortcut, _host.PauseShortcuts, "Settings.Quick.Screenshot.Example.Mac");
+        page.Children.Add(Card(new StackPanel
+        {
+            Children =
+            {
+                Row(Loc.Get("Settings.Quick.Screenshot"), Loc.Get("Settings.Quick.Screenshot.Desc.Mac"), _screenshotShortcut),
+                _screenshotShortcut.StatusLine,
+            },
+        }));
 
         page.Children.Add(Section("Settings.Prompts"));
         page.Children.Add(Card(new StackPanel
@@ -491,6 +506,8 @@ internal sealed class SettingsWindow : Window
             Loc.Get("Settings.Permissions.Accessibility.Desc"), _host.AllowAccessibility, _look)));
         page.Children.Add(Card(_finder = new PermissionRow(Loc.Get("Settings.Permissions.Finder"),
             Loc.Get("Settings.Permissions.Finder.Desc"), _host.AllowFinderAccess, _look)));
+        page.Children.Add(Card(_screenRecording = new PermissionRow(Loc.Get("Settings.Permissions.ScreenRecording"),
+            Loc.Get("Settings.Permissions.ScreenRecording.Desc"), _host.AllowScreenRecording, _look)));
 
         page.Children.Add(Section("Settings.System"));
         page.Children.Add(Card(new StackPanel
@@ -1067,6 +1084,14 @@ internal sealed class SettingsWindow : Window
     {
         Store.Update(s => s.Hotkey = shortcut);
         Dispatcher.UIThread.Post(() => _shortcut.Show(Store.Current.Hotkey, _host.HotkeyError), DispatcherPriority.Background);
+    }
+
+    /// <summary>Stores the Ask About a Screenshot shortcut, then shows whether it is active.</summary>
+    void SaveScreenshotShortcut(string shortcut)
+    {
+        Store.Update(s => s.Quick.ScreenshotHotkey = shortcut);
+        Dispatcher.UIThread.Post(() => _screenshotShortcut.Show(Store.Current.Quick.ScreenshotHotkey, _host.ScreenshotHotkeyError),
+            DispatcherPriority.Background);
     }
 
     void OnActiveAgentsClicked()
