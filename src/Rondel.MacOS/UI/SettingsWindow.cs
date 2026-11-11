@@ -52,6 +52,7 @@ internal sealed class SettingsWindow : Window
     Slider _hold = null!;
     ShortcutBox _shortcut = null!;
     CheckBox _cardPrompt = null!, _cardGit = null!, _cardPlan = null!, _cardTemplates = null!, _autostart = null!, _debug = null!, _quickCard = null!;
+    CheckBox _followAgents = null!, _notifyAsks = null!, _notifyFinished = null!;
     WrapPanel _themeCards = null!;
     StackPanel _swatches = null!, _customAccent = null!;
     Button _openLoginItems = null!, _checkNow = null!;
@@ -144,6 +145,9 @@ internal sealed class SettingsWindow : Window
             _checkUpdates.IsChecked = s.Updates.Check;
             _cardPrompt.IsChecked = s.NewProjectCard.Prompt;
             _quickCard.IsChecked = s.Quick.PromptCard;
+            _followAgents.IsChecked = s.ActiveAgents.Follow;
+            _notifyAsks.IsChecked = s.ActiveAgents.NotifyAsks;
+            _notifyFinished.IsChecked = s.ActiveAgents.NotifyFinished;
             _cardGit.IsChecked = s.NewProjectCard.Git;
             _cardPlan.IsChecked = s.NewProjectCard.Plan;
             _cardTemplates.IsChecked = s.NewProjectCard.Templates;
@@ -351,6 +355,33 @@ internal sealed class SettingsWindow : Window
             },
         }));
 
+        page.Children.Add(Section("Settings.ActiveAgents"));
+        page.Children.Add(Card(new StackPanel
+        {
+            Children =
+            {
+                (_followAgents = Check(Loc.Get("Settings.ActiveAgents.Follow"), OnActiveAgentsClicked)),
+                Description(Loc.Get("Settings.ActiveAgents.Follow.Desc"), new Thickness(28, 2, 0, 0)),
+            },
+        }));
+        page.Children.Add(Card(new StackPanel
+        {
+            Children =
+            {
+                Label(Loc.Get("Settings.ActiveAgents.Notify")),
+                Description(Loc.Get("Settings.ActiveAgents.Notify.Desc")),
+                new WrapPanel
+                {
+                    Margin = new Thickness(0, 10, 0, 0),
+                    Children =
+                    {
+                        (_notifyAsks = Check(Loc.Get("Settings.ActiveAgents.NotifyAsks"), OnActiveAgentsClicked, right: 24)),
+                        (_notifyFinished = Check(Loc.Get("Settings.ActiveAgents.NotifyFinished"), OnActiveAgentsClicked)),
+                    },
+                },
+            },
+        }));
+
         page.Children.Add(Section("Settings.NewProject"));
         page.Children.Add(Card(new StackPanel
         {
@@ -402,6 +433,8 @@ internal sealed class SettingsWindow : Window
         }));
         _openLoginItems.HorizontalAlignment = HorizontalAlignment.Left;
         _openLoginItems.Margin = new Thickness(0, 8, 0, 0);
+        page.Children.Add(Card(Row(Loc.Get("Settings.Sessions"), Loc.Get("Settings.Sessions.Desc"),
+            Button(Loc.Get("Settings.Sessions.Open"), _host.OpenSessions))));
         page.Children.Add(Card(new StackPanel
         {
             Children =
@@ -840,6 +873,19 @@ internal sealed class SettingsWindow : Window
     {
         Store.Update(s => s.Hotkey = shortcut);
         Dispatcher.UIThread.Post(() => _shortcut.Show(Store.Current.Hotkey, _host.HotkeyError), DispatcherPriority.Background);
+    }
+
+    void OnActiveAgentsClicked()
+    {
+        if (_loading)
+            return;
+        bool follow = _followAgents.IsChecked == true, asks = _notifyAsks.IsChecked == true, finished = _notifyFinished.IsChecked == true;
+        Store.Update(s =>
+        {
+            s.ActiveAgents.Follow = follow;
+            s.ActiveAgents.NotifyAsks = asks;
+            s.ActiveAgents.NotifyFinished = finished;
+        });
     }
 
     void OnQuickCardClicked()
