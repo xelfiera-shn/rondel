@@ -35,7 +35,7 @@ Which features Rondel has on Windows and on macOS, and since which version. Down
 | **Recent Projects** on the desktop, opening into the projects and their sessions | ✅ 0.2.0 | ✅ 0.8.0 |
 | **Ask**, **Ask Here** and **Ask About This File** | ✅ 0.3.0 | ✅ 0.8.0 |
 | **Ask About These Files**: several selected files in one prompt | ✅ 0.10.0 | ✅ 0.15.0 |
-| Saved prompts: up to five on an arc of the Ask slices, all of them on the Ask card | ✅ 0.11.0 | ⬜ |
+| Saved prompts: up to five on an arc of the Ask slices, all of them on the Ask card | ✅ 0.11.0 | ✅ 0.17.0 |
 | **Quick Conversation** on the desktop: a talk in a folder of its own, not saved, with what is left of it deleted once it ends | ✅ 0.13.0 | ✅ 0.15.0 |
 | **Ask About a Screenshot**: a frozen screen to pick an area or a window from, asked about in a Quick Conversation (tray menu, optional shortcut); macOS's own picker on the Mac | ✅ 0.14.0 | ✅ 0.17.0 |
 | A Quick Conversation's first answer on a card of its own that blocks nothing, with Copy, Close and Continue in terminal, and a choice of model | ✅ 0.16.0 | ✅ 0.17.0 |
@@ -47,10 +47,10 @@ Which features Rondel has on Windows and on macOS, and since which version. Down
 
 | Feature | Windows | macOS |
 |---|---|---|
-| A notification when an agent asks for something, is done or stops with an error; a click brings its terminal to the front | ✅ 0.6.0 | ⬜ |
-| **Active Agents** on the desktop menu, with a status dot for each agent, and a shortcut that opens it | ✅ 0.6.0 | ⬜ |
+| A notification when an agent asks for something, is done or stops with an error; a click brings its terminal to the front | ✅ 0.6.0 | ✅ 0.17.0 |
+| **Active Agents** on the desktop menu, with a status dot for each agent, and a shortcut that opens it | ✅ 0.6.0 | ✅ 0.17.0 (no shortcut yet) |
 | The agents card: the running agents in sight, above other windows or on the desktop, collapsed to a badge with the number that need you | ✅ 0.9.0 | ⬜ |
-| **Sessions**: every saved Claude Code session with the space it takes, to delete into the Recycle Bin or for good | ✅ 0.12.0 | ⬜ |
+| **Sessions**: every saved Claude Code session with the space it takes, to delete into the Recycle Bin (the Trash on macOS) or for good | ✅ 0.12.0 | ✅ 0.17.0 |
 
 ## The app
 

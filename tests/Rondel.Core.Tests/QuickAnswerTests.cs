@@ -39,8 +39,9 @@ public sealed class QuickAnswerTests : IDisposable
 
     public void Dispose() => _root.Delete(recursive: true);
 
-    MenuFlow Flow(IAnswerLauncher? answers) =>
-        new(_host, _terminal, new Rules(), () => _settings, quickDirectory: Path.Combine(_root.FullName, "Quick"), answers: answers);
+    MenuFlow Flow(IAnswerLauncher? answers, TimeProvider? time = null) =>
+        new(_host, _terminal, new Rules(), () => _settings, quickDirectory: Path.Combine(_root.FullName, "Quick"), answers: answers,
+            time: time);
 
     /// <summary>Picks Quick Conversation on the desktop menu and sends <paramref name="question"/> from its card.</summary>
     static void Ask(MenuFlow flow, Host host, string question)
@@ -94,6 +95,24 @@ public sealed class QuickAnswerTests : IDisposable
         Assert.Equal([Session], flow.QuickSessions); // until that session ends
         flow.ForgetQuickSession(Session);
         Assert.Empty(flow.QuickSessions);
+    }
+
+    [Fact]
+    public void ASessionContinuedInATerminalIsKeptForAnHourAtMost()
+    {
+        _answers.Output = Answered;
+        var time = new ManualTime();
+        var flow = Flow(_answers, time);
+        Ask(flow, _host, "What is 2+2?");
+        var answer = _host.Answer!;
+        WaitFor(answer, AnswerState.Done);
+
+        answer.Continue();
+
+        time.Now += MenuFlow.ContinuedKept - TimeSpan.FromSeconds(1);
+        Assert.Equal([Session], flow.QuickSessions);
+        time.Now += TimeSpan.FromSeconds(1);
+        Assert.Empty(flow.QuickSessions); // nothing said it ended (its terminal may never have run it): the sweep may take it
     }
 
     [Fact]
@@ -248,5 +267,12 @@ public sealed class QuickAnswerTests : IDisposable
         public int? WaitForExit(TimeSpan timeout) => 0;
 
         public void Kill() => Killed = true;
+    }
+
+    sealed class ManualTime : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = new(2026, 11, 1, 12, 0, 0, TimeSpan.Zero);
+
+        public override DateTimeOffset GetUtcNow() => Now;
     }
 }

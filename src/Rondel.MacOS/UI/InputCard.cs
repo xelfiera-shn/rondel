@@ -10,6 +10,7 @@ using Avalonia.Media.Imaging;
 using Rondel.Core.Flow;
 using Rondel.Core.Localization;
 using Rondel.Core.Logging;
+using Rondel.Core.Prompts;
 using Rondel.Core.Settings;
 
 namespace Rondel.MacOS.UI;
@@ -40,6 +41,14 @@ internal sealed class InputCard : Border
     readonly WrapPanel _templateChips = new();
     readonly TextBlock _noTemplates = new() { FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(1, 0, 0, 6) };
     readonly TextBlock _promptLabel = Caption(new Thickness(1, 6, 0, 6));
+    // Ask with saved prompts turned on: the prompts that fill the box.
+    readonly StackPanel _saved = new() { Margin = new Thickness(0, 0, 0, 8), IsVisible = false };
+    readonly DockPanel _savedHeader = new() { Margin = new Thickness(1, 0, 0, 6) };
+    readonly TextBlock _savedLabel = Caption(default);
+    readonly TextBlock _openPrompts = new() { FontSize = 11, Cursor = new Cursor(StandardCursorType.Hand), HorizontalAlignment = HorizontalAlignment.Right };
+    readonly WrapPanel _savedChips = new();
+    readonly TextBlock _noSaved = new() { FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(1, 0, 0, 0) };
+    readonly List<Chip> _savedChipList = [];
     readonly TextBox _prompt = Box();
     readonly TextBlock _message = new() { FontSize = 11.5, Margin = new Thickness(1, 8, 0, 0), TextWrapping = TextWrapping.Wrap };
     readonly List<Chip> _templateChipList = [];
@@ -81,12 +90,18 @@ internal sealed class InputCard : Border
         _options.Children.Add(_templatesHeader);
         _options.Children.Add(_templateChips);
         _options.Children.Add(_noTemplates);
+        DockPanel.SetDock(_openPrompts, Dock.Right);
+        _savedHeader.Children.Add(_openPrompts);
+        _savedHeader.Children.Add(_savedLabel);
+        _saved.Children.Add(_savedHeader);
+        _saved.Children.Add(_savedChips);
+        _saved.Children.Add(_noSaved);
         Child = new StackPanel
         {
             Children =
             {
                 new StackPanel { Orientation = Orientation.Horizontal, Children = { _glyph, _title } },
-                _location, _shot, _name, _options, _promptLabel, _prompt, _message,
+                _location, _shot, _name, _options, _saved, _promptLabel, _prompt, _message,
             },
         };
 
@@ -98,6 +113,16 @@ internal sealed class InputCard : Border
         _name.GotFocus += (_, _) => UpdateNewProjectHint();
         _prompt.GotFocus += (_, _) => UpdateNewProjectHint();
         _openTemplates.PointerReleased += (_, _) => OpenTemplates();
+        _openPrompts.PointerReleased += (_, _) => OpenPrompts();
+        // A cleared box has no saved prompt in it any more.
+        _prompt.TextChanged += (_, _) =>
+        {
+            if ((_prompt.Text ?? "").Length == 0)
+            {
+                foreach (var chip in _savedChipList)
+                    chip.SetOn(false);
+            }
+        };
         // Before the text boxes: Return, Tab and Esc belong to the card.
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
         ApplyPalette(palette);
@@ -120,6 +145,7 @@ internal sealed class InputCard : Border
         _prompt.PlaceholderText = spec.Placeholder ?? Loc.Format("Input.PromptPlaceholder", spec.AgentName);
         SetUpShot(spec.Image);
         IsVisible = true;
+        SetUpSavedPrompts(spec);
         if (spec.AskName)
             ShowNameStage();
         else
@@ -174,6 +200,9 @@ internal sealed class InputCard : Border
         _startChips.Children.Clear();
         _templateChips.Children.Clear();
         _templateChipList.Clear();
+        _savedChips.Children.Clear();
+        _savedChipList.Clear();
+        _saved.IsVisible = false;
         _options.IsVisible = false;
         _promptLabel.IsVisible = false;
         _name.Text = "";
@@ -226,10 +255,10 @@ internal sealed class InputCard : Border
             box.SelectionBrush = palette.Accent;
             box.PlaceholderForeground = palette.SubText;
         }
-        foreach (var label in new[] { _startLabel, _promptLabel, _templatesLabel, _noTemplates })
+        foreach (var label in new[] { _startLabel, _promptLabel, _templatesLabel, _noTemplates, _savedLabel, _noSaved })
             label.Foreground = palette.SubText;
-        _openTemplates.Foreground = palette.Accent;
-        foreach (var chip in _startChips.Children.Concat(_templateChips.Children).OfType<Chip>())
+        _openTemplates.Foreground = _openPrompts.Foreground = palette.Accent;
+        foreach (var chip in _startChips.Children.Concat(_templateChips.Children).Concat(_savedChips.Children).OfType<Chip>())
             chip.ApplyPalette(palette);
     }
 
@@ -298,6 +327,8 @@ internal sealed class InputCard : Border
                 _close?.Invoke(true);
             return;
         }
+        if (_promptStage && OnSavedPromptsKeyDown(e))
+            return;
         if (e.Key is not (Key.Enter or Key.Return))
             return;
 
@@ -451,6 +482,111 @@ internal sealed class InputCard : Border
             SetMessage(failed, isError: true);
     }
 
+    // ---- saved prompts on the Ask card ----
+
+    /// <summary>
+    /// Shows the saved prompts the card offers, if any are offered: a chip per prompt above the prompt box, as on Windows.
+    /// Picking one puts the prompt in the box, to edit or to start as it is; its chip stays lit while the box holds it.
+    /// </summary>
+    void SetUpSavedPrompts(InputSpec spec)
+    {
+        if (spec.SavedPrompts is null || spec.AskName)
+            return;
+        _savedLabel.Text = Loc.Get("Input.SavedPrompts");
+        _openPrompts.Text = Loc.Get("Prompts.Open");
+        foreach (string name in spec.PromptNames)
+        {
+            var chip = new Chip(name, on: false, _palette, maxTextWidth: 290);
+            ToolTip.SetTip(chip, name);
+            // A click or Space turns it over; either way the box gets the prompt and the chip stays lit.
+            chip.Changed += () => UseSavedPrompt(chip, name);
+            // A click takes the focus; typing goes on in the prompt it filled. Space keeps it on the chip.
+            chip.Clicked += () => _prompt.Focus();
+            chip.GotFocus += (_, _) => SetMessage(Loc.Get("Input.HintSavedPrompt.Mac"), isError: false);
+            _savedChips.Children.Add(chip);
+            _savedChipList.Add(chip);
+        }
+        _savedChips.IsVisible = spec.PromptNames.Count > 0;
+        _noSaved.Text = Loc.Get("Input.NoSavedPrompts");
+        _noSaved.IsVisible = spec.PromptNames.Count == 0;
+        _saved.IsVisible = true;
+    }
+
+    /// <summary>Developer aid (--render-ask): picks a saved prompt as a click would.</summary>
+    public void PickSavedPrompt(string name)
+    {
+        int index = _input?.PromptNames.ToList().IndexOf(name) ?? -1;
+        if (index >= 0)
+            UseSavedPrompt(_savedChipList[index], name);
+    }
+
+    void UseSavedPrompt(Chip chip, string name)
+    {
+        if (_input?.SavedPrompts?.Read(name) is not { } text)
+        {
+            chip.SetOn(false);
+            SetMessage(Loc.Format("Prompts.Unusable", name, SavedPrompts.MaxBytes / 1024), isError: true);
+            return;
+        }
+        foreach (var other in _savedChipList)
+            other.SetOn(ReferenceEquals(other, chip));
+        _prompt.Text = text;
+        _prompt.CaretIndex = text.Length;
+    }
+
+    /// <summary>
+    /// Tab, Shift+Tab and Return while the card offers saved prompts; true when the key was taken. Tab moves between the
+    /// chips and the box; Return on a chip goes on to the box (Space picks the chip, ⌘↩ starts).
+    /// </summary>
+    bool OnSavedPromptsKeyDown(KeyEventArgs e)
+    {
+        if (_savedChipList.Count == 0)
+            return false;
+        switch (e.Key)
+        {
+            case Key.Tab:
+                e.Handled = true;
+                var order = new List<Control>(_savedChipList) { _prompt };
+                int current = order.FindIndex(c => c.IsFocused);
+                int step = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? -1 : 1;
+                int next = current < 0 ? order.Count - 1 : ((current + step) % order.Count + order.Count) % order.Count;
+                FocusOnCard(order[next]);
+                return true;
+            case Key.Enter or Key.Return when !SubmitModifier(e) && _savedChipList.Any(c => c.IsFocused):
+                e.Handled = true;
+                FocusOnCard(_prompt);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    void FocusOnCard(Control target)
+    {
+        target.Focus(NavigationMethod.Tab);
+        if (target != _prompt)
+            return;
+        _prompt.CaretIndex = _prompt.Text?.Length ?? 0;
+        SetMessage(Loc.Get(_input?.AskName == true ? "Input.HintPrompt.Mac" : "Input.HintPromptOnly.Mac"), isError: false);
+    }
+
+    void OpenPrompts()
+    {
+        if (_input?.SavedPrompts?.Directory is not { } directory)
+            return;
+        try
+        {
+            Directory.CreateDirectory(directory);
+            Process.Start(new ProcessStartInfo("/usr/bin/open", [directory]) { UseShellExecute = false })?.Dispose();
+            _close?.Invoke(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            Log.Warn($"Opening the prompts folder '{directory}' failed", ex);
+            SetMessage(ex.Message, isError: true);
+        }
+    }
+
     void OpenTemplates()
     {
         if (_newProject?.TemplatesDirectory is not { } directory)
@@ -506,10 +642,13 @@ internal sealed class InputCard : Border
         readonly TextBlock _text = new() { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
         MenuPalette _palette;
 
-        public Chip(string text, bool on, MenuPalette palette)
+        /// <param name="maxTextWidth">A long text ends in an ellipsis rather than leaving the card.</param>
+        public Chip(string text, bool on, MenuPalette palette, double maxTextWidth = double.PositiveInfinity)
         {
             _palette = palette;
             _text.Text = text;
+            _text.MaxWidth = maxTextWidth;
+            _text.TextTrimming = TextTrimming.CharacterEllipsis;
             IsOn = on;
             Focusable = true;
             Cursor = new Cursor(StandardCursorType.Hand);
@@ -539,6 +678,13 @@ internal sealed class InputCard : Border
         public event Action? Changed;
 
         public event Action? Clicked;
+
+        /// <summary>Lights it or puts it out without raising <see cref="Changed"/>.</summary>
+        public void SetOn(bool on)
+        {
+            IsOn = on;
+            Paint();
+        }
 
         void Toggle()
         {

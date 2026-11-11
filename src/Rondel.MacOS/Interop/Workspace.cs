@@ -32,6 +32,14 @@ internal static class Workspace
         return id;
     }
 
+    /// <summary>The bundle identifier of the app in front, or "".</summary>
+    public static string FrontmostBundleId()
+    {
+        using var pool = new AutoreleasePool();
+        nint app = Send(Send(Class("NSWorkspace"), Sel("sharedWorkspace")), Sel("frontmostApplication"));
+        return app == 0 ? "" : String(Send(app, Sel("bundleIdentifier"))) ?? "";
+    }
+
     /// <summary>An app with this bundle identifier is installed (Launch Services knows where it is).</summary>
     public static bool IsInstalled(string bundleId)
     {

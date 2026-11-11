@@ -11,6 +11,7 @@ using Rondel.Core.Localization;
 using Rondel.Core.Logging;
 using Rondel.Core.Menus;
 using Rondel.Core.Platform;
+using Rondel.Core.Prompts;
 using Rondel.Core.Settings;
 using Rondel.MacOS.Detection;
 using Rondel.MacOS.Interop;
@@ -40,6 +41,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
     readonly List<AnswerCardWindow> _answerCards = [];
     SettingsWindow? _settingsWindow;
     WelcomeWindow? _welcomeWindow;
+    SessionsWindow? _sessionsWindow;
     string? _look;
 
     /// <param name="settingsDirectory">Where settings.json is; the settings folder unless a diagnostic passes a copy.</param>
@@ -49,13 +51,19 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         Store.Load();
         _detector = new FinderDetector(() => Store.Current);
         _tap = new EventTap(this);
-        var launcher = new MacTerminalLauncher(message => Dispatcher.UIThread.Post(() => Warn(message)));
+        var launcher = new MacTerminalLauncher((message, activityId) => Dispatcher.UIThread.Post(() => LaunchFailed(message, activityId)),
+            _agentTerminals);
+        // Developer aids read the saved prompts next to their copy of the settings.
+        Prompts = settingsDirectory is null ? SavedPrompts.Default : new SavedPrompts(Path.Combine(settingsDirectory, "Prompts"));
         _flow = new MenuFlow(this, launcher, new MacFolderNameValidator(), () => Store.Current, change => Store.Update(change),
-            answers: new MacAnswerLauncher());
+            activity: _agents, answers: new MacAnswerLauncher(), prompts: Prompts);
         _quick = new QuickSweeper(_flow);
         Updates = new MacUpdates(Store, () => QuitRequested?.Invoke());
         ApplySettings(Store.Current);
     }
+
+    /// <summary>The saved prompts the Ask slices offer.</summary>
+    public SavedPrompts Prompts { get; }
 
     /// <summary>Looking for newer releases, and updating Rondel.app in place.</summary>
     public MacUpdates Updates { get; }
@@ -88,6 +96,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         _menuBar.FinderAccessClicked += AllowFinderAccess;
         _menuBar.ScreenshotClicked += AskAboutScreenshot;
         _menuBar.SettingsClicked += OpenSettings;
+        _menuBar.SessionsClicked += OpenSessions;
         _menuBar.HowToUseClicked += ShowWelcome;
         _menuBar.PauseClicked += () => Store.Update(s => s.Paused = !s.Paused);
         _menuBar.OpenLogsClicked += OpenLogFolder;
@@ -131,6 +140,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         }
 
         _quick.Start();
+        StartFollowingAgents();
         // The event tap must answer within a fraction of a second, also after hours in the background.
         _activity = Native.BeginLatencyCriticalActivity("Rondel watches for Option + hold");
         // The first time, the welcome window says what the two permissions are for and asks for them; on later
@@ -191,6 +201,28 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         _settingsWindow.Activate();
     }
 
+    /// <summary>The Sessions window: Claude Code's saved sessions, to see what they take and delete those not needed.</summary>
+    public void OpenSessions()
+    {
+        if (_sessionsWindow is { } open)
+        {
+            if (open.WindowState == WindowState.Minimized)
+                open.WindowState = WindowState.Normal;
+            open.Activate();
+            open.Refresh();
+            return;
+        }
+        var storage = new Core.Agents.ClaudeCode.ClaudeCodeStorage(tempDirectory: QuickSweeper.TempDirectory);
+        // A Quick Conversation is not a saved session, even while Claude Code still has something of it.
+        string quick = Core.Agents.ClaudeCode.ClaudeCodeSessionStore.Encode(Path.TrimEndingDirectorySeparator(_flow.QuickDirectory));
+        var window = new SessionsWindow(() => [.. storage.List().Where(p => !string.Equals(p.Key, quick, StringComparison.OrdinalIgnoreCase))],
+            storage.Delete, _flow.Resume, storage.CleanupPeriodDays());
+        window.Closed += (_, _) => _sessionsWindow = null;
+        _sessionsWindow = window;
+        window.Show();
+        window.Activate();
+    }
+
     /// <summary>
     /// The welcome window, which shows how the menu opens and asks for the permissions: by itself the first time
     /// Rondel runs, and from the menu bar (How to use) whenever asked.
@@ -229,6 +261,21 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
             return;
         }
         Workspace.Open(directory);
+    }
+
+    /// <summary>Opens the folder of the saved prompts, creating it the first time.</summary>
+    public void OpenPromptsFolder()
+    {
+        try
+        {
+            Directory.CreateDirectory(Prompts.Directory);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Warn($"Creating the prompts folder '{Prompts.Directory}' failed", ex);
+            return;
+        }
+        Workspace.Open(Prompts.Directory);
     }
 
     void Warn(string message)
@@ -351,7 +398,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
     {
         if (_menu is null)
             return;
-        if (_flow.Build(context) is not { } built || WithoutActiveAgents(built) is not { Items.Count: > 0 } model)
+        if (_flow.Build(context) is not { Items.Count: > 0 } model)
             return;
         try
         {
@@ -366,23 +413,18 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
     }
 
     /// <summary>
-    /// Rondel does not follow agents on macOS yet (C-24), so an Active Agents slice could only ever say there are none:
-    /// it is left out.
+    /// Session hints, a Resume slice's sessions, the recent projects, the active agents and the saved prompts pinned to
+    /// the Ask slices are filled in when they arrive.
     /// </summary>
-    static MenuModel WithoutActiveAgents(MenuModel model) =>
-        model.Items.Any(MenuBuilder.ListsActiveAgents)
-            ? model with { Items = [.. model.Items.Where(item => !MenuBuilder.ListsActiveAgents(item))] }
-            : model;
-
-    /// <summary>Session hints, a Resume slice's sessions and the recent projects are filled in when they arrive.</summary>
     void RequestDetails(MenuModel model)
     {
         if (!MenuDetails.Needed(model))
             return;
-        Task.Run(() => MenuDetails.Load(model)).ContinueWith(
+        var agents = _agents.Agents;
+        Task.Run(() => MenuDetails.Load(model, agents, Prompts)).ContinueWith(
             lookup => Dispatcher.UIThread.Post(() =>
             {
-                _menu?.ApplyHints(model, lookup.Result.Hints);
+                _menu?.ApplyHints(model, lookup.Result.Hints, lookup.Result.States);
                 _menu?.ApplyChildren(model, lookup.Result.Children);
             }),
             TaskContinuationOptions.OnlyOnRanToCompletion);
@@ -423,14 +465,14 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 
     void IMenuHost.ShowWarning(string message) => Warn(message);
 
-    /// <summary>Never called: the Active Agents slice is left out on macOS (<see cref="WithoutActiveAgents"/>).</summary>
-    void IMenuHost.FocusAgent(string id) => Log.Warn($"Bringing agent {id} to the front is not supported on macOS yet");
+    void IMenuHost.FocusAgent(string id) => FocusAgent(id);
 
     public void Dispose()
     {
         _accessibilityPoll?.Dispose();
         foreach (var card in _answerCards.ToList())
             card.Close();
+        StopFollowingAgents();
         _quick.Dispose();
         Updates.Dispose();
         _worker.Dispose();

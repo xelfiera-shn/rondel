@@ -24,6 +24,7 @@ internal static class SymbolIcons
         ['\uE823'] = "clock",                           // Recent: Recent Projects
         ['\uE945'] = "bolt",                            // LightningBolt: Quick Conversation
         ['\uE722'] = "camera.viewfinder",               // Camera: Ask About a Screenshot
+        ['\uE99A'] = "person.2",                        // Robot: Active Agents
         ['\uE8B7'] = "folder",                          // Folder
         ['\uE7F4'] = "desktopcomputer",                 // TVMonitor: the desktop
         ['\uE7C3'] = "doc",                             // Page: a file
