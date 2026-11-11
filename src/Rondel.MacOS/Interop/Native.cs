@@ -293,6 +293,18 @@ internal static unsafe partial class Native
         return point;
     }
 
+    // ---- Screen Recording ----
+
+    /// <summary>Whether Rondel may capture the screen; asks nothing.</summary>
+    [LibraryImport(CoreGraphics)]
+    [return: MarshalAs(UnmanagedType.U1)]
+    public static partial bool CGPreflightScreenCaptureAccess();
+
+    /// <summary>Asks for the Screen Recording permission (once; later it only lists Rondel in System Settings).</summary>
+    [LibraryImport(CoreGraphics)]
+    [return: MarshalAs(UnmanagedType.U1)]
+    public static partial bool CGRequestScreenCaptureAccess();
+
     // ---- Accessibility ----
 
     [LibraryImport(ApplicationServices)]

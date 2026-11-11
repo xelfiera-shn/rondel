@@ -18,8 +18,8 @@ internal sealed class MenuBar : IDisposable
 {
     readonly TrayIcon _icon;
     readonly NativeMenuItem _warning = new() { IsEnabled = false };
-    readonly NativeMenuItem _update, _accessibility, _finderAccess, _settings, _sessions, _howToUse, _pause, _openLogs, _quit;
-    readonly NativeMenuItemSeparator _permissionsSeparator = new(), _quitSeparator = new();
+    readonly NativeMenuItem _update, _accessibility, _finderAccess, _screenshot, _settings, _sessions, _howToUse, _pause, _openLogs, _quit;
+    readonly NativeMenuItemSeparator _permissionsSeparator = new(), _screenshotSeparator = new(), _quitSeparator = new();
 
     /// <summary>
     /// One menu for the app's lifetime: Avalonia's macOS menu bar refuses a replaced menu (and does not apply
@@ -34,6 +34,7 @@ internal sealed class MenuBar : IDisposable
         _update = Item(() => UpdateClicked?.Invoke());
         _accessibility = Item(() => AccessibilityClicked?.Invoke());
         _finderAccess = Item(() => FinderAccessClicked?.Invoke());
+        _screenshot = Item(() => ScreenshotClicked?.Invoke());
         _settings = Item(() => SettingsClicked?.Invoke());
         _sessions = Item(() => SessionsClicked?.Invoke());
         _howToUse = Item(() => HowToUseClicked?.Invoke());
@@ -47,6 +48,7 @@ internal sealed class MenuBar : IDisposable
 
     public event Action? AccessibilityClicked;
     public event Action? FinderAccessClicked;
+    public event Action? ScreenshotClicked;
     public event Action? SettingsClicked;
 
     public event Action? SessionsClicked;
@@ -87,6 +89,7 @@ internal sealed class MenuBar : IDisposable
         _update.Header = Loc.Format("Tray.Update", s.Update ?? "");
         _accessibility.Header = Loc.Get("MacMenu.AllowAccessibility");
         _finderAccess.Header = Loc.Get("MacMenu.AllowFinder");
+        _screenshot.Header = Loc.Get("Tray.Screenshot");
         _settings.Header = Loc.Get("Tray.Settings");
         _sessions.Header = Loc.Get("Tray.Sessions");
         _howToUse.Header = Loc.Get("Tray.HowToUse");
@@ -106,7 +109,7 @@ internal sealed class MenuBar : IDisposable
             _menu.Items.Add(item);
         if (_menu.Items.Count > 0)
             _menu.Items.Add(_permissionsSeparator);
-        foreach (var item in new NativeMenuItemBase[] { _settings, _sessions, _howToUse, _pause, _openLogs, _quitSeparator, _quit })
+        foreach (var item in new NativeMenuItemBase[] { _screenshot, _screenshotSeparator, _settings, _sessions, _howToUse, _pause, _openLogs, _quitSeparator, _quit })
             _menu.Items.Add(item);
     }
 

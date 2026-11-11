@@ -344,6 +344,42 @@ internal sealed class RadialMenuWindow : Window
         _card.Start(spec, CloseMenu);
     }
 
+    /// <summary>
+    /// Shows the prompt card by itself, without the ring, centered on <paramref name="anchor"/> and kept inside the work
+    /// area of its screen (Ask About a Screenshot).
+    /// </summary>
+    /// <returns>The window's frame in screen points, for the event tap.</returns>
+    public CGRect ShowCard(InputSpec spec, CGPoint anchor)
+    {
+        if (_isOpen)
+            CloseMenu(restoreFocus: false);
+        _version++;
+        _pressedInside = false;
+        SetHover(-1, -1);
+        CloseFrom(1);
+
+        var screen = Screens.ScreenFromPoint(new PixelPoint((int)anchor.X, (int)anchor.Y)) ?? Screens.Primary;
+        var work = _work = screen?.WorkingArea ?? new PixelRect(0, 0, 10_000, 10_000);
+        double half = OuterR + ShadowPad;
+        double cx = Clamp(anchor.X, work.X + half, work.Right - half), cy = Clamp(anchor.Y, work.Y + half, work.Bottom - half);
+        _centerOnScreen = new CGPoint(cx, cy);
+        Width = Height = 2 * half; // the card grows the window when it needs more (FitCard)
+        Position = new PixelPoint((int)Math.Round(cx - half), (int)Math.Round(cy - half));
+
+        _stage.Opacity = 0;
+        _surface.Opacity = 0;
+        _surfaceScale.ScaleX = _surfaceScale.ScaleY = Animate ? 0.94 : 1;
+        _card.Start(spec, CloseMenu);
+        MenuPanel.BeforeShow(_nsWindow, _nonActivating);
+        ShowActivated = !_nonActivating;
+        Show();
+        MenuPanel.TakeKey(_nsWindow, _nonActivating);
+        _isOpen = true;
+        FadeIn(_surface, _surfaceScale, 160, 0.94);
+        FitCard();
+        return Frame;
+    }
+
     /// <summary>Replaces the ring with the New Project card.</summary>
     public void StartNewProject(NewProjectSpec spec)
     {
@@ -520,6 +556,13 @@ internal sealed class RadialMenuWindow : Window
     {
         _card.Start(spec, _ => { });
         _card.Fill(name, prompt);
+        return RenderCard(background);
+    }
+
+    /// <summary>Developer aid (--render-shot): draws a prompt card into a bitmap at 2x without showing the window.</summary>
+    public Bitmap RenderCardPreview(InputSpec spec, Color background)
+    {
+        _card.Start(spec, _ => { });
         return RenderCard(background);
     }
 

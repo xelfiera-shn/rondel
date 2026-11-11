@@ -78,6 +78,9 @@ internal static class DevTools
             case ["--render-answer", var output, .. var options]:
                 RenderAnswer(output, options);
                 return true;
+            case ["--render-shot", var output, var picture, .. var options]:
+                RenderShot(output, picture, options);
+                return true;
             case ["--install-update", var bundle, var zip, var from]:
                 // Swaps a locally built zip into a bundle once this process exits, as an update does.
                 if (!AppVersion.TryParse(from, out var version))
@@ -339,6 +342,31 @@ internal static class DevTools
         bitmap.Render(root);
         bitmap.Save(output, new PngBitmapEncoderOptions());
         window.Close();
+    }
+
+    /// <summary>
+    /// Draws the Ask About a Screenshot card with <paramref name="picture"/> (a PNG) on it, for checking its design:
+    /// <c>--render-shot out.png picture.png [dark|light] [en|tr]</c>.
+    /// </summary>
+    static void RenderShot(string output, string picture, string[] options)
+    {
+        AppBuilder.Configure<App>().UsePlatformDetect()
+            .With(new FontManagerOptions { DefaultFamilyName = ".AppleSystemUIFont" })
+            .SetupWithoutStarting();
+        bool dark = !options.Contains("light");
+        Loc.SetLanguage(options.Contains("tr") ? "tr" : "en");
+        var settings = new AppSettings();
+        settings.Normalize();
+        var spec = new InputSpec(Loc.Get("Action.Screenshot"), '\uE722', "", "Claude Code", AskPrompt: true, _ => null, (_, _) => null)
+        {
+            AskName = false,
+            Image = File.ReadAllBytes(picture),
+            Placeholder = Loc.Get("Screenshot.Placeholder"),
+            Location = Loc.Get("Quick.Location"),
+        };
+        var window = new RadialMenuWindow(MenuPalette.For(settings.Appearance, dark));
+        using var bitmap = window.RenderCardPreview(spec, dark ? Color.FromRgb(0x1E, 0x1E, 0x1E) : Color.FromRgb(0xEC, 0xEC, 0xEC));
+        bitmap.Save(output, new PngBitmapEncoderOptions());
     }
 
     /// <summary>
