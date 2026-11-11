@@ -1,11 +1,13 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using Rondel.Core.Activity;
 using Rondel.Core.Agents;
 using Rondel.Core.Context;
 using Rondel.Core.Flow;
@@ -418,7 +420,7 @@ internal sealed class RadialMenuWindow : Window
         if (!_isOpen || _model is null || _card.IsActive)
             return;
         // Rebuild with the new colors, keeping what arrived after the menu opened and what is open.
-        var hints = Slices.Select(s => (s.Hint.IsVisible && s.Hint.Opacity > 0 ? s.Hint.Text : null, s.Dimmed)).ToList();
+        var hints = Slices.Select(s => (s.Hint.IsVisible && s.Hint.Opacity > 0 ? HintText(s.Hint) : null, s.Dimmed)).ToList();
         var children = Slices.Select(s => s.Children).ToList();
         var opened = _bands.Select(b => b.Opened).ToList();
         BuildSlices(_model);
@@ -432,7 +434,8 @@ internal sealed class RadialMenuWindow : Window
     /// Late session hints (looked up off the main thread after the menu opened). Ignored if the menu has moved on
     /// to another context meanwhile.
     /// </summary>
-    public void ApplyHints(MenuModel model, IReadOnlyList<(string? Hint, bool Dimmed)> hints)
+    /// <param name="states">One per slice: the state beside an Active Agents slice's line, if any.</param>
+    public void ApplyHints(MenuModel model, IReadOnlyList<(string? Hint, bool Dimmed)> hints, IReadOnlyList<AgentState?>? states = null)
     {
         if (!ReferenceEquals(model, _model) || hints.Count != Slices.Count)
             return;
@@ -441,7 +444,7 @@ internal sealed class RadialMenuWindow : Window
             var slice = Slices[i];
             if (hints[i].Hint is not { } text)
                 continue;
-            slice.Hint.Text = text;
+            SetHint(slice.Hint, text, states is not null && i < states.Count ? states[i] : null);
             slice.Hint.IsVisible = true;
             slice.Hint.Opacity = 1;
             slice.Dimmed = hints[i].Dimmed;
@@ -477,7 +480,8 @@ internal sealed class RadialMenuWindow : Window
     /// <param name="path">What to hover: a slice index, then for each arc the rank of an item (0 = newest).</param>
     /// <param name="atLeftEdge">As if the menu opened at the left edge of the work area (the ring clamped against it).</param>
     public Bitmap RenderPreview(MenuModel model, IReadOnlyList<(string? Hint, bool Dimmed)> hints,
-        IReadOnlyList<IReadOnlyList<MenuItemModel>> children, IReadOnlyList<int> path, Color background, bool atLeftEdge = false)
+        IReadOnlyList<IReadOnlyList<MenuItemModel>> children, IReadOnlyList<int> path, Color background, bool atLeftEdge = false,
+        IReadOnlyList<AgentState?>? states = null)
     {
         _room = atLeftEdge
             ? (OuterR + ShadowPad, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity)
@@ -489,7 +493,7 @@ internal sealed class RadialMenuWindow : Window
         _centerSubtitle.Text = model.Subtitle ?? "";
         _centerSubtitle.IsVisible = !string.IsNullOrEmpty(model.Subtitle);
         SetSymbol(_centerGlyph, CenterSymbolFor(model.Context.Kind), 18, _palette.Brand);
-        ApplyHints(model, hints);
+        ApplyHints(model, hints, states);
         ApplyChildren(model, children, force: true);
         if (path.Count > 0)
             SetHover(0, path[0]);
@@ -697,6 +701,34 @@ internal sealed class RadialMenuWindow : Window
         return (0, top);
     }
 
+    /// <summary>
+    /// The line under a label; for a followed agent (or an Active Agents slice) it starts with a dot in the color of the
+    /// agent's state, as on Windows. The line's text is kept in the Tag, for redrawing and fitting.
+    /// </summary>
+    void SetHint(TextBlock hint, string text, AgentState? state)
+    {
+        hint.Tag = state is null ? text : "\u25CF " + text;
+        if (state is not { } value)
+        {
+            hint.Inlines = null;
+            hint.Text = text;
+            return;
+        }
+        hint.Text = null;
+        hint.Inlines = [new Run("\u25CF ") { Foreground = StateBrush(value) }, new Run(text)];
+    }
+
+    static string HintText(TextBlock hint) => hint.Tag as string ?? hint.Text ?? "";
+
+    /// <summary>The color of an agent's state, the same as on Windows: amber when it waits, green when done, red when it failed, the accent while it works.</summary>
+    IBrush StateBrush(AgentState state) => state switch
+    {
+        AgentState.Waiting => new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B)),
+        AgentState.Ready => new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E)),
+        AgentState.Working => _palette.Accent,
+        _ => new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44)),
+    };
+
     /// <summary>Signed angle from <paramref name="from"/> to <paramref name="to"/>, in (-180, 180].</summary>
     static double AngleBetween(double from, double to) => ((to - from) % 360 + 540) % 360 - 180;
 
@@ -783,7 +815,7 @@ internal sealed class RadialMenuWindow : Window
             double mid = _offset + i * _span;
             var tile = CreateTile(item, mid, _span, TileInnerR, TileOuterR, ring.Layer, withGlyph: true);
             bool expectsHint = item.Action.Hint != SessionHint.None;
-            tile.Hint.Text = item.Hint ?? (expectsHint ? hintSample : "");
+            SetHint(tile.Hint, item.Hint ?? (expectsHint ? hintSample : ""), item.State);
             tile.Hint.IsVisible = item.Hint is not null || expectsHint;
             tile.Hint.Opacity = item.Hint is not null ? 1 : 0;
             tile.Dimmed = item.Dimmed;
@@ -855,9 +887,10 @@ internal sealed class RadialMenuWindow : Window
         };
         var hint = new TextBlock
         {
-            FontSize = 10, Text = item.Hint ?? "", TextAlignment = TextAlignment.Center,
+            FontSize = 10, TextAlignment = TextAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 2, 0, 0), IsVisible = item.Hint is not null,
         };
+        SetHint(hint, item.Hint ?? "", item.State);
         var stack = new StackPanel();
         if (glyph is not null)
             stack.Children.Add(glyph);
@@ -1042,7 +1075,7 @@ internal sealed class RadialMenuWindow : Window
     {
         var (block, label) = (tile.Content, tile.Label);
         string text = label.Text ?? "";
-        var key = (text, tile.Hint.IsVisible ? tile.Hint.Text ?? "" : "", Math.Round(mid, 1), span, labelR);
+        var key = (text, tile.Hint.IsVisible ? HintText(tile.Hint) : "", Math.Round(mid, 1), span, labelR);
         if (_labelLayouts.TryGetValue(key, out var known))
         {
             label.Text = known.Text;

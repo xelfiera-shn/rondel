@@ -24,7 +24,7 @@ Rondel'in Windows'ta ve macOS'ta hangi özelliklere sahip olduğu ve her birinin
 | Uzun proje adları dilimlerine sığar | ✅ 0.3.0 | ✅ 0.8.0 |
 | Beş tema, koyu ve açık mod, vurgu renkleri | ✅ 0.5.0 | ✅ 0.8.0 |
 | Kendi vurgu renkleriniz için renk seçici | ✅ 0.10.0 | ✅ 0.15.0 |
-| Menüyü fare imlecinin olduğu yerde açan klavye kısayolu | ✅ 0.1.0 | ⬜ |
+| Menüyü fare imlecinin olduğu yerde açan klavye kısayolu | ✅ 0.1.0 | ✅ 0.17.0 |
 
 ## Ajanı başlatma
 
@@ -47,10 +47,10 @@ Rondel'in Windows'ta ve macOS'ta hangi özelliklere sahip olduğu ve her birinin
 
 | Özellik | Windows | macOS |
 |---|---|---|
-| Bir ajan bir şey sorduğunda, işini bitirdiğinde ya da hatayla durduğunda bildirim; tıklayınca terminali öne gelir | ✅ 0.6.0 | ⬜ |
-| Masaüstü menüsünde her ajan için durum noktasıyla **Aktif Ajanlar** ve onu açan kısayol | ✅ 0.6.0 | ⬜ |
+| Bir ajan bir şey sorduğunda, işini bitirdiğinde ya da hatayla durduğunda bildirim; tıklayınca terminali öne gelir | ✅ 0.6.0 | ✅ 0.17.0 |
+| Masaüstü menüsünde her ajan için durum noktasıyla **Aktif Ajanlar** ve onu açan kısayol | ✅ 0.6.0 | ✅ 0.17.0 (kısayol henüz yok) |
 | Ajan kartı: çalışan ajanlar göz önünde; diğer pencerelerin üstünde ya da masaüstünde, küçülünce size bakanların sayısını gösteren bir rozet | ✅ 0.9.0 | ⬜ |
-| **Oturumlar**: kayıtlı her Claude Code oturumu ve kapladığı yer; Geri Dönüşüm Kutusu'na ya da kalıcı olarak silmek için | ✅ 0.12.0 | ⬜ |
+| **Oturumlar**: kayıtlı her Claude Code oturumu ve kapladığı yer; Geri Dönüşüm Kutusu'na (macOS'ta Çöp Sepeti'ne) ya da kalıcı olarak silmek için | ✅ 0.12.0 | ✅ 0.17.0 |
 
 ## Uygulama
 
