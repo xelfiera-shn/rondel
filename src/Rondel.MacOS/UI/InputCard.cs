@@ -103,6 +103,9 @@ internal sealed class InputCard : Border
 
     public bool IsActive => _input is not null;
 
+    /// <summary>The prompt card being shown, if any.</summary>
+    public InputSpec? Spec => _input;
+
     /// <summary>Opens the card for a folder name (and a prompt), or a prompt alone.</summary>
     /// <param name="close">Closes the menu; true gives the focus back to the app that had it.</param>
     public void Start(InputSpec spec, Action<bool> close)

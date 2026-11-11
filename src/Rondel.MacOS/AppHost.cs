@@ -37,6 +37,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
     IDisposable? _accessibilityPoll;
     nint _activity;
     RadialMenuWindow? _menu;
+    readonly List<AnswerCardWindow> _answerCards = [];
     SettingsWindow? _settingsWindow;
     WelcomeWindow? _welcomeWindow;
     SessionsWindow? _sessionsWindow;
@@ -52,7 +53,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         var launcher = new MacTerminalLauncher((message, activityId) => Dispatcher.UIThread.Post(() => LaunchFailed(message, activityId)),
             _agentTerminals);
         _flow = new MenuFlow(this, launcher, new MacFolderNameValidator(), () => Store.Current, change => Store.Update(change),
-            activity: _agents);
+            activity: _agents, answers: new MacAnswerLauncher());
         _quick = new QuickSweeper(_flow);
         Updates = new MacUpdates(Store, () => QuitRequested?.Invoke());
         ApplySettings(Store.Current);
@@ -170,7 +171,10 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         if (_menu is null || (!force && look == _look))
             return;
         _look = look;
-        _menu.ApplyLook(Palette(settings));
+        var palette = Palette(settings);
+        _menu.ApplyLook(palette);
+        foreach (var card in _answerCards)
+            card.ApplyLook(palette);
     }
 
     static MenuPalette Palette(AppSettings settings) => MenuPalette.For(settings.Appearance, SystemIsDark);
@@ -411,8 +415,23 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 
     void IMenuHost.ShowCard(InputSpec spec) => Log.Warn("Ask About a Screenshot is not supported on macOS yet");
 
-    // Never called: the flow answers on the card only when it was given an IAnswerLauncher, which macOS does not pass yet.
-    void IMenuHost.ShowAnswer(QuickAnswer answer) => answer.Close();
+    /// <summary>
+    /// Quick Conversation's first answer, on a card of its own: the prompt card closes and gives the focus back, and the
+    /// answer card floats where it was until it is closed or continues in a terminal, so a slow answer blocks nothing.
+    /// </summary>
+    void IMenuHost.ShowAnswer(QuickAnswer answer)
+    {
+        var spec = _menu?.CurrentInput;
+        var (card, work) = _menu?.CardPlace() ?? default;
+        var header = new AnswerHeader(spec?.Title ?? Loc.Get("Action.Quick"), spec?.Glyph ?? '\uE945', spec?.Location, spec?.Image,
+            spec?.AgentName ?? "");
+        _menu?.CloseMenu(restoreFocus: true);
+        var window = new AnswerCardWindow(answer, header, Palette(Store.Current));
+        window.ContinuedInTerminal += _quick.Continued;
+        window.Closed += (_, _) => _answerCards.Remove(window);
+        _answerCards.Add(window);
+        window.ShowAt(card, work, offset: _answerCards.Count - 1);
+    }
 
     void IMenuHost.StartNewProject(NewProjectSpec spec) => _menu?.StartNewProject(spec);
 
@@ -423,6 +442,8 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
     public void Dispose()
     {
         _accessibilityPoll?.Dispose();
+        foreach (var card in _answerCards.ToList())
+            card.Close();
         StopFollowingAgents();
         _quick.Dispose();
         Updates.Dispose();
