@@ -53,7 +53,7 @@ internal sealed class AgentsCard : IDisposable
     IReadOnlyList<ActiveAgent> _agents = [];
     string? _lastScreen;
     PixelPoint? _anchor;
-    bool _enabled, _manualShown, _manualHidden, _hovering, _placing, _flipX, _flipY;
+    bool _enabled, _manualShown, _manualHidden, _hovering, _placing, _capturing, _flipX, _flipY;
     nint _nsWindow;
 
     /// <param name="change">Changes the card's options (saved in settings.json, so they are back after a restart).</param>
@@ -165,7 +165,26 @@ internal sealed class AgentsCard : IDisposable
     }
 
     /// <summary>Whether "Show the agents card" has something to do: the card is turned on, but not on screen.</summary>
-    public bool CanShowAgain => _enabled && _options().Show && !IsShown;
+    public bool CanShowAgain => _enabled && _options().Show && !IsShown && !_capturing;
+
+    /// <summary>
+    /// Steps aside while a screenshot is picked, so the card is not in the picture; agents that change meanwhile do not
+    /// bring it back.
+    /// </summary>
+    public void HideForCapture()
+    {
+        _capturing = true;
+        Layout();
+    }
+
+    /// <summary>Puts the card back after a screenshot, as it was.</summary>
+    public void ShowAfterCapture()
+    {
+        if (!_capturing)
+            return;
+        _capturing = false;
+        Layout();
+    }
 
     /// <summary>"Hide the card": hides a card on screen, or shows it, also with no agent.</summary>
     public void Toggle()
@@ -184,7 +203,7 @@ internal sealed class AgentsCard : IDisposable
     void Layout()
     {
         var options = _options();
-        bool visible = _enabled && options.Show && !_manualHidden && (_agents.Count > 0 || _manualShown);
+        bool visible = !_capturing && _enabled && options.Show && !_manualHidden && (_agents.Count > 0 || _manualShown);
         if (!visible)
         {
             Hide();
