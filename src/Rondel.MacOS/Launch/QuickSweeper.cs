@@ -12,7 +12,8 @@ namespace Rondel.MacOS.Launch;
 /// written to in the last minute, is kept until a later sweep. Only Claude Code's list of the sessions it runs
 /// (~/.claude/sessions) tells one that still runs from one that ended, so without that list nothing is swept.
 /// An answer on an open card is kept too, and so are the folder's files while one is open; a card closed with its answer
-/// ends its session at once. One continued in a terminal is kept by the flow until Claude Code lists it as running.
+/// ends its session at once. One continued in a terminal is kept by the flow until a sweep finds it among the sessions
+/// Claude Code runs; from then on that list keeps it, until it ends.
 /// </summary>
 internal sealed class QuickSweeper : IDisposable
 {
@@ -30,6 +31,9 @@ internal sealed class QuickSweeper : IDisposable
     readonly MenuFlow _flow;
     readonly string _directory;
     readonly HashSet<string> _ended = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Sessions continued in a terminal that Claude Code has not listed as running yet.</summary>
+    readonly HashSet<string> _continued = new(StringComparer.OrdinalIgnoreCase);
     readonly object _lock = new();
     Timer? _timer;
     bool _toldNoRegistry;
@@ -47,7 +51,8 @@ internal sealed class QuickSweeper : IDisposable
         flow.QuickSessionEnded += session =>
         {
             Ended(session);
-            Task.Delay(SweepAgain).ContinueWith(_ => Ended(session), TaskScheduler.Default);
+            // Once more, for what it wrote as it closed; the id stays in _ended only while that sweep skipped it.
+            Task.Delay(SweepAgain).ContinueWith(_ => Sweep(), TaskScheduler.Default);
         };
     }
 
@@ -59,11 +64,14 @@ internal sealed class QuickSweeper : IDisposable
     }
 
     /// <summary>
-    /// An answer went on in a terminal: Claude Code lists that session as running once it has started there, so the flow
-    /// need not keep it after a while (on Windows, until Rondel hears that it ended).
+    /// An answer went on in a terminal. The flow keeps it until a sweep sees Claude Code run it there, however long the
+    /// terminal takes (a folder trust question first, say); on Windows, until Rondel hears that it ended.
     /// </summary>
-    public void Continued(string session) =>
-        Task.Delay(Every).ContinueWith(_ => _flow.ForgetQuickSession(session), TaskScheduler.Default);
+    public void Continued(string session)
+    {
+        lock (_lock)
+            _continued.Add(session);
+    }
 
     /// <summary>Sweeps what Quick Conversations left while Rondel was not running.</summary>
     public void Start() => Sweep();
@@ -91,6 +99,15 @@ internal sealed class QuickSweeper : IDisposable
                     return;
                 }
                 _toldNoRegistry = false;
+                if (_continued.Count > 0)
+                {
+                    var running = storage.RunningSessionIds();
+                    foreach (string id in _continued.Where(running.Contains).ToList())
+                    {
+                        _continued.Remove(id);
+                        _flow.ForgetQuickSession(id);
+                    }
+                }
                 var result = storage.Sweep(_directory, [.. _ended], keep, inUse);
                 _ended.IntersectWith(result.Skipped); // one still closing is swept the next time
             }

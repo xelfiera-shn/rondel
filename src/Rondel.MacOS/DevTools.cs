@@ -247,7 +247,7 @@ internal static class DevTools
         string question = tr ? "Terminal'de bir klasörün boyutunu nasıl bulurum?" : "How do I find the size of a folder in Terminal?";
         string answer = tr
             ? "Klasörün toplam boyutunu **du** ile okunur biçimde alın:\n\n```zsh\ndu -sh ~/Projects/weather-api\n```\n\n- `-s` yalnızca toplamı yazar, alt klasörleri tek tek saymaz.\n- `-h` boyutu `K`, `M` ya da `G` ile gösterir.\n\n| Seçenek | Ne yapar |\n|---|---|\n| `-d 1` | Bir seviye aşağıdaki klasörleri de yazar |\n| `-c` | Sonuna genel toplamı ekler |"
-            : "Get the folder's total size in a readable form with **du**:\n\n```zsh\ndu -sh ~/Projects/weather-api\n```\n\n- `-s` prints only the total, not every subfolder.\n- `-h` shows the size with `K`, `M` or `G`.\n\n| Option | What it does |\n|---|---|\n| `-d 1` | Also lists the folders one level down |\n| `-c` | Adds a grand total at the end |";
+            : "Get the folder's total size in a *readable* form with **du**:\n\n```zsh\ndu -sh ~/Projects/weather-api\n```\n\n- `-s` prints only the total, not every subfolder.\n- `-h` shows the size with `K`, `M` or `G`.\n\n| Option | What it does |\n|---|---|\n| `-d 1` | Also lists the folders one level down |\n| `-c` | Adds a grand total at the end |";
         string partial = answer[..(answer.IndexOf("```", StringComparison.Ordinal) + 20)];
         var view = state switch
         {
