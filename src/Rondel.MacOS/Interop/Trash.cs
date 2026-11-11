@@ -12,12 +12,15 @@ internal static class Trash
     /// since it was listed counts as moved. Transcripts go last: a session whose transcript stays is still listed, so it
     /// can be deleted again, while one that lost its transcript would leave its other folders out of sight.
     /// </summary>
-    /// <exception cref="IOException">macOS did not move some; the others are in the Trash.</exception>
+    /// <exception cref="IOException">
+    /// macOS did not move some: the message says how many stayed and macOS's reason, or only the reason when none went.
+    /// </exception>
     public static unsafe void Move(IReadOnlyList<string> paths)
     {
         using var pool = new AutoreleasePool();
         nint manager = Send(Class("NSFileManager"), Sel("defaultManager"));
         var failed = new List<string>();
+        int trashed = 0;
         string? firstReason = null;
         foreach (string path in paths.OrderBy(p => p.EndsWith(".jsonl", StringComparison.OrdinalIgnoreCase)))
         {
@@ -29,14 +32,21 @@ internal static class Trash
             nint error = 0;
             bool moved = (Send(manager, Sel("trashItemAtURL:resultingItemURL:error:"), url, 0, (nint)(&error)) & 0xFF) != 0;
             if (moved)
+            {
+                trashed++;
                 continue;
+            }
             // macOS words the reason in the user's language.
             string reason = (error == 0 ? null : String(Send(error, Sel("localizedDescription")))) ?? "?";
             Log.Warn($"Moving '{path}' to the Trash failed: {reason}");
             failed.Add(path);
             firstReason ??= reason;
         }
-        if (failed.Count > 0)
-            throw new IOException(Loc.Format("Sessions.TrashFailed.Mac", failed.Count, firstReason));
+        if (failed.Count == 0)
+            return;
+        // macOS's reason is a sentence of its own ("… couldn't be moved to the Trash because …"), so it comes last.
+        if (trashed == 0)
+            throw new IOException(firstReason);
+        throw new IOException(Loc.Format(failed.Count == 1 ? "Sessions.TrashFailed.Mac.One" : "Sessions.TrashFailed.Mac", failed.Count, firstReason));
     }
 }
