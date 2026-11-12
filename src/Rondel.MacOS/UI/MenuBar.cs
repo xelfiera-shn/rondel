@@ -8,7 +8,9 @@ namespace Rondel.MacOS.UI;
 
 /// <summary>What the menu bar extra shows; the menu is rebuilt from it whenever it changes.</summary>
 /// <param name="Update">The version a newer release has, offered at the top of the menu; null for none.</param>
-internal sealed record MenuBarState(bool Paused, bool NeedsAccessibility, bool NeedsFinderAccess, string? Warning, string? Update = null);
+/// <param name="ShowCard">"Show the agents card": null leaves it out, false shows it greyed (the card is on screen).</param>
+internal sealed record MenuBarState(bool Paused, bool NeedsAccessibility, bool NeedsFinderAccess, string? Warning, string? Update = null,
+    bool? ShowCard = null);
 
 /// <summary>
 /// Rondel's menu bar extra, the counterpart of the Windows tray icon: a template image (black, tinted by macOS for
@@ -18,7 +20,7 @@ internal sealed class MenuBar : IDisposable
 {
     readonly TrayIcon _icon;
     readonly NativeMenuItem _warning = new() { IsEnabled = false };
-    readonly NativeMenuItem _update, _accessibility, _finderAccess, _screenshot, _settings, _sessions, _howToUse, _pause, _openLogs, _quit;
+    readonly NativeMenuItem _update, _accessibility, _finderAccess, _screenshot, _settings, _sessions, _howToUse, _showCard, _pause, _openLogs, _quit;
     readonly NativeMenuItemSeparator _permissionsSeparator = new(), _screenshotSeparator = new(), _quitSeparator = new();
 
     /// <summary>
@@ -38,6 +40,7 @@ internal sealed class MenuBar : IDisposable
         _settings = Item(() => SettingsClicked?.Invoke());
         _sessions = Item(() => SessionsClicked?.Invoke());
         _howToUse = Item(() => HowToUseClicked?.Invoke());
+        _showCard = Item(() => ShowCardClicked?.Invoke());
         _pause = Item(() => PauseClicked?.Invoke());
         _openLogs = Item(() => OpenLogsClicked?.Invoke());
         _quit = Item(() => QuitClicked?.Invoke());
@@ -54,6 +57,8 @@ internal sealed class MenuBar : IDisposable
     public event Action? SessionsClicked;
 
     public event Action? HowToUseClicked;
+
+    public event Action? ShowCardClicked;
     public event Action? PauseClicked;
     public event Action? OpenLogsClicked;
     public event Action? QuitClicked;
@@ -94,6 +99,8 @@ internal sealed class MenuBar : IDisposable
         _settings.Header = Loc.Get("Tray.Settings");
         _sessions.Header = Loc.Get("Tray.Sessions");
         _howToUse.Header = Loc.Get("Tray.HowToUse");
+        _showCard.Header = Loc.Get("Tray.ShowCard");
+        _showCard.IsEnabled = s.ShowCard == true;
         _pause.Header = Loc.Get(s.Paused ? "Tray.Resume" : "Tray.Pause");
         _openLogs.Header = Loc.Get("Tray.OpenLogs");
         _quit.Header = Loc.Get("MacMenu.Quit");
@@ -110,8 +117,11 @@ internal sealed class MenuBar : IDisposable
             _menu.Items.Add(item);
         if (_menu.Items.Count > 0)
             _menu.Items.Add(_permissionsSeparator);
-        foreach (var item in new NativeMenuItemBase[] { _screenshot, _screenshotSeparator, _settings, _sessions, _howToUse, _pause, _openLogs, _quitSeparator, _quit })
-            _menu.Items.Add(item);
+        foreach (var item in new NativeMenuItemBase?[] { _screenshot, _screenshotSeparator, _settings, _sessions, _howToUse, s.ShowCard is null ? null : _showCard, _pause, _openLogs, _quitSeparator, _quit })
+        {
+            if (item is not null)
+                _menu.Items.Add(item);
+        }
     }
 
     static NativeMenuItem Item(Action click)
