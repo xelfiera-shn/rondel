@@ -32,5 +32,13 @@ public static class AppInfo
         ? Path.Combine(Home, "Library", "Application Support", Name, "Quick")
         : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Name, "Quick");
 
+    /// <summary>
+    /// What Rondel keeps for itself on this computer, not settings: %LOCALAPPDATA%\Rondel on Windows,
+    /// ~/Library/Application Support/Rondel on macOS.
+    /// </summary>
+    public static string LocalDirectory { get; } = OperatingSystem.IsMacOS()
+        ? Path.Combine(Home, "Library", "Application Support", Name)
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Name);
+
     static string Home => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 }

@@ -406,6 +406,8 @@
                             <TextBlock Style="{StaticResource Description}" Margin="28,2,0,0" Text="{l:Loc Settings.ActiveAgents.Card.OverFullScreen.Desc}" />
                             <CheckBox x:Name="CardMuteBox" Margin="0,10,0,0" Content="{l:Loc Card.Mute}" Click="OnAgentsCardClicked" />
                             <TextBlock Style="{StaticResource Description}" Margin="28,2,0,0" Text="{l:Loc Settings.ActiveAgents.Card.Mute.Desc}" />
+                            <CheckBox x:Name="CardUsageBox" Margin="0,10,0,0" Content="{l:Loc Card.Usage.Show}" Click="OnAgentsCardClicked" />
+                            <TextBlock Style="{StaticResource Description}" Margin="28,2,0,0" Text="{l:Loc Settings.ActiveAgents.Card.Usage.Desc}" />
                         </StackPanel>
                     </StackPanel>
                 </Border>

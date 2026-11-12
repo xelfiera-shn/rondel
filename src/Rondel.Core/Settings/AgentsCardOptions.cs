@@ -30,6 +30,12 @@ public sealed class AgentsCardOptions
     /// <summary>Keep the card open instead of collapsing it to its badge when the mouse leaves it.</summary>
     public bool Pinned { get; set; }
 
+    /// <summary>
+    /// Show the plan's usage limits (five-hour and weekly) on the card, which then stays on screen, collapsed, with no
+    /// agent too. The sessions Rondel starts report them through a status line (<see cref="Activity.StatusLineTap"/>).
+    /// </summary>
+    public bool ShowUsage { get; set; }
+
     /// <summary>Shows or hides the card, e.g. "Ctrl+Alt+K"; empty = none.</summary>
     public string Hotkey { get; set; } = "";
 }

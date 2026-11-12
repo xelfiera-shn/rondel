@@ -511,7 +511,7 @@ public sealed class MenuFlow(IMenuHost host, ITerminalLauncher launcher, IFolder
         }
         var current = settings();
         ActiveAgent? followed = null;
-        if (activity?.HooksFile is { } hooks && current.ActiveAgents.Follow && agent.ActivityArgs is { Count: > 0 })
+        if (current.ActiveAgents.Follow && agent.ActivityArgs is { Count: > 0 } && activity?.HooksFileFor(directory) is { } hooks)
         {
             followed = activity.Start(directory, agent.Name, working: !string.IsNullOrEmpty(prompt));
             plan = LaunchPlanner.Follow(plan, agent, hooks, followed.Id)!;

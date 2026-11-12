@@ -51,9 +51,10 @@ namespace Rondel.Windows;
 /// --render-welcome out.png [dark|light] [en|tr] [stage] [t=SECONDS] [frames=N]   draw the welcome window at a moment
 ///                                            of its picture (the still one by default); stage: the picture alone;
 ///                                            frames=N: N moments over one loop, as out-000.png, out-001.png, …
-/// --render-card out.png [dark|light] [en|tr] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]   draw the agents card with made-up
-///                                            agents: open, collapsed, its quick settings and with no agent
-/// --card-demo [dark|light] [en|tr] [desktop] [report.txt]   the live agents card with made-up agents, its options in
+/// --render-card out.png [dark|light] [en|tr] [usage] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]   draw the agents card with
+///                                            made-up agents: open, collapsed, its quick settings and with no agent;
+///                                            usage: with made-up usage limits, and once more with old figures
+/// --card-demo [dark|light] [en|tr] [desktop] [usage] [report.txt]   the live agents card with made-up agents, its options in
 ///                                            memory and its place in a temporary file; ends with Settings… on the card.
 ///                                            With report.txt it runs a short script instead and writes what it saw
 /// --render-new out.png [dark|light] [en|tr] [prompt] [empty] [transparent] [theme=ID] [accent=#RRGGBB[,#RRGGBB]]
@@ -187,6 +188,14 @@ internal static class DevTools
 
     /// <summary>Multi-size .ico: classic 32-bit BMP frames, plus a PNG frame for 256 px (the usual layout).</summary>
     /// <summary>Followed agents in every state, waiting ones first (as <see cref="AgentActivity.Agents"/> orders them).</summary>
+    /// <summary>
+    /// Made-up usage limits: the five-hour window high and resetting soon, the weekly one low; <paramref name="old"/>:
+    /// reported two hours ago, with the five-hour window reset since.
+    /// </summary>
+    static UsageLimits MadeUpUsage(DateTimeOffset now, bool old) => old
+        ? new UsageLimits(new UsageWindow(64, now.AddMinutes(-40)), new UsageWindow(37, now.AddDays(4).AddHours(3)), now.AddHours(-2))
+        : new UsageLimits(new UsageWindow(81, now.AddMinutes(85)), new UsageWindow(34, now.AddDays(4).AddHours(3)), now.AddMinutes(-1));
+
     static List<ActiveAgent> MadeUpAgents()
     {
         string projects = Path.Combine(Path.GetTempPath(), "Projects");
@@ -914,6 +923,10 @@ internal static class DevTools
         };
         window.ApplyLook(palette);
         var agents = MadeUpAgents();
+        bool usage = options.Contains("usage", StringComparer.OrdinalIgnoreCase);
+        var now = DateTimeOffset.Now;
+        if (usage)
+            window.ShowUsage(true, MadeUpUsage(now, old: false), now);
 
         BitmapSource Snapshot()
         {
@@ -933,8 +946,14 @@ internal static class DevTools
         window.SetCollapsed(false);
         window.ShowAgents([]);
         var empty = Snapshot();
+        BitmapSource? old = null;
+        if (usage)
+        {
+            window.ShowUsage(true, MadeUpUsage(now, old: true), now);
+            old = Snapshot();
+        }
 
-        var settings = new AgentsCardOptions { Placement = CardPlacement.OnTop, MuteNotifications = true };
+        var settings = new AgentsCardOptions { Placement = CardPlacement.OnTop, MuteNotifications = true, ShowUsage = usage };
         var panel = window.QuickSettings(settings, "Ctrl+Alt+K", _ => { }, () => { }, () => { });
         var holder = new System.Windows.Controls.Border { Padding = new System.Windows.Thickness(14), Child = panel };
         holder.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -949,13 +968,17 @@ internal static class DevTools
         bool openOnly = options.Contains("open", StringComparer.OrdinalIgnoreCase);
         double gap = openOnly ? 0 : 24;
         double right = openOnly ? 0 : Math.Max(quick.PixelWidth, Math.Max(badge.PixelWidth, empty.PixelWidth)) + gap;
+        // With the usage limits, the card with old figures goes under the open one.
+        double left = Math.Max(open.PixelHeight, open.PixelHeight + (old is null ? 0 : gap + old.PixelHeight));
         int width = (int)(open.PixelWidth + right + 2 * gap);
-        int height = (int)(openOnly ? open.PixelHeight : Math.Max(open.PixelHeight, quick.PixelHeight + badge.PixelHeight + empty.PixelHeight + 2 * gap) + 2 * gap);
+        int height = (int)(openOnly ? open.PixelHeight : Math.Max(left, quick.PixelHeight + badge.PixelHeight + empty.PixelHeight + 2 * gap) + 2 * gap);
         var visual = new DrawingVisual();
         using (var dc = visual.RenderOpen())
         {
             dc.DrawRectangle(new SolidColorBrush(dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6)), null, new System.Windows.Rect(0, 0, width, height));
             dc.DrawImage(open, new System.Windows.Rect(gap, gap, open.PixelWidth, open.PixelHeight));
+            if (!openOnly && old is not null)
+                dc.DrawImage(old, new System.Windows.Rect(gap, gap + open.PixelHeight + gap, old.PixelWidth, old.PixelHeight));
             if (!openOnly)
             {
                 double x = gap + open.PixelWidth + gap, y = gap;
@@ -988,6 +1011,7 @@ internal static class DevTools
         {
             Show = true,
             Placement = options.Contains("desktop", StringComparer.OrdinalIgnoreCase) ? CardPlacement.OnDesktop : CardPlacement.OnTop,
+            ShowUsage = options.Contains("usage", StringComparer.OrdinalIgnoreCase),
         };
         var agents = MadeUpAgents();
         string state = Path.Combine(Path.GetTempPath(), "rondel-card-demo.json");
@@ -1017,6 +1041,7 @@ internal static class DevTools
         };
         live.HideShortcut = "Ctrl+Alt+K";
         live.Update(agents, enabled: true);
+        live.ShowUsage(MadeUpUsage(DateTimeOffset.Now, old: false));
 
         if (report is not null)
         {
@@ -1063,6 +1088,12 @@ internal static class DevTools
             text.AppendLine($"tray item available: {live.CanShowAgain}");
             Step("tray: show the agents card", live.ShowAgain);
             text.AppendLine($"tray item available: {live.CanShowAgain}");
+            if (card.ShowUsage)
+            {
+                Step("usage limits, no agents", () => { card.Pinned = false; live.Update([], enabled: true); });
+                Step("usage limits off, no agents", () => { card.ShowUsage = false; live.Update([], enabled: true); });
+                Step("usage limits on again, agents", () => { card.ShowUsage = true; live.Update(agents, enabled: true); });
+            }
             Step("turned off", () => { card.Show = false; live.Update(agents, enabled: true); });
             Write(report, text.ToString());
             live.Dispose();

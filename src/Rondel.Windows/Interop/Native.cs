@@ -493,6 +493,26 @@ internal static unsafe partial class Native
     [LibraryImport("kernel32.dll")]
     public static partial uint GetCurrentThreadId();
 
+    [LibraryImport("kernel32.dll", EntryPoint = "GetShortPathNameW", SetLastError = true)]
+    private static partial uint GetShortPathName(char* longPath, char* shortPath, uint length);
+
+    /// <summary>The path's short (8.3) form; null where the volume keeps none, or it cannot be had.</summary>
+    public static string? ShortPath(string path)
+    {
+        fixed (char* source = path)
+        {
+            uint length = GetShortPathName(source, null, 0);
+            if (length == 0)
+                return null;
+            var buffer = new char[length];
+            fixed (char* target = buffer)
+            {
+                uint written = GetShortPathName(source, target, length);
+                return written == 0 || written >= length ? null : new string(target, 0, (int)written);
+            }
+        }
+    }
+
     [LibraryImport("kernel32.dll")]
     public static partial nint GetModuleHandleW(char* lpModuleName);
 
