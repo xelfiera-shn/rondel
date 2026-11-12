@@ -79,7 +79,9 @@ internal sealed partial class AppHost
     /// <summary>Brings the agents card back after the picker, and the menu bar's "Show the agents card" with it.</summary>
     void CardAfterCapture()
     {
-        _card?.ShowAfterCapture();
+        if (_card is null)
+            return;
+        _card.ShowAfterCapture();
         UpdateCardMenu();
     }
 

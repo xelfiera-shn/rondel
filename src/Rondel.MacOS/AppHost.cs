@@ -483,6 +483,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
             card.Close();
         StopFollowingAgents();
         _card?.Dispose();
+        _card = null; // a picker cancelled above ends after this, and must not bring the card back
         _quick.Dispose();
         Updates.Dispose();
         _worker.Dispose();
