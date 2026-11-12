@@ -90,6 +90,7 @@ internal sealed class MenuBar : IDisposable
         _accessibility.Header = Loc.Get("MacMenu.AllowAccessibility");
         _finderAccess.Header = Loc.Get("MacMenu.AllowFinder");
         _screenshot.Header = Loc.Get("Tray.Screenshot");
+        _screenshot.IsEnabled = !s.Paused; // greyed out while paused, as on Windows; its shortcut does nothing then either
         _settings.Header = Loc.Get("Tray.Settings");
         _sessions.Header = Loc.Get("Tray.Sessions");
         _howToUse.Header = Loc.Get("Tray.HowToUse");
