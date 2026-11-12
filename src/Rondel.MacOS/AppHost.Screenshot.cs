@@ -26,18 +26,8 @@ internal sealed partial class AppHost
     /// <summary>Opens the picker; pressed again while picking, cancels it.</summary>
     void AskAboutScreenshot()
     {
-        if (_capture is { } running)
-        {
-            try
-            {
-                running.Kill();
-            }
-            catch (InvalidOperationException)
-            {
-                // It has just ended.
-            }
+        if (CancelCapture())
             return;
-        }
         if (Store.Current.Paused)
             return;
         // Without the permission macOS would hand over the desktop picture without any window on it.
@@ -91,6 +81,26 @@ internal sealed partial class AppHost
     {
         _card?.ShowAfterCapture();
         UpdateCardMenu();
+    }
+
+    /// <summary>
+    /// Closes the picker when it is open, without a picture. Also as Rondel quits: a part picked after that would leave
+    /// its file in the temporary folder, with nothing to delete it.
+    /// </summary>
+    /// <returns>Whether the picker was open.</returns>
+    bool CancelCapture()
+    {
+        if (_capture is not { } running)
+            return false;
+        try
+        {
+            running.Kill();
+        }
+        catch (InvalidOperationException)
+        {
+            // It has just ended.
+        }
+        return true;
     }
 
     /// <summary>

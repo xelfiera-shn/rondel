@@ -477,6 +477,7 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
 
     public void Dispose()
     {
+        CancelCapture();
         _accessibilityPoll?.Dispose();
         foreach (var card in _answerCards.ToList())
             card.Close();

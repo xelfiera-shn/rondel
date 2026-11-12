@@ -17,7 +17,8 @@ namespace Rondel.Windows.UI;
 /// <summary>
 /// Shows the agents card (<see cref="AgentsCardWindow"/>) and keeps it where the user wants it.
 /// <list type="bullet">
-/// <item>It appears when the first agent starts and hides when none is left; its shortcut shows or hides it.</item>
+/// <item>It appears when the first agent starts and hides when none is left; its shortcut shows or hides it. With the
+/// usage limits on, it stays, collapsed to a pill that shows them.</item>
 /// <item>Collapsed to its badge, it opens while the mouse is over it, toward the free side of the screen; pinned, it
 /// stays open. It is dragged by its header or its badge, and its place is kept per monitor.</item>
 /// <item>On top of other windows, or on the desktop: behind every window, and raised while the desktop is in front
@@ -33,9 +34,6 @@ internal sealed unsafe class AgentsCard : IDisposable
     static readonly TimeSpan QuickSettingsDelay = TimeSpan.FromMilliseconds(600);
     static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(30);
     static readonly TimeSpan ForegroundPoll = TimeSpan.FromSeconds(2);
-
-    /// <summary>The collapsed window, with the margin for the shadow (device-independent pixels).</summary>
-    const double BadgeSize = 50 + 2 * 14;
 
     /// <summary>Room left to the screen's edges when the card is placed the first time.</summary>
     const double EdgeGap = 24;
@@ -58,6 +56,7 @@ internal sealed unsafe class AgentsCard : IDisposable
     nint _hwnd;
     nint _hook;
     IReadOnlyList<ActiveAgent> _agents = [];
+    UsageLimits? _usage;
     bool _enabled;
     bool _manualShown;
     bool _manualHidden;
@@ -104,7 +103,7 @@ internal sealed unsafe class AgentsCard : IDisposable
         _collapse.Stop();
         _quickClose = new DispatcherTimer(QuickSettingsDelay, DispatcherPriority.Normal, (_, _) => CloseQuickSettingsUnlessPointed(), _window.Dispatcher);
         _quickClose.Stop();
-        _refresh = new DispatcherTimer(RefreshInterval, DispatcherPriority.Background, (_, _) => _window.ShowAgents(_agents), _window.Dispatcher);
+        _refresh = new DispatcherTimer(RefreshInterval, DispatcherPriority.Background, (_, _) => Render(), _window.Dispatcher);
         _refresh.Stop();
         // A window can go full screen without the foreground changing (F11 in a browser), so this looks every few seconds too.
         _poll = new DispatcherTimer(ForegroundPoll, DispatcherPriority.Background, (_, _) => CheckForeground(), _window.Dispatcher);
@@ -132,22 +131,37 @@ internal sealed unsafe class AgentsCard : IDisposable
     public void ApplyLook(RondelPalette palette)
     {
         _window.ApplyLook(palette);
-        _window.ShowAgents(_agents);
+        Render();
     }
 
     /// <summary>The agents, or the options, changed.</summary>
     /// <param name="enabled">Whether Rondel follows agents at all.</param>
     public void Update(IReadOnlyList<ActiveAgent> agents, bool enabled)
     {
-        // When the last agent is gone, a card the user hid comes back with the next one.
-        if (_agents.Count > 0 && agents.Count == 0)
+        // A card the user hid comes back with the next agent that starts when none ran.
+        if (_agents.Count == 0 && agents.Count > 0)
             _manualHidden = false;
         if (!_options().Show)
             _manualShown = _manualHidden = false;
         _agents = agents;
         _enabled = enabled;
-        _window.ShowAgents(agents);
+        Render();
         Layout();
+    }
+
+    /// <summary>The usage limits a session reported last (usage.json changed).</summary>
+    public void ShowUsage(UsageLimits? usage)
+    {
+        _usage = usage;
+        Render();
+        Layout();
+    }
+
+    /// <summary>Draws the agents and, while they are on, the usage limits, as of now.</summary>
+    void Render()
+    {
+        _window.ShowAgents(_agents);
+        _window.ShowUsage(_options().ShowUsage, _usage, DateTimeOffset.Now);
     }
 
     /// <summary>The tray menu's "Show the agents card": brings back a card the user hid, or shows it with no agent.</summary>
@@ -199,7 +213,8 @@ internal sealed unsafe class AgentsCard : IDisposable
     {
         var options = _options();
         bool overFullScreen = _fullScreen && options.OverFullScreen;
-        bool visible = _enabled && options.Show && !_manualHidden && (_agents.Count > 0 || _manualShown) && (!_fullScreen || options.OverFullScreen);
+        bool visible = _enabled && options.Show && !_manualHidden && (_agents.Count > 0 || _manualShown || options.ShowUsage)
+            && (!_fullScreen || options.OverFullScreen);
         if (!visible)
         {
             Hide();
@@ -249,21 +264,28 @@ internal sealed unsafe class AgentsCard : IDisposable
         var anchor = _anchor ??= StartingPlace();
         var content = (FrameworkElement)_window.Content;
         int width = (int)Math.Round(content.DesiredSize.Width * scale), height = (int)Math.Round(content.DesiredSize.Height * scale);
-        int badge = (int)Math.Round(BadgeSize * scale);
-        var (work, _) = GetMonitorWorkArea(new POINT(anchor.X + badge / 2, anchor.Y + badge / 2));
+        var (badgeWidth, badgeHeight) = Collapsed(scale);
+        var (work, _) = GetMonitorWorkArea(new POINT(anchor.X + badgeWidth / 2, anchor.Y + badgeHeight / 2));
         int x = anchor.X, y = anchor.Y;
         if (open)
         {
-            _flipX = anchor.X + width > work.Right && anchor.X + badge - width >= work.Left;
-            _flipY = anchor.Y + height > work.Bottom && anchor.Y + badge - height >= work.Top;
+            _flipX = anchor.X + width > work.Right && anchor.X + badgeWidth - width >= work.Left;
+            _flipY = anchor.Y + height > work.Bottom && anchor.Y + badgeHeight - height >= work.Top;
             if (_flipX)
-                x = anchor.X + badge - width;
+                x = anchor.X + badgeWidth - width;
             if (_flipY)
-                y = anchor.Y + badge - height;
+                y = anchor.Y + badgeHeight - height;
         }
         x = Math.Clamp(x, work.Left, Math.Max(work.Left, work.Right - width));
         y = Math.Clamp(y, work.Top, Math.Max(work.Top, work.Bottom - height));
         SetWindowPos(_hwnd, 0, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+
+    /// <summary>The collapsed card's size in device pixels: the badge, or the pill while the usage limits are on.</summary>
+    (int Width, int Height) Collapsed(double scale)
+    {
+        var size = _window.CollapsedSize;
+        return ((int)Math.Round(size.Width * scale), (int)Math.Round(size.Height * scale));
     }
 
     /// <summary>Where the card was last on a monitor that is still there, or the bottom right of the main one.</summary>
@@ -278,8 +300,9 @@ internal sealed unsafe class AgentsCard : IDisposable
         if (GetDpiForMonitor(primary, MDT_EFFECTIVE_DPI, &dpiX, &dpiY) != 0)
             dpiX = 96;
         double scale = dpiX / 96.0;
-        int offset = (int)Math.Round((BadgeSize + EdgeGap) * scale);
-        return new POINT(info.rcWork.Right - offset, info.rcWork.Bottom - offset);
+        var size = _window.CollapsedSize;
+        return new POINT(info.rcWork.Right - (int)Math.Round((size.Width + EdgeGap) * scale),
+            info.rcWork.Bottom - (int)Math.Round((size.Height + EdgeGap) * scale));
     }
 
     /// <summary>Above other windows, or at the bottom (above the desktop only while it is in front).</summary>
@@ -377,9 +400,9 @@ internal sealed unsafe class AgentsCard : IDisposable
         // The badge's corner the card opened from is where it goes back to.
         RECT rect;
         GetWindowRect(_hwnd, &rect);
-        int badge = (int)Math.Round(BadgeSize * Scale);
+        var (badgeWidth, badgeHeight) = Collapsed(Scale);
         bool open = !_window.IsCollapsed;
-        _anchor = new POINT(open && _flipX ? rect.Right - badge : rect.Left, open && _flipY ? rect.Bottom - badge : rect.Top);
+        _anchor = new POINT(open && _flipX ? rect.Right - badgeWidth : rect.Left, open && _flipY ? rect.Bottom - badgeHeight : rect.Top);
         SavePosition(_anchor.Value);
         if (!_window.IsMouseOver)
             _collapse.Start();
@@ -392,7 +415,7 @@ internal sealed unsafe class AgentsCard : IDisposable
         {
             if (node is Button)
                 return false;
-            if (node == _window.Header || node == _window.Badge)
+            if (node == _window.Header || node == _window.Badge || node == _window.Pill)
                 return true;
         }
         return false;

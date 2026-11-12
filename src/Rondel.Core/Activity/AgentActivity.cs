@@ -1,4 +1,5 @@
 using System.Text;
+using Rondel.Core.Agents.ClaudeCode;
 using Rondel.Core.Logging;
 
 namespace Rondel.Core.Activity;
@@ -25,6 +26,24 @@ public sealed class AgentActivity(TimeProvider? time = null)
     /// <see cref="HookServer"/> is not listening; then agents start as before and are not followed.
     /// </summary>
     public string? HooksFile { get; internal set; }
+
+    /// <summary>
+    /// The start of the status line command that keeps the usage limits (<see cref="StatusLineTap.Prefix"/>), while the
+    /// agents card shows them; null otherwise, and where the platform has no such card.
+    /// </summary>
+    public string? UsageTap { get; set; }
+
+    /// <summary>
+    /// The settings file for an agent started in <paramref name="directory"/>: <see cref="HooksFile"/>, with Rondel's
+    /// status line in front of the user's own while <see cref="UsageTap"/> is set. Null while agents are not followed.
+    /// </summary>
+    public string? HooksFileFor(string directory)
+    {
+        if (HooksFile is not { } hooks || UsageTap is not { } tap)
+            return HooksFile;
+        var statusLine = ClaudeCodeStatusLine.Compose(tap, ClaudeCodeStatusLine.UserStatusLine(directory));
+        return AgentSettingsFile.With(hooks, statusLine) ?? hooks;
+    }
 
     public event Action<AgentChange>? Changed;
 

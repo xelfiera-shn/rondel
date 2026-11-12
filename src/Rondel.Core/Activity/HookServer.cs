@@ -95,6 +95,7 @@ public sealed class HookServer(AgentActivity activity) : IDisposable
         _listener = listener;
         _token = Encoding.UTF8.GetBytes(token);
         activity.HooksFile = path;
+        AgentSettingsFile.Prune(directory);
         Log.Info($"Following agents on port {Port}" + (savedPort > 0 && savedPort != Port ? $" (port {savedPort} is taken)" : ""));
         _ = Task.Run(() => AcceptAsync(listener, _stop.Token));
         return true;

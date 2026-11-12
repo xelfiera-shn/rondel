@@ -9,6 +9,8 @@
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <RootNamespace>Rondel.Windows</RootNamespace>
     <AssemblyName>Rondel</AssemblyName>
+    <!-- Program.Main, not App's: as a status line Rondel exits before anything of WPF loads. -->
+    <StartupObject>Rondel.Windows.Program</StartupObject>
     <!-- WPF0001: Window.ThemeMode (Fluent theme) is marked experimental; used only for the settings window. -->
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
     <!-- Lets `dotnet build` compile this project on macOS and Linux too, so core changes are checked against it.

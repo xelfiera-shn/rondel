@@ -50,6 +50,7 @@ Rondel'in Windows'ta ve macOS'ta hangi özelliklere sahip olduğu ve her birinin
 | Bir ajan bir şey sorduğunda, işini bitirdiğinde ya da hatayla durduğunda bildirim; tıklayınca terminali öne gelir | ✅ 0.6.0 | ✅ 0.17.0 |
 | Masaüstü menüsünde her ajan için durum noktasıyla **Aktif Ajanlar** ve onu açan kısayol | ✅ 0.6.0 | ✅ 0.17.0 (kısayol henüz yok) |
 | Ajan kartı: çalışan ajanlar göz önünde; diğer pencerelerin üstünde ya da masaüstünde, küçülünce size bakanların sayısını gösteren bir rozet | ✅ 0.9.0 | ✅ 0.17.0 (kısayol henüz yok) |
+| Ajan kartında Claude planınızın 5 saatlik ve haftalık kullanım limitleri; kart o zaman küçük haliyle ekranda kalır | ✅ 0.17.0 | ⬜ |
 | **Oturumlar**: kayıtlı her Claude Code oturumu ve kapladığı yer; Geri Dönüşüm Kutusu'na (macOS'ta Çöp Sepeti'ne) ya da kalıcı olarak silmek için | ✅ 0.12.0 | ✅ 0.17.0 |
 
 ## Uygulama
