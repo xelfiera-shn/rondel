@@ -51,7 +51,7 @@ internal sealed class SettingsWindow : Window
     TextBlock _rootStatus = null!, _commandLabel = null!, _commandStatus = null!, _terminalStatus = null!;
     TextBlock _accentName = null!, _accentStatus = null!, _holdValue = null!, _autostartStatus = null!;
     Slider _hold = null!;
-    ShortcutBox _shortcut = null!, _screenshotShortcut = null!;
+    ShortcutBox _shortcut = null!, _screenshotShortcut = null!, _agentsShortcut = null!;
     CheckBox _cardPrompt = null!, _cardGit = null!, _cardPlan = null!, _cardTemplates = null!, _autostart = null!, _debug = null!, _quickCard = null!;
     CheckBox _promptsUse = null!;
     StackPanel _promptsPanel = null!, _promptRows = null!;
@@ -109,6 +109,7 @@ internal sealed class SettingsWindow : Window
         {
             _shortcut?.StopRecording();
             _screenshotShortcut?.StopRecording();
+            _agentsShortcut?.StopRecording();
         };
         Closed += (_, _) =>
         {
@@ -148,6 +149,7 @@ internal sealed class SettingsWindow : Window
             _hold.Value = s.HoldMs;
             _shortcut.Show(s.Hotkey, _host.HotkeyError);
             _screenshotShortcut.Show(s.Quick.ScreenshotHotkey, _host.ScreenshotHotkeyError);
+            _agentsShortcut.Show(s.ActiveAgents.Hotkey, _host.AgentsHotkeyError);
             _holdValue.Text = Loc.Format("Settings.Ms", s.HoldMs);
             _commandLabel.Text = Loc.Format("Settings.Command", DefaultAgent(s)?.Name ?? "");
             _command.Text = DefaultAgent(s)?.Command ?? "";
@@ -393,6 +395,15 @@ internal sealed class SettingsWindow : Window
                         (_notifyFinished = Check(Loc.Get("Settings.ActiveAgents.NotifyFinished"), OnActiveAgentsClicked)),
                     },
                 },
+            },
+        }));
+        _agentsShortcut = new ShortcutBox(_look, SaveAgentsShortcut, _host.PauseShortcuts, "Settings.ActiveAgents.Hotkey.Example.Mac");
+        page.Children.Add(Card(new StackPanel
+        {
+            Children =
+            {
+                Row(Loc.Get("Settings.ActiveAgents.Hotkey"), Loc.Get("Settings.ActiveAgents.Hotkey.Desc"), _agentsShortcut),
+                _agentsShortcut.StatusLine,
             },
         }));
 
@@ -1040,20 +1051,35 @@ internal sealed class SettingsWindow : Window
         Store.Update(s => s.Quick.Model = model);
     }
 
-    /// <summary>Stores the menu's shortcut; once Rondel has registered it, the box says whether it is active.</summary>
+    /// <summary>Stores the menu's shortcut; once Rondel has registered it, the boxes say whether theirs are active.</summary>
     void SaveShortcut(string shortcut)
     {
         Store.Update(s => s.Hotkey = shortcut);
-        Dispatcher.UIThread.Post(() => _shortcut.Show(Store.Current.Hotkey, _host.HotkeyError), DispatcherPriority.Background);
+        ShowShortcutsLater();
     }
 
-    /// <summary>Stores the Ask About a Screenshot shortcut, then shows whether it is active.</summary>
     void SaveScreenshotShortcut(string shortcut)
     {
         Store.Update(s => s.Quick.ScreenshotHotkey = shortcut);
-        Dispatcher.UIThread.Post(() => _screenshotShortcut.Show(Store.Current.Quick.ScreenshotHotkey, _host.ScreenshotHotkeyError),
-            DispatcherPriority.Background);
+        ShowShortcutsLater();
     }
+
+    void SaveAgentsShortcut(string shortcut)
+    {
+        Store.Update(s => s.ActiveAgents.Hotkey = shortcut);
+        ShowShortcutsLater();
+    }
+
+    /// <summary>
+    /// Every box, not only the one that changed: a combination one shortcut gave up may have let another register.
+    /// </summary>
+    void ShowShortcutsLater() => Dispatcher.UIThread.Post(() =>
+    {
+        var s = Store.Current;
+        _shortcut.Show(s.Hotkey, _host.HotkeyError);
+        _screenshotShortcut.Show(s.Quick.ScreenshotHotkey, _host.ScreenshotHotkeyError);
+        _agentsShortcut.Show(s.ActiveAgents.Hotkey, _host.AgentsHotkeyError);
+    }, DispatcherPriority.Background);
 
     void OnActiveAgentsClicked()
     {

@@ -154,6 +154,8 @@ internal sealed class RadialMenuWindow : Window
     int _hoverLevel = -1, _hoverIndex = -1;
     /// <summary>False while the keyboard made the selection: its items wait for Space, even when they arrive later.</summary>
     bool _hoverOpensItems = true;
+    /// <summary>The slice the Active Agents shortcut opened, until its items arrive; -1 otherwise.</summary>
+    int _openWhenReady = -1;
     bool _isOpen, _pressedInside;
     int _version;
     CGPoint _centerOnScreen; // the ring center in screen points
@@ -259,6 +261,18 @@ internal sealed class RadialMenuWindow : Window
     List<Tile> Slices => _bands[0].Tiles;
 
     /// <summary>
+    /// Puts slice <paramref name="index"/> under the pointer, as if hovered (the Active Agents shortcut): its arc opens
+    /// once its items arrive, also when the pointer has rested in the center since.
+    /// </summary>
+    public void HoverSlice(int index)
+    {
+        if (!_isOpen || index < 0 || index >= Slices.Count)
+            return;
+        _openWhenReady = index;
+        SetHover(0, index);
+    }
+
+    /// <summary>
     /// Creates the native window and draws a menu once, invisibly and on screen (off screen the window came back
     /// 0×0), so the first real open is instant. Every band is warmed up.
     /// </summary>
@@ -291,6 +305,7 @@ internal sealed class RadialMenuWindow : Window
         _version++;
         _model = model;
         _pressedInside = false;
+        _openWhenReady = -1;
         _labelLayouts.Clear();
         _card.Reset();
 
@@ -505,6 +520,10 @@ internal sealed class RadialMenuWindow : Window
             AddArrow(0, slice);
             Paint(slice, IsHot(0, i), _bands[0].Opened == i);
         }
+        // The pointer moving in the center before the items came does not keep the shortcut's arc shut; another slice does.
+        if (_openWhenReady >= 0 && _hoverLevel < 0)
+            SetHover(0, _openWhenReady);
+        _openWhenReady = -1;
         if (_hoverLevel == 0 && _hoverOpensItems && _bands[0].Opened != _hoverIndex && Slices[_hoverIndex].Children.Count > 0)
             Open(0, _hoverIndex);
     }

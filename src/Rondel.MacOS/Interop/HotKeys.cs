@@ -56,6 +56,9 @@ internal static unsafe partial class HotKeys
         return true;
     }
 
+    /// <summary>Whether shortcut <paramref name="id"/> is registered now.</summary>
+    public static bool IsRegistered(int id) => Registered.ContainsKey(id);
+
     public static void Unregister(int id)
     {
         if (Registered.Remove(id, out nint reference))

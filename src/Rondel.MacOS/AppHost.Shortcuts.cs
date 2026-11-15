@@ -9,10 +9,13 @@ using static Rondel.MacOS.Interop.Native;
 
 namespace Rondel.MacOS;
 
-/// <summary>The keyboard shortcuts: the menu at the mouse cursor, and Ask About a Screenshot, as on Windows.</summary>
+/// <summary>
+/// The keyboard shortcuts, as on Windows: the menu at the mouse cursor, Ask About a Screenshot, and the menu with its
+/// Active Agents arc open.
+/// </summary>
 internal sealed partial class AppHost
 {
-    const int MenuShortcut = 1, ScreenshotShortcut = 2;
+    const int MenuShortcut = 1, ScreenshotShortcut = 2, AgentsShortcut = 3;
 
     /// <summary>The shortcuts as the settings have them, by id.</summary>
     readonly Dictionary<int, string> _shortcuts = [];
@@ -24,6 +27,9 @@ internal sealed partial class AppHost
 
     /// <summary>Why the Ask About a Screenshot shortcut is not active, or null.</summary>
     public string? ScreenshotHotkeyError => _shortcutErrors.GetValueOrDefault(ScreenshotShortcut);
+
+    /// <summary>Why the Active Agents shortcut is not active, or null.</summary>
+    public string? AgentsHotkeyError => _shortcutErrors.GetValueOrDefault(AgentsShortcut);
 
     /// <summary>
     /// Registers the shortcuts once Rondel runs, not when the host is built: the developer renders build a host from
@@ -37,6 +43,8 @@ internal sealed partial class AppHost
                 OnMenuShortcut();
             else if (id == ScreenshotShortcut)
                 AskAboutScreenshot();
+            else if (id == AgentsShortcut)
+                OnAgentsShortcut();
         };
         _shortcutsStarted = true;
         foreach (int id in _shortcuts.Keys)
@@ -46,16 +54,24 @@ internal sealed partial class AppHost
     /// <summary>Registers the shortcuts that changed in the settings.</summary>
     void ApplyShortcuts(AppSettings settings)
     {
-        Apply(MenuShortcut, settings.Hotkey);
-        Apply(ScreenshotShortcut, settings.Quick.ScreenshotHotkey);
+        bool changed = Apply(MenuShortcut, settings.Hotkey);
+        changed |= Apply(ScreenshotShortcut, settings.Quick.ScreenshotHotkey);
+        changed |= Apply(AgentsShortcut, settings.ActiveAgents.Hotkey);
+        // One that another of Rondel's shortcuts held may be free now.
+        if (changed && _shortcutsStarted && !_shortcutsPaused)
+        {
+            foreach (int id in _shortcutErrors.Keys.ToList())
+                Register(id);
+        }
 
-        void Apply(int id, string text)
+        bool Apply(int id, string text)
         {
             if (_shortcuts.TryGetValue(id, out string? old) && old == text)
-                return;
+                return false;
             _shortcuts[id] = text;
             if (_shortcutsStarted && !_shortcutsPaused)
                 Register(id);
+            return true;
         }
     }
 
@@ -70,11 +86,27 @@ internal sealed partial class AppHost
                 Log.Warn($"Shortcut '{text}' could not be parsed");
             return;
         }
+        // macOS refuses a combination this app already holds: say so, rather than blaming another app.
+        if (_shortcuts.Any(other => other.Key != id && HotKeys.IsRegistered(other.Key)
+            && Hotkey.TryParse(other.Value, out var held) && held == hotkey))
+        {
+            Log.Warn($"Shortcut {hotkey} ({ShortcutName(id)}) is already another of Rondel's");
+            _shortcutErrors[id] = Loc.Get("Settings.Hotkey.Taken.Mac");
+            return;
+        }
         if (!HotKeys.Register(id, hotkey))
             _shortcutErrors[id] = Loc.Get("Settings.Hotkey.Failed");
         else
-            Log.Info($"Shortcut {hotkey} registered ({(id == MenuShortcut ? "menu" : "screenshot")})");
+            Log.Info($"Shortcut {hotkey} registered ({ShortcutName(id)})");
     }
+
+    static string ShortcutName(int id) => id switch
+    {
+        MenuShortcut => "menu",
+        ScreenshotShortcut => "screenshot",
+        AgentsShortcut => "Active Agents",
+        _ => id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+    };
 
     /// <summary>
     /// While Settings records a new shortcut, the current ones are let go, so pressing one records it instead of
@@ -115,5 +147,24 @@ internal sealed partial class AppHost
                 context = _flow.ProjectsContext(ContextKind.DesktopEmpty, "shortcut fallback");
             Dispatcher.UIThread.Post(() => ShowMenu(context, point));
         });
+    }
+
+    /// <summary>
+    /// Opens the desktop menu at the mouse cursor with its Active Agents arc open, wherever the cursor is; pressed again,
+    /// closes it.
+    /// </summary>
+    void OnAgentsShortcut()
+    {
+        if (_menu is null)
+            return;
+        if (_menu.IsMenuOpen)
+        {
+            _menu.CloseMenu(restoreFocus: true);
+            return;
+        }
+        if (Store.Current.Paused)
+            return;
+        var (model, slice) = _flow.AgentsMenu();
+        ShowModel(model, CursorLocation(), hover: slice);
     }
 }
