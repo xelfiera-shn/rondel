@@ -54,24 +54,25 @@ internal sealed partial class AppHost
     /// <summary>Registers the shortcuts that changed in the settings.</summary>
     void ApplyShortcuts(AppSettings settings)
     {
-        bool changed = Apply(MenuShortcut, settings.Hotkey);
-        changed |= Apply(ScreenshotShortcut, settings.Quick.ScreenshotHotkey);
-        changed |= Apply(AgentsShortcut, settings.ActiveAgents.Hotkey);
-        // One that another of Rondel's shortcuts held may be free now.
-        if (changed && _shortcutsStarted && !_shortcutsPaused)
-        {
-            foreach (int id in _shortcutErrors.Keys.ToList())
-                Register(id);
-        }
+        var changed = new List<int>();
+        Apply(MenuShortcut, settings.Hotkey);
+        Apply(ScreenshotShortcut, settings.Quick.ScreenshotHotkey);
+        Apply(AgentsShortcut, settings.ActiveAgents.Hotkey);
+        if (changed.Count == 0 || !_shortcutsStarted || _shortcutsPaused)
+            return;
+        // All the changed ones let go first, so a combination moving from one shortcut to another is free for it; one that
+        // another of Rondel's shortcuts held may be free now too.
+        foreach (int id in changed)
+            HotKeys.Unregister(id);
+        foreach (int id in changed.Union(_shortcutErrors.Keys).Order().ToList())
+            Register(id);
 
-        bool Apply(int id, string text)
+        void Apply(int id, string text)
         {
             if (_shortcuts.TryGetValue(id, out string? old) && old == text)
-                return false;
+                return;
             _shortcuts[id] = text;
-            if (_shortcutsStarted && !_shortcutsPaused)
-                Register(id);
-            return true;
+            changed.Add(id);
         }
     }
 
