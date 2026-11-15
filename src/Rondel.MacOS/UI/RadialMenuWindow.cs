@@ -863,9 +863,10 @@ internal sealed class RadialMenuWindow : Window
     /// </summary>
     double StageSizeFor(MenuModel model)
     {
-        // A slice with pinned prompts opens an arc too, though it does not expand otherwise (as on Windows).
+        // Slices with pinned prompts and the Active Agents slice open an arc too, though they do not expand otherwise.
         int depth = model.Items.Any(MenuBuilder.ListsRecentProjects) ? 2
-            : model.Items.Any(item => MenuBuilder.CanExpand(item) || MenuBuilder.OpensPrompts(item)) ? 1 : 0;
+            : model.Items.Any(item => MenuBuilder.CanExpand(item) || MenuBuilder.OpensPrompts(item) || MenuBuilder.ListsActiveAgents(item)) ? 1
+            : 0;
         double reach = (depth == 0 ? OuterR : _bands[depth].EdgeR) + ArrowReach + ShadowPad;
         return Math.Min(2 * StageR, Math.Ceiling(2 * reach));
     }
