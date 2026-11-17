@@ -386,8 +386,10 @@ internal sealed class AgentsCard : IDisposable
     public void Dispose()
     {
         _collapse.Stop();
+        _closeOptions.Stop();
         _refresh.Stop();
-        _save.Stop();
+        if (_save.IsEnabled)
+            KeepPlace(); // dragged just before Rondel quits: its place is kept all the same
         _window.Close();
     }
 }
