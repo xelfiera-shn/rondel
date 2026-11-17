@@ -492,6 +492,8 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
         foreach (var card in _answerCards.ToList())
             card.Close();
         StopFollowingAgents();
+        _usageWatcher?.Dispose();
+        _usageRead?.Stop();
         _card?.Dispose();
         _card = null; // a picker cancelled above ends after this, and must not bring the card back
         _quick.Dispose();

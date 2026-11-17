@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Rondel.Core;
+using Rondel.Core.Activity;
 using Rondel.Core.Logging;
 
 // Rondel.app runs only on macOS; the project builds everywhere so CI checks it, and this tells the analyzers.
@@ -9,6 +10,10 @@ using Rondel.Core.Logging;
 
 namespace Rondel.MacOS;
 
+/// <summary>
+/// The entry point. As the status line of a session it started (<see cref="StatusLineTap"/>), Rondel does that and exits
+/// before anything of the app loads: Claude Code runs it after every reply, and the user's own status line waits for it.
+/// </summary>
 static class Program
 {
     /// <summary>Held while Rondel runs, so a second copy (started outside Finder) leaves at once.</summary>
@@ -17,6 +22,8 @@ static class Program
     [STAThread]
     static int Main(string[] args)
     {
+        if (args is [StatusLineTap.Argument, ..])
+            return StatusLineTap.Run(args, Console.OpenStandardInput(), Console.OpenStandardOutput(), UsageStore.Default);
         if (DevTools.TryRun(args))
             return 0;
         if (!TryLockInstance())
