@@ -18,20 +18,23 @@ Rondel Windows'ta ve macOS'ta çalışır. Hangi platformda hangi özelliklerin 
 
 ## Kurulum
 
+Rondel, Claude hesabınızla oturum açılmış [Claude Code](https://code.claude.com/docs/en/overview) ister. Gereken diğer her şeyi kendisi getirir, .NET kurmanız gerekmez. Windows'ta ajanları, varsa Windows Terminal'de (Windows 11'de vardır), yoksa bir konsol penceresinde açar.
+
 ### Windows
 
-1. [Claude Code](https://docs.anthropic.com/en/docs/claude-code)'u kurun ve terminalde `claude` komutunun çalıştığını görün.
-2. [Son sürümden](https://github.com/xelfiera-shn/rondel/releases/latest) `Rondel-<sürüm>-win-x64.exe` dosyasını (ARM bilgisayarlar için `-win-arm64.exe`) indirin, istediğiniz bir klasöre koyup çalıştırın. Bir hoş geldiniz penceresi menünün nasıl açıldığını gösterir (ikondaki **Nasıl kullanılır…** onu yeniden açar) ve bildirim alanında Rondel ikonu belirir.
-   - Dosya henüz kod imzalı olmadığı için ilk açılışta SmartScreen uyarısı çıkabilir: **Ek bilgi → Yine de çalıştır**. Her sürümde SHA-256 özetleri ve derleme kaynağı doğrulaması (build provenance) bulunur.
+1. [Claude Code](https://code.claude.com/docs/en/overview)'u kurun ve terminalde `claude` komutunun çalıştığını görün.
+2. [Son sürümden](https://github.com/xelfiera-shn/rondel/releases/latest) `Rondel-<sürüm>-win-x64.exe` dosyasını (ARM bilgisayarlar için `-win-arm64.exe`; henüz böyle bir bilgisayarda denenmedi) indirin, kalıcı bir klasöre (örneğin `%LOCALAPPDATA%\Programs\Rondel`) koyup çalıştırın. Bir hoş geldiniz penceresi menünün nasıl açıldığını gösterir (ikondaki **Nasıl kullanılır…** onu yeniden açar) ve bildirim alanında Rondel ikonu belirir.
+   - Dosya henüz kod imzalı değil. Tarayıcınız dosyanın yaygın olarak indirilmediğini söyleyebilir: dosyayı tutmayı seçin. İlk açılışta SmartScreen **Windows bilgisayarınızı korudu** der: **Ek bilgi → Yine de çalıştır**. Akıllı Uygulama Denetimi açıksa Windows imzasız uygulamaları engeller ve çalıştırmanın bir yolunu sunmaz.
+   - Her sürümde SHA-256 özetleri (`SHA256SUMS.txt`; `Get-FileHash` ile karşılaştırın) ve derleme kaynağı doğrulaması (build provenance; `gh attestation verify <dosya> --repo xelfiera-shn/rondel`) bulunur.
 3. İkona sağ tıklayıp **Windows ile başlat**'ı işaretleyin.
 
-Kurulum programı yoktur, yönetici izni gerekmez. Windows 10 ve 11 desteklenir. Rondel 0.7.0'dan itibaren kendini güncel tutar (bkz. [Güncellemeler](#güncellemeler)).
+Kurulum programı yoktur, yönetici izni gerekmez. Windows 10 ve 11 desteklenir. Rondel kendini güncel tutar (bkz. [Güncellemeler](#güncellemeler)); bu yüzden yazabildiğiniz bir klasörde durmalıdır, Program Files altında değil.
 
 ### macOS
 
-1. [Claude Code](https://docs.anthropic.com/en/docs/claude-code)'u kurun ve Terminal'de `claude` komutunun çalıştığını görün.
-2. [Son sürümden](https://github.com/xelfiera-shn/rondel/releases/latest) `Rondel-<sürüm>-osx-arm64.zip` (Apple Silicon) ya da `-osx-x64.zip` (Intel) dosyasını indirin, açın ve **Rondel**'i **Uygulamalar** klasörüne taşıyın.
-3. Rondel'i açın. Rondel imzalıdır ve Apple tarafından onaylanmıştır (notarization), bu yüzden macOS internetten indirilmiş bir uygulamayı açmak isteyip istemediğinizi yalnızca bir kez sorar: **Aç**'ı seçin.
+1. [Claude Code](https://code.claude.com/docs/en/overview)'u kurun ve Terminal'de `claude` komutunun çalıştığını görün.
+2. [Son sürümden](https://github.com/xelfiera-shn/rondel/releases/latest) `Rondel-<sürüm>-osx-arm64.zip` (Apple Silicon) ya da `-osx-x64.zip` (Intel; henüz böyle bir Mac'te denenmedi) dosyasını indirin, açın ve **Rondel**'i **Uygulamalar** klasörüne taşıyın.
+3. Rondel'i açın. Rondel Developer ID ile imzalıdır ve Apple tarafından onaylanmıştır (notarization), bu yüzden macOS internetten indirilmiş bir uygulamayı açmak isteyip istemediğinizi yalnızca bir kez sorar: **Aç**'ı seçin.
 4. Bir hoş geldiniz penceresi menünün nasıl açıldığını gösterir (menü çubuğu ikonunun menüsündeki **Nasıl kullanılır…** onu yeniden açar) ve iki izin ister. **Erişilebilirlik** iznini verin: Rondel ⌥ + basılı tutmayı bununla fark eder. **Finder** iznini de verin: Rondel bir pencerenin hangi klasörü gösterdiğini Finder'a sorar. İki izin de güncellemelerde korunur. Menü çubuğunda Rondel ikonu belirir; menüsü henüz verilmemiş izinleri gösterir.
 5. Menü çubuğu ikonu → **Ayarlar…** → **Oturum açılınca başlat**'ı işaretleyin.
 
@@ -57,7 +60,7 @@ macOS'ta da aynısıdır; Ctrl yerine ⌥ Option, Dosya Gezgini yerine Finder, v
   <img src="docs/images/recents-tr.png" width="460" alt="Masaüstü menüsünde Son Projeler beş proje klasörüne, bir proje de oturumlarına açılmış">
 </p>
 
-- **Hızlı Sohbet** (masaüstü menüsü) hiçbir projeye ait olmayan bir soru ya da sohbet içindir. Kendi klasöründe (`%LOCALAPPDATA%\Rondel\Quick`; macOS'ta `~/Library/Application Support/Rondel/Quick`) prompt kartını açar (Ayarlar → **Hızlı Sohbet** kapalıysa ajanı hemen başlatır); Claude Code bu oturum için döküm ve prompt geçmişi yazmaz (`CLAUDE_CODE_SKIP_PROMPT_HISTORY`). Sohbet bitince Rondel, Claude Code'un onun için yine de tuttuklarını (geçici dosyalar, hafıza gibi) ve klasörde kalan dosyaları kalıcı olarak siler (ajan takibi kapalıysa bir sonraki Hızlı Sohbet'te ya da Rondel açılırken; macOS'ta bitişinden birkaç dakika içinde; kendi ayarladığınız bir `CLAUDE_CODE_TMPDIR` altındaki geçici klasör hariç). Son Projeler'de, Oturum Seç'te ve Oturumlar'da hiç görünmez. İlk seferde Claude Code bu klasöre güvenip güvenmediğinizi sorar: **Yes, I trust this folder**'ı seçin. Claude Code bundan sonra `~/.claude.json`'da klasör için bir kayıt tutar (güvenildiği bilgisi ve son oturumun kimliği, maliyeti, token sayıları), ama konuşmadan hiçbir şey tutmaz. Konuşmanın kendisi her konuşma gibi Claude'a gider.
+- **Hızlı Sohbet** (masaüstü menüsü) hiçbir projeye ait olmayan bir soru ya da sohbet içindir. Kendi klasöründe (`%LOCALAPPDATA%\Rondel\Quick`; macOS'ta `~/Library/Application Support/Rondel/Quick`) prompt kartını açar (Ayarlar → **Hızlı Sohbet** kapalıysa ajanı hemen başlatır); Claude Code bu oturum için prompt geçmişi, terminalde de döküm yazmaz (`CLAUDE_CODE_SKIP_PROMPT_HISTORY`). Sohbet bitince Rondel, Claude Code'un onun için yine de tuttuklarını (kartta verilen cevabın dökümü, geçici dosyalar, hafıza gibi) ve klasörde kalan dosyaları kalıcı olarak siler (ajan takibi kapalıysa bir sonraki Hızlı Sohbet'te ya da Rondel açılırken; macOS'ta bitişinden birkaç dakika içinde; kendi ayarladığınız bir `CLAUDE_CODE_TMPDIR` altındaki geçici klasör hariç). Son Projeler'de, Oturum Seç'te ve Oturumlar'da hiç görünmez. İlk seferde Claude Code bu klasöre güvenip güvenmediğinizi sorar: **Yes, I trust this folder**'ı seçin. Claude Code bundan sonra `~/.claude.json`'da klasör için bir kayıt tutar (güvenildiği bilgisi ve son oturumun kimliği, maliyeti, token sayıları), ama konuşmadan hiçbir şey tutmaz. Konuşmanın kendisi her konuşma gibi Claude'a gider.
   - Kart ilk soruyu kendisi cevaplar: cevap, pencerelerinizin üstünde duran ve odağı almayan kendi kartında yazılır, siz de bu sırada işinize devam edersiniz. Altında **Kopyala**, **Kapat** ve sohbeti kaldığı yerden bir terminalde açan **Terminalde devam et** vardır. Kapatırsanız sohbetten hiçbir şey kalmaz. Kartta Claude yalnızca okuyabilir ve web'de arayabilir; fazlası için terminalde devam edin. Ayarlar → **Hızlı Sohbet** modeli seçer (Claude Code'un varsayılanı, Opus, Sonnet ya da Haiku). Windows'ta ajan komutu PowerShell profilinizdeki bir alias ise sohbet eskisi gibi terminalde başlar; macOS'ta cevap oturum kabuğunuzda çalıştığı için `~/.zshrc`'deki bir alias da çalışır.
 - **Ekran Görüntüsünü Sor** (tray ikonu → **Ekran Görüntüsünü Sor…**, macOS'ta menü çubuğu simgesi ya da Ayarlar → **Hızlı Sohbet**'te seçeceğiniz bir kısayol) ekranı dondurur. Bir alanı sürükleyerek seçin, bir pencereye tıklayın ya da tüm ekran için **Enter**'a basın (**Esc** vazgeçer); Rondel'in menüsü ve ajan kartı görüntüye girmez. macOS'ta bunun yerine ⌘⇧4'teki gibi macOS'un kendi seçicisi açılır: bir alanı sürükleyerek seçin ya da **Space**'e basıp bir pencereye tıklayın (seçerken **⌃** basılı tutulursa görüntü bunun yerine panoya gider ve bir şey sorulmaz); Ekran Kaydı izni gerekir. Ardından Hızlı Sohbet kartı görüntüyü gösterir ve onun hakkında ne sormak istediğinizi sorar; **Ctrl+Enter** (macOS'ta **⌘↩**) görüntü ilk mesajda olacak şekilde bir Hızlı Sohbet başlatır; cevap, yukarıdaki gibi kendi kartında gelir. O ana kadar hiçbir şey gönderilmez. Rondel görüntüyü panoya hiç koymaz: yalnızca sohbet başlarken Hızlı Sohbet klasörüne yazılır ve sohbet bitince geri kalanıyla birlikte silinir.
 - Devam Et ve Oturum Seç, son oturumun ne zaman olduğunu ve kaç oturum bulunduğunu gösterir; oturum yoksa soluk görünürler.
@@ -106,7 +109,7 @@ Rondel günde bir kez ve internet bağlantısı geldiğinde GitHub'a son sürüm
 
 Güncelleme yeni exe'yi indirir, doğrular, çalışan exe'nin yerine koyar ve Rondel'i yeniden başlatır; ajanlarınız çalışmaya devam eder. Rondel dosyayı yalnızca yayının özet dosyası, yalnızca yayın iş akışında bulunan Rondel yayın anahtarıyla imzalıysa ve dosya bu özetle eşleşiyorsa kullanır; eşleşmeyen dosya silinir. Rondel'in klasörüne yazılamıyorsa (örneğin Program Files altında) bunun yerine sürüm sayfası açılır.
 
-Ayarlar'daki **Güncellemeleri otomatik denetle** seçeneği günlük denetimi kapatır; **Şimdi denetle** her durumda çalışır. 0.7.0'dan önceki sürümler kendini güncelleyemez: 0.7.0'ı bir kez elle indirin. 0.8.0'dan itibaren Windows uygulaması, yalnızca macOS uygulamasını değiştiren bir sürümü duyurmaz (**Şimdi denetle** yine gösterir).
+Ayarlar'daki **Güncellemeleri otomatik denetle** seçeneği günlük denetimi kapatır; **Şimdi denetle** her durumda çalışır. 0.7.0'dan önceki sürümler kendini güncelleyemez: son sürümü bir kez elle indirin. Windows uygulaması, yalnızca macOS uygulamasını değiştiren bir sürümü duyurmaz (**Şimdi denetle** yine gösterir).
 
 macOS'ta güncelleme yeni Rondel.app'i eskisinin yerine koyar ve açar; bulunduğu klasöre yazılabilmelidir (Uygulamalar klasörüne yazılabilir), yazılamıyorsa bunun yerine sürüm sayfası açılır. Yeni sürümü yalnızca çalışan sürümle aynı imzayı taşıyorsa alır; böylece Erişilebilirlik ve Finder izinleri korunur. Yalnızca Windows uygulamasını değiştiren bir sürüm macOS'ta duyurulmaz.
 
@@ -147,7 +150,26 @@ Menüler, aksiyonlar ve ajanlar `%APPDATA%\Rondel\settings.json` (macOS'ta `~/Li
 
 ## Gizlilik
 
-Rondel telemetri içermez. Ajanın yerel oturum verisini yalnızca ipuçlarını ve son oturumları göstermek için okur; başlattığı ajanların olaylarını yalnızca 127.0.0.1 üzerinden alır. Rondel günde bir kez GitHub'a son sürümünü sorar (Ayarlar'dan kapatılabilir); bu istek Rondel'in sürümü dışında hiçbir bilgi taşımaz. Claude Code'un oturum dosyalarını yalnızca siz Oturumlar penceresinde isterseniz, Hızlı Sohbet'inkileri de sohbet bitince siler. Kendi ayarları (başlattığı ajanlar için hook dosyasıyla birlikte), sorduğunuz ekran görüntüleri, logları, ajanlarının pencere listesi, güncelleme denetiminin durumu ile indirdiği güncellemeler ve (açarsanız) Windows ile başlatma kaydı (macOS'ta giriş öğesi) dışında hiçbir şey yazmaz.
+Rondel telemetri içermez ve kendine ait bir hesap istemez. Güncelleme denetimi dışında her şey bilgisayarınızda kalır.
+
+| | Ne ve neden |
+|---|---|
+| **İzler** | Fareyi sistem genelinde (Windows'ta düşük seviyeli bir fare kancası, macOS'ta bir event tap ile), Ctrl + basılı tutmayı (macOS'ta ⌥ + basılı tutmayı) fark etmek için; tuş vuruşlarını okumaz. Menü açılırken imlecin altındaki pencereye hangi klasörü ya da dosyayı gösterdiğini sorar (Windows'ta UI Automation, macOS'ta Finder). |
+| **Okur** | Claude Code'un oturum dosyalarını (`~/.claude/projects` ve `~/.claude/sessions` ya da `CLAUDE_CONFIG_DIR` altındakiler) ipuçları, Oturum Seç, Son Projeler ve Oturumlar penceresi için ve Hızlı Sohbet'ten sonra temizlik için; Claude Code'un `settings.json` dosyasındaki `cleanupPeriodDays` değerini; kullanım limitleri açıksa Claude Code ayarlarında ya da projenin `.claude/settings*.json` dosyalarında tanımlı status line'ı. |
+| **Alır** | Başlattığı oturumların olaylarını, yalnızca 127.0.0.1 üzerinden ve bir token ile: her birinin ne yaptığını; buna Claude Code'un gönderdiği haliyle prompt'larınız ve araçların sonuçları da girer. Rondel yalnızca menüsünün, kartının ve bildirimlerinin gösterdiğini tutar ve bir izin isteğini asla sizin yerinize cevaplamaz. |
+| **Yazar** | Windows'ta ayarlarını, kayıtlı prompt'larını, şablonlarını ve başlattığı oturumlar için hook dosyasını `%APPDATA%\Rondel`'e; loglarını, Hızlı Sohbet klasörünü, ajan kartının yerini, kullanım limitlerini, ajanlarının pencerelerini ve indirdiği güncellemeleri `%LOCALAPPDATA%\Rondel`'e; **Windows ile başlat** açıksa `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` altına bir `Rondel` değeri. macOS'ta `~/Library/Application Support/Rondel`, `~/Library/Logs/Rondel`, `~/Library/Caches/Rondel` ve **Oturum açılınca başlat** açıksa bir giriş öğesi. |
+| **Siler** | Claude Code'un oturumlarını yalnızca siz Oturumlar penceresinde seçtiğinizde (aksini söylemedikçe Geri Dönüşüm Kutusu'na ya da Çöp Sepeti'ne); Hızlı Sohbet'ten geriye kalanları sohbet bitince; kendi eski loglarını. |
+| **Gönderir** | Günde bir kez (ve **Şimdi denetle** ile) `api.github.com`'a, Rondel'in son sürümünü soran ve Rondel'in sürümü dışında hiçbir bilgi taşımayan bir istek; GitHub'dan indirmeyi yalnızca güncellerken. Konuşmalarınız her zamanki gibi Claude Code'dan Anthropic'e gider; Rondel onlara hiçbir şey eklemez. |
+
+Rondel, Claude Code'un kendi ayar dosyalarını hiç değiştirmez: hook'ları ve kullanım limitleri için status line'ı yalnızca kendi başlattığı oturumlara `--settings` ile ulaşır. Bir güvenlik sorunu bildirmek için [SECURITY.md](SECURITY.md)'ye bakın.
+
+## Kaldırma
+
+**Windows:** Tray ikonunda **Windows ile başlat**'ın işaretini kaldırın, sonra **Çıkış**'ı seçin. `Rondel.exe`'yi ve `%APPDATA%\Rondel` (ayarlar, kayıtlı prompt'lar, şablonlar) ile `%LOCALAPPDATA%\Rondel` (loglar ve geri kalanı) klasörlerini silin. `%TEMP%\.net\Rondel`, .NET'in Rondel için açtığı dosyaları tutar; o da silinebilir.
+
+**macOS:** Ayarlar'da **Oturum açılınca başlat**'ın işaretini kaldırın, sonra menü çubuğu ikonunun menüsünden **Rondel'den çık**'ı seçin. Rondel'i Uygulamalar'dan Çöp Sepeti'ne taşıyın; `~/Library/Application Support/Rondel`, `~/Library/Logs/Rondel` ve `~/Library/Caches/Rondel` klasörlerini silin. Ardından Rondel'i Sistem Ayarları → Gizlilik ve Güvenlik'ten (Erişilebilirlik, Otomasyon, Ekran ve Sistem Sesi Kaydı) kaldırın ya da Terminal'de `tccutil reset All app.rondel` komutunu çalıştırın.
+
+Claude Code'un tuttukları kendisinindir: Rondel'den başlattığınız oturumlar diğerleri gibi kalır, Hızlı Sohbet klasörü için `~/.claude.json`'daki kaydı da öyle.
 
 ## Kaynaktan derleme
 

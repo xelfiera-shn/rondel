@@ -18,20 +18,23 @@ Rondel runs on Windows and macOS. **[Features by platform](docs/features.md)** s
 
 ## Install
 
+Rondel needs [Claude Code](https://code.claude.com/docs/en/overview), signed in to your Claude account. It brings everything else it needs, so there is no .NET to install. On Windows it opens the agents in Windows Terminal when it is there (Windows 11 has it), otherwise in a console window.
+
 ### Windows
 
-1. Install [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and check that `claude` runs in a terminal.
-2. Download `Rondel-<version>-win-x64.exe` (or `-win-arm64.exe` for ARM PCs) from the [latest release](https://github.com/xelfiera-shn/rondel/releases/latest), put it anywhere and run it. A welcome window shows how the menu opens (**How to use…** on the icon shows it again), and the Rondel icon appears in the notification area.
-   - The executable is not code-signed yet, so SmartScreen may warn on first start: **More info → Run anyway**. Each release lists SHA-256 checksums and carries a build provenance attestation.
+1. Install [Claude Code](https://code.claude.com/docs/en/overview) and check that `claude` runs in a terminal.
+2. Download `Rondel-<version>-win-x64.exe` (or `-win-arm64.exe` for ARM PCs, not yet tried on one) from the [latest release](https://github.com/xelfiera-shn/rondel/releases/latest), put it in a folder of its own that stays, such as `%LOCALAPPDATA%\Programs\Rondel`, and run it. A welcome window shows how the menu opens (**How to use…** on the icon shows it again), and the Rondel icon appears in the notification area.
+   - The executable is not code-signed yet. Your browser may say that it is not commonly downloaded: keep it (in Edge, **⋯ → Keep**, then **Show more → Keep anyway**). On first start SmartScreen says **Windows protected your PC**: **More info → Run anyway**. With Smart App Control turned on, Windows blocks apps that are not signed and offers no way to run them.
+   - Each release lists SHA-256 checksums (`SHA256SUMS.txt`, to compare with `Get-FileHash`) and carries a build provenance attestation (`gh attestation verify <file> --repo xelfiera-shn/rondel`).
 3. Right-click the icon and tick **Start with Windows**.
 
-There is no installer and Rondel needs no admin rights. Windows 10 and 11 are supported. From 0.7.0 on, Rondel keeps itself up to date (see [Updates](#updates)).
+There is no installer and Rondel needs no admin rights. Windows 10 and 11 are supported. Rondel keeps itself up to date (see [Updates](#updates)), so keep it in a folder you can write to, not under Program Files.
 
 ### macOS
 
-1. Install [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and check that `claude` runs in Terminal.
-2. Download `Rondel-<version>-osx-arm64.zip` (Apple Silicon) or `-osx-x64.zip` (Intel) from the [latest release](https://github.com/xelfiera-shn/rondel/releases/latest), unzip it and move **Rondel** into **Applications**.
-3. Open it. Rondel is signed and notarized by Apple, so macOS asks only once whether to open an app downloaded from the internet: choose **Open**.
+1. Install [Claude Code](https://code.claude.com/docs/en/overview) and check that `claude` runs in Terminal.
+2. Download `Rondel-<version>-osx-arm64.zip` (Apple Silicon) or `-osx-x64.zip` (Intel, not yet tried on one) from the [latest release](https://github.com/xelfiera-shn/rondel/releases/latest), unzip it and move **Rondel** into **Applications**.
+3. Open it. Rondel is signed with a Developer ID and notarized by Apple, so macOS asks only once whether to open an app downloaded from the internet: choose **Open**.
 4. A welcome window shows how the menu opens (**How to use…** in the menu bar icon's menu shows it again) and asks for two permissions. Allow **Accessibility**: Rondel needs it to notice ⌥ + hold. Allow **Finder** too: Rondel asks Finder which folder a window shows. Both stay granted across updates. The Rondel icon appears in the menu bar; its menu offers the permissions that are still missing.
 5. Menu bar icon → **Settings…** → tick **Open at login**.
 
@@ -57,7 +60,7 @@ On macOS it is the same with ⌥ Option instead of Ctrl, Finder instead of File 
   <img src="docs/images/recents-en.png" width="460" alt="The desktop menu with Recent Projects opened into five project folders, and one project opened further into its sessions">
 </p>
 
-- **Quick Conversation** (desktop menu) is for a question or a talk that belongs to no project. It opens the prompt card (or, with Settings → **Quick Conversation** turned off, the agent right away) in a folder of its own, `%LOCALAPPDATA%\Rondel\Quick` (on macOS `~/Library/Application Support/Rondel/Quick`), and Claude Code writes no transcript or prompt history for it (`CLAUDE_CODE_SKIP_PROMPT_HISTORY`). When it ends, Rondel deletes for good what Claude Code still kept for it, such as temporary files and memory, and the files left in the folder (with following turned off, at the next Quick Conversation or when Rondel starts; on macOS within a few minutes of its end, except a temporary folder under a `CLAUDE_CODE_TMPDIR` of your own). It never shows in Recent Projects, Resume or Sessions. The first time, Claude Code asks whether you trust the folder: choose **Yes, I trust this folder**. Claude Code then keeps one entry for the folder in `~/.claude.json` (that it is trusted, and the last session's id, cost and token counts), but nothing of the conversation. The conversation itself goes to Claude like any other.
+- **Quick Conversation** (desktop menu) is for a question or a talk that belongs to no project. It opens the prompt card (or, with Settings → **Quick Conversation** turned off, the agent right away) in a folder of its own, `%LOCALAPPDATA%\Rondel\Quick` (on macOS `~/Library/Application Support/Rondel/Quick`), and Claude Code writes no prompt history for it (`CLAUDE_CODE_SKIP_PROMPT_HISTORY`), nor a transcript in a terminal. When it ends, Rondel deletes for good what Claude Code still kept for it, such as the transcript of the answer on the card, temporary files and memory, and the files left in the folder (with following turned off, at the next Quick Conversation or when Rondel starts; on macOS within a few minutes of its end, except a temporary folder under a `CLAUDE_CODE_TMPDIR` of your own). It never shows in Recent Projects, Resume or Sessions. The first time, Claude Code asks whether you trust the folder: choose **Yes, I trust this folder**. Claude Code then keeps one entry for the folder in `~/.claude.json` (that it is trusted, and the last session's id, cost and token counts), but nothing of the conversation. The conversation itself goes to Claude like any other.
   - The card answers the first question itself, on a card of its own that floats over your windows without taking the focus, so you go on working while the answer is written. Under it: **Copy**, **Close**, and **Continue in terminal**, which opens the conversation in a terminal where it is. Close it, and nothing of it is kept. On the card Claude may only read and search the web; for anything more, continue in the terminal. Settings → **Quick Conversation** picks the model (Claude Code's default, Opus, Sonnet or Haiku). On Windows, an agent command that is an alias of your PowerShell profile starts in a terminal as before; on macOS the answer runs in your login shell, so an alias from `~/.zshrc` works too.
 - **Ask About a Screenshot** (tray icon → **Ask About a Screenshot…**, the menu bar icon on macOS, or a shortcut you choose in Settings → **Quick Conversation**) freezes the screen. Drag over an area, click a window, or press **Enter** for the whole screen (**Esc** cancels); Rondel's menu and the agents card are not in it. On macOS it opens macOS's own picker instead, as ⌘⇧4 does: drag over an area, or press **Space** and click a window (holding **⌃** while picking sends the picture to the clipboard instead, and nothing is asked); it needs the Screen Recording permission. The Quick Conversation card then shows the picture and asks what you want to know about it, and **Ctrl+Enter** (**⌘↩** on macOS) starts a Quick Conversation with the picture in the first message, answered on its own card as above. Nothing is sent before that. Rondel never puts the picture on the clipboard: it is written into the Quick Conversation folder only when the conversation starts, and goes with the rest once it ends.
 - Continue and Resume show when the last session was and how many there are, and are dimmed when there are none.
@@ -106,7 +109,7 @@ Once a day, and when the connection comes back, Rondel asks GitHub for its lates
 
 Updating downloads the new executable, checks it, puts it in place of the running one and restarts Rondel; your agents keep running. Rondel takes the file only when the release's checksums carry the signature of Rondel's release key, which only the release workflow holds, and the file matches its checksum; anything else is deleted. If Rondel's folder is not writable (for example under Program Files), it opens the release page instead.
 
-Settings → **Check for updates automatically** turns the daily check off; **Check now** works either way. Versions before 0.7.0 cannot update themselves: download 0.7.0 once by hand. From 0.8.0 on, the Windows app does not announce a release that changes only the macOS app (**Check now** still shows it).
+Settings → **Check for updates automatically** turns the daily check off; **Check now** works either way. Versions before 0.7.0 cannot update themselves: download the latest release once by hand. The Windows app does not announce a release that changes only the macOS app (**Check now** still shows it).
 
 On macOS the update puts the new Rondel.app in place of the old one and opens it; the folder it is in must be writable (Applications is), otherwise the release page opens instead. It takes the new version only when it carries the same signature as the running one, so the Accessibility and Finder permissions stay. A release that changes only the Windows app is not announced on macOS.
 
@@ -147,7 +150,26 @@ Please include the log lines or the probe output when you [report a bug](https:/
 
 ## Privacy
 
-Rondel has no telemetry. It reads the agent's local session data only to show the hints and the recent sessions, and it receives the events of the agents it starts on 127.0.0.1 only. Once a day Rondel asks GitHub for its latest release (this can be turned off in Settings); the request carries nothing but Rondel's version. It deletes Claude Code's session files only when you ask for it in the Sessions window, and what is left of a Quick Conversation once it ends, and it writes nothing except its own settings, a screenshot you ask about (with the hooks file for the agents it starts), its logs, the list of its agents' windows, the update checks' state and downloads and, if you enable it, the start-with-Windows entry (the login item on macOS).
+Rondel has no telemetry and no account of its own. Apart from the update check, everything stays on your computer.
+
+| | What and why |
+|---|---|
+| **Watches** | The mouse across the system (a low-level mouse hook on Windows, an event tap on macOS), to notice Ctrl + hold (⌥ + hold on macOS); it reads no keystrokes. When the menu opens, it asks the window under the cursor which folder or file it shows (UI Automation on Windows, Finder on macOS). |
+| **Reads** | Claude Code's session files (`~/.claude/projects` and `~/.claude/sessions`, or those under `CLAUDE_CONFIG_DIR`) for the hints, Resume, Recent Projects and the Sessions window, and to clean up after a Quick Conversation; `cleanupPeriodDays` in Claude Code's `settings.json`; with the usage limits on, the status line set in Claude Code's settings or the project's `.claude/settings*.json`. |
+| **Receives** | The events of the sessions it starts, on 127.0.0.1 only and with a token: what each one is doing, which includes your prompts and the tools' results as Claude Code sends them. Rondel keeps only what its menu, card and notifications show, and it never answers a permission prompt for you. |
+| **Writes** | On Windows, its settings, saved prompts, templates and the hooks file for the sessions it starts in `%APPDATA%\Rondel`; its logs, the Quick Conversation folder, the agents card's place, the usage limits, its agents' windows and update downloads in `%LOCALAPPDATA%\Rondel`; with **Start with Windows**, a `Rondel` value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`. On macOS, `~/Library/Application Support/Rondel`, `~/Library/Logs/Rondel`, `~/Library/Caches/Rondel` and, with **Open at login**, a login item. |
+| **Deletes** | Claude Code's sessions only when you choose them in the Sessions window (into the Recycle Bin or the Trash, unless you say otherwise); what is left of a Quick Conversation once it ends; its own old logs. |
+| **Sends** | Once a day (and with **Check now**), a request to `api.github.com` for Rondel's latest release that carries nothing but Rondel's version; downloads from GitHub only when you update. Your conversations go from Claude Code to Anthropic as always; Rondel adds nothing to them. |
+
+Rondel never changes Claude Code's own settings files: its hooks, and its status line for the usage limits, reach only the sessions it starts, through `--settings`. To report a security problem, see [SECURITY.md](SECURITY.md).
+
+## Uninstall
+
+**Windows:** untick **Start with Windows** on the tray icon, then choose **Exit**. Delete `Rondel.exe` and the folders `%APPDATA%\Rondel` (settings, saved prompts, templates) and `%LOCALAPPDATA%\Rondel` (logs and the rest). `%TEMP%\.net\Rondel` holds files .NET unpacked for Rondel; it can go too.
+
+**macOS:** untick **Open at login** in Settings, then choose **Quit Rondel** in the menu bar icon's menu. Move Rondel from Applications to the Trash, and delete `~/Library/Application Support/Rondel`, `~/Library/Logs/Rondel` and `~/Library/Caches/Rondel`. Then remove Rondel from System Settings → Privacy & Security (Accessibility, Automation, Screen & System Audio Recording), or run `tccutil reset All app.rondel` in Terminal.
+
+What Claude Code keeps is its own: the sessions you started from Rondel stay like any other, and so does its entry for the Quick Conversation folder in `~/.claude.json`.
 
 ## Build from source
 
