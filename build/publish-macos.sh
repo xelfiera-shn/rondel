@@ -50,6 +50,8 @@ rm -rf "$app/Contents/MacOS/"*.dSYM # debug symbols are not shipped
 mkdir -p "$app/Contents/Resources"
 # Finder, Spotlight and the Dock show it; written by `Rondel --export-app-icon build/Rondel.icns`.
 cp "$root/build/Rondel.icns" "$app/Contents/Resources/Rondel.icns"
+# The licenses of what the app contains (Avalonia, SkiaSharp and its native libraries, .NET).
+cp "$root/THIRD-PARTY-NOTICES.txt" "$app/Contents/Resources/THIRD-PARTY-NOTICES.txt"
 
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
