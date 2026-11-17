@@ -171,7 +171,9 @@ public sealed class UsageLimitsTests : IDisposable
         File.WriteAllText(hooks, HookServer.Build(51234, "0123456789abcdef0123456789abcdef"));
         var activity = new AgentActivity { HooksFile = hooks };
         string folder = Path.Combine(_directory, "work");
-        Directory.CreateDirectory(folder);
+        Directory.CreateDirectory(Path.Combine(folder, ".claude"));
+        // No status line of the user's, whatever the machine running the tests has.
+        File.WriteAllText(Path.Combine(folder, ".claude", "settings.local.json"), """{ "statusLine": null }""");
 
         Assert.Equal(hooks, activity.HooksFileFor(folder));
 
@@ -186,7 +188,34 @@ public sealed class UsageLimitsTests : IDisposable
         }
         Assert.Equal(withStatusLine, activity.HooksFileFor(folder));
         Assert.Equal(2, Directory.GetFiles(_directory).Length);
+
+        // A status line of several commands is left alone: the hooks file without Rondel's in front of it.
+        File.WriteAllText(Path.Combine(folder, ".claude", "settings.local.json"),
+            """{ "statusLine": { "type": "command", "command": "input=$(cat); echo \"$input\"" } }""");
+        Assert.Equal(hooks, activity.HooksFileFor(folder));
     }
+
+    [Theory]
+    [InlineData("~/.claude/statusline.sh")]
+    [InlineData("npx -y ccstatusline@latest")]
+    [InlineData("jq -r '\"\\(.model.display_name); \\(.cwd)\"'")]
+    [InlineData("echo \"$(cat | jq -r .model.id; date +%H:%M)\"")]
+    [InlineData("echo $(cat | jq -r .model.id; date +%H:%M)")]
+    [InlineData("node ~/statusline.js 2>&1 | head -1")]
+    [InlineData("& 'C:/Users/dev/statusline.ps1'")]
+    [InlineData("powershell -NoProfile -Command \"$i = $input | ConvertFrom-Json; $i.model.id\"")]
+    public void AStatusLineOfOneStatementTakesAllOfTheInput(string command) =>
+        Assert.True(ClaudeCodeStatusLine.IsOneStatement(command));
+
+    [Theory]
+    [InlineData("input=$(cat); echo \"$input\"")]
+    [InlineData("cd ~/tools && ./statusline.sh")]
+    [InlineData("~/statusline.sh || echo none")]
+    [InlineData("read -r input\necho \"$input\"")]
+    [InlineData("~/statusline.sh & wait")]
+    [InlineData("$i = $input | ConvertFrom-Json; $i.model.id")]
+    public void AStatusLineOfSeveralStatementsWouldLoseTheInput(string command) =>
+        Assert.False(ClaudeCodeStatusLine.IsOneStatement(command));
 
     [Fact]
     public void AWindowThatResetSinceItWasReportedHasNoShare()

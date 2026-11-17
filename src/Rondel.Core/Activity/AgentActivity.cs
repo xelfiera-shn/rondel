@@ -35,13 +35,20 @@ public sealed class AgentActivity(TimeProvider? time = null)
 
     /// <summary>
     /// The settings file for an agent started in <paramref name="directory"/>: <see cref="HooksFile"/>, with Rondel's
-    /// status line in front of the user's own while <see cref="UsageTap"/> is set. Null while agents are not followed.
+    /// status line in front of the user's own while <see cref="UsageTap"/> is set, unless the user's is several commands
+    /// (<see cref="ClaudeCodeStatusLine.IsOneStatement"/>). Null while agents are not followed.
     /// </summary>
     public string? HooksFileFor(string directory)
     {
         if (HooksFile is not { } hooks || UsageTap is not { } tap)
             return HooksFile;
-        var statusLine = ClaudeCodeStatusLine.Compose(tap, ClaudeCodeStatusLine.UserStatusLine(directory));
+        var user = ClaudeCodeStatusLine.UserStatusLine(directory);
+        if (ClaudeCodeStatusLine.Command(user) is { } own && !ClaudeCodeStatusLine.IsOneStatement(own))
+        {
+            Log.Info($"The status line for '{directory}' is several commands, which Rondel's in front of it would break; it is left alone, and this session reports no usage limits");
+            return hooks;
+        }
+        var statusLine = ClaudeCodeStatusLine.Compose(tap, user);
         return AgentSettingsFile.With(hooks, statusLine) ?? hooks;
     }
 
