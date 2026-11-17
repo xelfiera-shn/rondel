@@ -253,6 +253,10 @@ internal static unsafe partial class Native
     [LibraryImport(CoreGraphics)]
     public static partial nint CGEventTapCreate(uint tap, uint place, uint options, ulong eventsOfInterest, nint callback, nint userInfo);
 
+    /// <summary>The window level for a key (kCGDesktopIconWindowLevelKey is 18).</summary>
+    [LibraryImport(CoreGraphics)]
+    public static partial int CGWindowLevelForKey(int key);
+
     [LibraryImport(CoreGraphics)]
     public static partial void CGEventTapEnable(nint tap, [MarshalAs(UnmanagedType.U1)] bool enable);
 
