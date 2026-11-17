@@ -23,7 +23,12 @@ static class Program
             return 0;
 
         Log.Start();
-        AppDomain.CurrentDomain.UnhandledException += (_, e) => Log.Error("Unhandled exception", e.ExceptionObject as Exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            Log.Error("Unhandled exception", e.ExceptionObject as Exception);
+            if (e.IsTerminating)
+                Log.Stop(); // the process ends right after this: the line is written first, not left in the queue
+        };
         TaskScheduler.UnobservedTaskException += (_, e) =>
         {
             Log.Error("Unobserved task exception", e.Exception);
