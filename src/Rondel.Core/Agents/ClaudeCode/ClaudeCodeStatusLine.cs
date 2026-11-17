@@ -41,10 +41,63 @@ public static class ClaudeCodeStatusLine
     public static JsonObject Compose(string tap, JsonObject? user)
     {
         var line = user?.DeepClone().AsObject() ?? [];
-        string? own = user?["command"] is JsonValue value && value.TryGetValue(out string? text) && !string.IsNullOrWhiteSpace(text) ? text.Trim() : null;
+        string? own = Command(user);
         line["type"] = "command";
         line["command"] = own is null ? tap : $"{tap} {StatusLineTap.PassArgument} | {own}";
         return line;
+    }
+
+    /// <summary>A status line's command, trimmed; null when it has none.</summary>
+    internal static string? Command(JsonObject? line) =>
+        line?["command"] is JsonValue value && value.TryGetValue(out string? text) && !string.IsNullOrWhiteSpace(text) ? text.Trim() : null;
+
+    /// <summary>
+    /// Whether <paramref name="command"/> is one statement, so that a pipe in front of it hands Claude Code's input to all
+    /// of it. Not with a <c>;</c>, <c>&amp;&amp;</c>, <c>||</c>, a line break or a command sent to the background (<c>&amp;</c>)
+    /// outside quotes and brackets: the pipe would reach only the first part, and the rest would show nothing. Brackets
+    /// around it would not help, since PowerShell takes no group after a pipe. A leading <c>&amp;</c> is PowerShell's call
+    /// operator, and <c>2&gt;&amp;1</c> a redirection. Unsure is no: the user's status line then stays as it is.
+    /// </summary>
+    public static bool IsOneStatement(string command)
+    {
+        string text = command.Trim();
+        int depth = 0;
+        char quote = '\0';
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (quote != '\0')
+            {
+                if (c == '\\' && quote == '"')
+                    i++; // an escaped character, such as \"
+                else if (c == quote)
+                    quote = '\0';
+                continue;
+            }
+            char before = i > 0 ? text[i - 1] : '\0', after = i + 1 < text.Length ? text[i + 1] : '\0';
+            switch (c)
+            {
+                case '\'' or '"':
+                    quote = c;
+                    break;
+                case '\\':
+                    i++;
+                    break;
+                case '(' or '{':
+                    depth++;
+                    break;
+                case ')' or '}':
+                    depth--;
+                    break;
+                case ';' or '\n' or '\r' when depth <= 0:
+                    return false;
+                case '|' when depth <= 0 && after == '|':
+                    return false;
+                case '&' when depth <= 0 && i > 0 && before is not ('>' or '<' or '|') && after != '>':
+                    return false;
+            }
+        }
+        return true;
     }
 
     /// <summary>Whether a settings file sets a "statusLine"; <paramref name="line"/> is null when it is not a command.</summary>
