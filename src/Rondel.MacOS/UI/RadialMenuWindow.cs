@@ -472,10 +472,11 @@ internal sealed class RadialMenuWindow : Window
             return;
         // Rebuild with the new colors, keeping what arrived after the menu opened and what is open.
         var hints = Slices.Select(s => (s.Hint.IsVisible && s.Hint.Opacity > 0 ? HintText(s.Hint) : null, s.Dimmed)).ToList();
+        var states = Slices.Select(s => HintState(s.Hint)).ToList(); // an Active Agents slice keeps its dot's color
         var children = Slices.Select(s => s.Children).ToList();
         var opened = _bands.Select(b => b.Opened).ToList();
         BuildSlices(_model);
-        ApplyHints(_model, hints);
+        ApplyHints(_model, hints, states);
         ApplyChildren(_model, children);
         for (int level = 0; level < _bands.Length - 1 && opened[level] >= 0 && opened[level] < _bands[level].Tiles.Count; level++)
             Open(level, opened[level]);
@@ -784,7 +785,7 @@ internal sealed class RadialMenuWindow : Window
     /// </summary>
     void SetHint(TextBlock hint, string text, AgentState? state)
     {
-        hint.Tag = state is null ? text : "\u25CF " + text;
+        hint.Tag = new HintValue(text, state);
         if (state is not { } value)
         {
             hint.Inlines = null;
@@ -795,7 +796,13 @@ internal sealed class RadialMenuWindow : Window
         hint.Inlines = [new Run("\u25CF ") { Foreground = StateBrush(value) }, new Run(text)];
     }
 
-    static string HintText(TextBlock hint) => hint.Tag as string ?? hint.Text ?? "";
+    /// <summary>What a hint shows: its line, and the state of the agent whose colored dot goes in front of it.</summary>
+    sealed record HintValue(string Text, AgentState? State);
+
+    /// <summary>A hint's line, without its dot.</summary>
+    static string HintText(TextBlock hint) => (hint.Tag as HintValue)?.Text ?? hint.Text ?? "";
+
+    static AgentState? HintState(TextBlock hint) => (hint.Tag as HintValue)?.State;
 
     /// <summary>The color of an agent's state, the same as on Windows: amber when it waits, green when done, red when it failed, the accent while it works.</summary>
     IBrush StateBrush(AgentState state) => state switch
@@ -1155,7 +1162,8 @@ internal sealed class RadialMenuWindow : Window
     {
         var (block, label) = (tile.Content, tile.Label);
         string text = label.Text ?? "";
-        var key = (text, tile.Hint.IsVisible ? HintText(tile.Hint) : "", Math.Round(mid, 1), span, labelR);
+        string hintKey = !tile.Hint.IsVisible ? "" : HintState(tile.Hint) is null ? HintText(tile.Hint) : "\u25CF " + HintText(tile.Hint);
+        var key = (text, hintKey, Math.Round(mid, 1), span, labelR);
         if (_labelLayouts.TryGetValue(key, out var known))
         {
             label.Text = known.Text;

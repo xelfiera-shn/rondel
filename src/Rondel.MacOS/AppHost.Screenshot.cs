@@ -37,7 +37,9 @@ internal sealed partial class AppHost
             AllowScreenRecording();
             return;
         }
+        // Rondel's own windows are not in the picture: the menu (or a card) closes, the agents card steps aside.
         _menu?.CloseMenu(restoreFocus: true);
+        _card?.HideForCapture();
         string file = Path.Combine(Path.GetTempPath(), $"rondel-screenshot-{Guid.NewGuid():N}.png");
         // -i: the picker, -o: a window without its shadow.
         var start = new ProcessStartInfo("/usr/sbin/screencapture") { UseShellExecute = false, ArgumentList = { "-i", "-o", file } };
@@ -49,6 +51,7 @@ internal sealed partial class AppHost
         catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
         {
             Log.Warn("Starting screencapture failed", ex);
+            CardAfterCapture();
             Warn(Loc.Format("Screenshot.Failed", ex.Message));
             return;
         }
@@ -62,6 +65,7 @@ internal sealed partial class AppHost
             {
                 _capture = null;
                 process.Dispose();
+                CardAfterCapture();
                 if (png is null)
                 {
                     Log.Info("Ask About a Screenshot cancelled");
@@ -70,6 +74,15 @@ internal sealed partial class AppHost
                 _flow.AskAboutScreenshot(png);
             });
         });
+    }
+
+    /// <summary>Brings the agents card back after the picker, and the menu bar's "Show the agents card" with it.</summary>
+    void CardAfterCapture()
+    {
+        if (_card is null)
+            return;
+        _card.ShowAfterCapture();
+        UpdateCardMenu();
     }
 
     /// <summary>
