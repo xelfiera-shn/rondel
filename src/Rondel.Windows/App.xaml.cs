@@ -51,7 +51,11 @@ public partial class App : Application
         Log.Start();
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
             Log.Error("Unhandled exception", args.ExceptionObject as Exception);
+            if (args.IsTerminating)
+                Log.Stop(); // the process ends right after this: the line is written first, not left in the queue
+        };
         TaskScheduler.UnobservedTaskException += (_, args) =>
         {
             Log.Error("Unobserved task exception", args.Exception);
