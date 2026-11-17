@@ -186,7 +186,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for branches, commit messages and release
 
 ## License
 
-[MIT](LICENSE) © Ahmet Şahin
+[MIT](LICENSE) © Ahmet Şahin. Rondel's downloads also contain third-party software under its own licenses: [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
 
 ---
 

@@ -186,7 +186,7 @@ Dallar, commit mesajları ve sürümler için [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## Lisans
 
-[MIT](LICENSE) © Ahmet Şahin
+[MIT](LICENSE) © Ahmet Şahin. Rondel'in indirilen dosyaları, kendi lisanslarıyla gelen üçüncü taraf yazılımlar da içerir: [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
 
 ---
 
