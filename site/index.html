@@ -441,7 +441,7 @@ footer a { color: var(--muted); } footer a:hover { color: var(--ink); }
         <div class="panel">
           <div class="where"><i style="--a:270deg"></i><span data-t="p4.where">The desktop</span></div>
           <h2 data-t="p4.h">A quick question that leaves nothing behind.</h2>
-          <p class="lead" data-t="p4.lead"><b>Quick Conversation</b> answers on a card of its own that floats over your windows without taking the focus. Claude Code keeps no transcript of it, and Rondel deletes what is left once it ends.</p>
+          <p class="lead" data-t="p4.lead"><b>Quick Conversation</b> answers on a card of its own that floats over your windows without taking the focus. Nothing of it is kept: once it ends, Rondel deletes what Claude Code wrote for it.</p>
         </div>
         <div class="panel">
           <div class="where"><i class="whole"></i><span data-t="p5.where">Tray icon or menu bar</span></div>
@@ -522,7 +522,7 @@ footer a { color: var(--muted); } footer a:hover { color: var(--ink); }
       <figure class="shotfig wide reveal" style="--d:1"><div class="pic"><img data-img="agents" src="images/agents-en.png" width="880" height="721" loading="lazy" alt="The desktop menu with Active Agents opened into five agents in every state" data-t-alt="alt.agents"></div><figcaption data-t="sc.agents"><b>Active Agents</b>Two waiting, one stopped, one done, one working</figcaption></figure>
       <figure class="shotfig reveal"><div class="pic"><img data-img="prompts" src="images/prompts-en.png" width="880" height="878" loading="lazy" alt="A folder menu with saved prompts on an arc around the Ask Here slice" data-t-alt="alt.prompts"></div><figcaption data-t="sc.prompts"><b>Saved prompts</b>Pinned on an arc around the Ask slice</figcaption></figure>
       <figure class="shotfig reveal" style="--d:1"><div class="pic"><img data-img="answer" src="images/answer-en.png" width="760" height="604" loading="lazy" alt="A Quick Conversation's answer card with a command, a list and a table" data-t-alt="alt.answer"></div><figcaption data-t="sc.answer"><b>Quick Conversation</b>The answer on a card of its own</figcaption></figure>
-      <figure class="shotfig reveal" style="--d:2"><div class="pic"><img data-img="card" src="images/card-en.png" width="656" height="636" loading="lazy" alt="The agents card listing five agents with their status dots" data-t-alt="alt.card"></div><figcaption data-t="sc.card"><b>The agents card</b>Running agents in sight, on Windows</figcaption></figure>
+      <figure class="shotfig reveal" style="--d:2"><div class="pic"><img data-img="card" src="images/card-en.png" width="656" height="636" loading="lazy" alt="The agents card listing five agents with their status dots" data-t-alt="alt.card"></div><figcaption data-t="sc.card"><b>The agents card</b>Running agents in sight</figcaption></figure>
     </div>
     <div class="themes reveal">
       <img data-img="themes" src="images/themes-en.png" width="1960" height="392" loading="lazy" alt="The same folder menu in the five themes: Rondel, Line, Spotlight, Orbit and Petal" data-t-alt="alt.themes">
@@ -545,7 +545,7 @@ footer a { color: var(--muted); } footer a:hover { color: var(--ink); }
       <li class="reveal"><b data-t="rw.1b">The New Project card</b><span data-t="rw.1">A folder name, a first prompt, <code>git init</code>, plan mode and your templates. It remembers your last choice, so the usual project is a name and Enter.</span></li>
       <li class="reveal"><b data-t="rw.2b">Sessions, and the space they take</b><span data-t="rw.2">Every saved Claude Code session, the largest first. Delete the ones you no longer need, into the Recycle Bin (the Trash on a Mac) or for good.</span></li>
       <li class="reveal"><b data-t="rw.3b">The keyboard all the way</b><span data-t="rw.3">Digits, arrows, Tab and Enter in the menu; Space opens a slice's items and Esc steps back. Or keep holding, move onto a slice and let go.</span></li>
-      <li class="reveal"><b data-t="rw.4b">The agents card</b><span data-t="rw.4">On Windows it keeps the running agents in sight, and can show your Claude plan's 5-hour and weekly usage limits.</span></li>
+      <li class="reveal"><b data-t="rw.4b">The agents card</b><span data-t="rw.4">It keeps the running agents in sight; on Windows it can also show your Claude plan's 5-hour and weekly usage limits.</span></li>
       <li class="reveal"><b data-t="rw.5b">Keeps itself up to date</b><span data-t="rw.5">It installs a new version only when the release carries the signature of Rondel's release key. Your agents keep running.</span></li>
     </ul>
   </section>
@@ -555,7 +555,7 @@ footer a { color: var(--muted); } footer a:hover { color: var(--ink); }
     <p class="lead reveal" data-t="pf.lead">The same menu on both, with each one's own key and file manager. <a href="https://github.com/xelfiera-shn/rondel/blob/dev/docs/features.md">Features by platform</a> shows what each has.</p>
     <ul class="rows">
       <li class="reveal"><b>Windows</b><span data-t="pf.win">Hold <b>Ctrl</b> and the left mouse button on the desktop or in File Explorer. Windows 10 and 11, x64 and ARM64. No installer, no admin rights. Not code-signed yet, so SmartScreen asks once.</span></li>
-      <li class="reveal"><b>macOS</b><span data-t="pf.mac">Hold <b>⌥ Option</b> and the left mouse button on the desktop or in Finder. macOS 15 or later, Apple Silicon and Intel. Signed and notarized by Apple. The agents card is not there yet.</span></li>
+      <li class="reveal"><b>macOS</b><span data-t="pf.mac">Hold <b>⌥ Option</b> and the left mouse button on the desktop or in Finder. macOS 15 or later, Apple Silicon and Intel. Signed with a Developer ID and notarized by Apple.</span></li>
     </ul>
   </section>
 
@@ -563,7 +563,7 @@ footer a { color: var(--muted); } footer a:hover { color: var(--ink); }
     <div class="trust">
       <div>
         <h2 class="reveal" data-t="tr.h">No telemetry.</h2>
-        <p class="lead reveal" data-t="tr.lead">Rondel reads Claude Code's local session data only to show the hints and the recent sessions.</p>
+        <p class="lead reveal" data-t="tr.lead">Rondel reads Claude Code's local session data on your computer only: for the hints, the recent sessions and the Sessions window, and to clean up after a Quick Conversation.</p>
       </div>
       <ul class="rows">
         <li class="reveal"><b data-t="tr.1b">Open source</b><span data-t="tr.1">MIT licensed; the code of every release is on GitHub.</span></li>
@@ -611,7 +611,7 @@ footer a { color: var(--muted); } footer a:hover { color: var(--ink); }
     'p3.where': 'Masaüstü', 'p3.h': 'Son projeleriniz, bir dilim ötede.',
     'p3.lead': '<b>Son Projeler</b>, en son çalıştığınız beş klasöre açılır. Birini seçince son oturumu sürer; isterseniz bir adım daha açıp oturumlarından birini seçersiniz.',
     'p4.where': 'Masaüstü', 'p4.h': 'Ardında iz bırakmayan hızlı bir soru.',
-    'p4.lead': '<b>Hızlı Sohbet</b>, yanıtı odağı almadan pencerelerinizin üstünde duran kendi kartında verir. Claude Code bu sohbetin dökümünü tutmaz; bittiğinde geride kalanı Rondel siler.',
+    'p4.lead': '<b>Hızlı Sohbet</b>, yanıtı odağı almadan pencerelerinizin üstünde duran kendi kartında verir. Ondan hiçbir şey saklanmaz: sohbet bitince Rondel, Claude Code\'un onun için yazdıklarını siler.',
     'p5.where': 'Tray ikonu veya menü çubuğu', 'p5.h': 'Ekranda gösterin, sorun.',
     'p5.lead': '<b>Ekran Görüntüsünü Sor</b> ile bir alanı ya da bir pencereyi seçersiniz (Mac\'te macOS\'un kendi seçicisiyle); sonra ne öğrenmek istediğiniz sorulur. Siz başlatana kadar hiçbir şey gönderilmez.',
     'p6.where': 'Aktif Ajanlar', 'p6.h': 'Hangi ajanın sizi beklediğini görün.',
@@ -631,7 +631,7 @@ footer a { color: var(--muted); } footer a:hover { color: var(--ink); }
     'sc.agents': '<b>Aktif Ajanlar</b>İkisi bekliyor, biri hatayla durdu, biri bitti, biri çalışıyor',
     'sc.prompts': '<b>Hazır promptlar</b>Sor diliminin çevresindeki yayda',
     'sc.answer': '<b>Hızlı Sohbet</b>Yanıt, kendi kartında',
-    'sc.card': '<b>Ajan kartı</b>Çalışan ajanlar göz önünde; Windows\'ta',
+    'sc.card': '<b>Ajan kartı</b>Çalışan ajanlar göz önünde',
     'sc.themes': 'Beş tema, her biri koyu ve açık: Rondel, İnce Halka, Vurgu, Yörünge ve Yaprak. Koyu ya da açık mod sistemi izleyebilir; vurgu rengi temanın kendi rengi, hazır bir çift ya da kendi renkleriniz olabilir.',
     'fg.h': 'Tek hareket, iki platform, sıfır telemetri.',
     'fg.1': 'basılı tutuş menüyü açar: masaüstünde, bir klasörde ya da bir dosyanın üzerinde',
@@ -640,14 +640,14 @@ footer a { color: var(--muted); } footer a:hover { color: var(--ink); }
     'rw.1b': 'Yeni Proje kartı', 'rw.1': 'Klasör adı, ilk prompt, <code>git init</code>, plan modu ve şablonlarınız. Son seçiminizi hatırlar; olağan bir proje için bir ad yazıp Enter\'a basmanız yeter.',
     'rw.2b': 'Oturumlar ve kapladıkları yer', 'rw.2': 'Kayıtlı her Claude Code oturumu, en büyüğü önde. Artık gerekmeyenleri Geri Dönüşüm Kutusu\'na (Mac\'te Çöp Sepeti\'ne) atın ya da kalıcı olarak silin.',
     'rw.3b': 'Baştan sona klavye', 'rw.3': 'Menüde rakamlar, oklar, Tab ve Enter; Boşluk dilimin öğelerini açar, Esc bir adım geri çıkar. Ya da basılı tutmayı sürdürün, bir dilimin üstüne gelip bırakın.',
-    'rw.4b': 'Ajan kartı', 'rw.4': 'Windows\'ta çalışan ajanları göz önünde tutar; isterseniz Claude planınızın 5 saatlik ve haftalık kullanım limitlerini de gösterir.',
+    'rw.4b': 'Ajan kartı', 'rw.4': 'Çalışan ajanları göz önünde tutar; Windows\'ta isterseniz Claude planınızın 5 saatlik ve haftalık kullanım limitlerini de gösterir.',
     'rw.5b': 'Kendini güncel tutar', 'rw.5': 'Yeni sürümü yalnızca Rondel\'in sürüm anahtarıyla imzalıysa kurar. Ajanlarınız çalışmayı sürdürür.',
     'pf.h': 'Windows ve macOS.',
     'pf.lead': 'İkisinde de aynı menü; her birinde kendi tuşu ve kendi dosya yöneticisiyle. Hangisinde ne olduğunu <a href="https://github.com/xelfiera-shn/rondel/blob/dev/docs/features.tr.md">platformlara göre özellikler</a> sayfası gösterir.',
     'pf.win': 'Masaüstünde veya Dosya Gezgini\'nde <b>Ctrl</b> ve sol fare tuşunu basılı tutun. Windows 10 ve 11, x64 ve ARM64. Kurulum yok, yönetici izni gerekmez. Henüz kod imzalı değil; SmartScreen ilk açılışta bir kez sorar.',
-    'pf.mac': 'Masaüstünde veya Finder\'da <b>⌥ Option</b> ve sol fare tuşunu basılı tutun. macOS 15 ve üstü, Apple Silicon ve Intel. Apple tarafından imzalı ve noter onaylı. Ajan kartı henüz yok.',
+    'pf.mac': 'Masaüstünde veya Finder\'da <b>⌥ Option</b> ve sol fare tuşunu basılı tutun. macOS 15 ve üstü, Apple Silicon ve Intel. Developer ID ile imzalı ve Apple tarafından onaylı (notarization).',
     'tr.h': 'Telemetri yok.',
-    'tr.lead': 'Rondel, Claude Code\'un yerel oturum verilerini yalnızca ipuçlarını ve son oturumları göstermek için okur.',
+    'tr.lead': 'Rondel, Claude Code\'un yerel oturum verilerini yalnızca bilgisayarınızda okur: ipuçları, son oturumlar ve Oturumlar penceresi için ve Hızlı Sohbet\'ten sonra temizlik için.',
     'tr.1b': 'Açık kaynak', 'tr.1': 'MIT lisanslı; her sürümün kodu GitHub\'da.',
     'tr.2b': 'Günde bir güncelleme denetimi', 'tr.2': 'Rondel günde bir kez GitHub\'a son sürümünü sorar; istek Rondel\'in sürümünden başka bir şey taşımaz. Ayarlar\'dan kapatabilirsiniz.',
     'tr.3b': 'Olaylar bilgisayarınızda kalır', 'tr.3': 'Rondel\'in başlattığı ajanlar olaylarını ona yalnızca 127.0.0.1 üzerinden bildirir. Kendi Claude Code ayarlarınız değişmez.',
