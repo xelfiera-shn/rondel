@@ -408,9 +408,19 @@ internal sealed partial class AppHost : IGestureSink, IMenuHost, IDisposable
             return;
         if (_flow.Build(context) is not { Items.Count: > 0 } model)
             return;
+        ShowModel(model, anchor);
+    }
+
+    /// <param name="hover">A slice to put under the pointer, as if hovered: its arc opens once its items arrive.</param>
+    void ShowModel(MenuModel model, CGPoint anchor, int? hover = null)
+    {
+        if (_menu is null)
+            return;
         try
         {
             _tap.NotifyMenuOpened(_menu.ShowMenu(model, anchor));
+            if (hover is { } slice)
+                _menu.HoverSlice(slice);
             RequestDetails(model);
         }
         catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
