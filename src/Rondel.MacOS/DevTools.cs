@@ -21,6 +21,7 @@ using Rondel.Core.Updates;
 using Rondel.MacOS.Detection;
 using Rondel.MacOS.Interop;
 using Rondel.MacOS.Launch;
+using Rondel.MacOS.Trigger;
 using Rondel.MacOS.UI;
 using Rondel.MacOS.Updates;
 
@@ -286,6 +287,7 @@ internal static class DevTools
         var window = new AgentsCardWindow(MenuPalette.For(settings.Appearance, dark));
         window.ShowAgents(options.Contains("empty") ? [] : MadeUpAgents());
         window.SetOptions(settings.ActiveAgents.Card);
+        window.HideShortcut = () => Hotkey.Display("Control+Option+K");
         var background = dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6);
         using var bitmap = window.RenderPreview(background, collapsed: options.Contains("collapsed"), options: options.Contains("options"));
         bitmap.Save(output, new PngBitmapEncoderOptions());

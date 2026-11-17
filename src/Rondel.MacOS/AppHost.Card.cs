@@ -23,6 +23,7 @@ internal sealed partial class AppHost
         _card.AgentClicked += FocusAgent;
         _card.SettingsRequested += OpenSettings;
         _card.HiddenByUser += UpdateCardMenu;
+        _card.HideShortcut = CardShortcutText;
         UpdateCard();
     }
 

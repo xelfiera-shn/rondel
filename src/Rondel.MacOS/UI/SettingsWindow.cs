@@ -51,7 +51,7 @@ internal sealed class SettingsWindow : Window
     TextBlock _rootStatus = null!, _commandLabel = null!, _commandStatus = null!, _terminalStatus = null!;
     TextBlock _accentName = null!, _accentStatus = null!, _holdValue = null!, _autostartStatus = null!;
     Slider _hold = null!;
-    ShortcutBox _shortcut = null!, _screenshotShortcut = null!, _agentsShortcut = null!;
+    ShortcutBox _shortcut = null!, _screenshotShortcut = null!, _agentsShortcut = null!, _cardShortcut = null!;
     CheckBox _cardPrompt = null!, _cardGit = null!, _cardPlan = null!, _cardTemplates = null!, _autostart = null!, _debug = null!, _quickCard = null!;
     CheckBox _promptsUse = null!;
     StackPanel _promptsPanel = null!, _promptRows = null!;
@@ -112,6 +112,7 @@ internal sealed class SettingsWindow : Window
             _shortcut?.StopRecording();
             _screenshotShortcut?.StopRecording();
             _agentsShortcut?.StopRecording();
+            _cardShortcut?.StopRecording();
         };
         Closed += (_, _) =>
         {
@@ -152,6 +153,7 @@ internal sealed class SettingsWindow : Window
             _shortcut.Show(s.Hotkey, _host.HotkeyError);
             _screenshotShortcut.Show(s.Quick.ScreenshotHotkey, _host.ScreenshotHotkeyError);
             _agentsShortcut.Show(s.ActiveAgents.Hotkey, _host.AgentsHotkeyError);
+            _cardShortcut.Show(s.ActiveAgents.Card.Hotkey, _host.CardHotkeyError);
             _holdValue.Text = Loc.Format("Settings.Ms", s.HoldMs);
             _commandLabel.Text = Loc.Format("Settings.Command", DefaultAgent(s)?.Name ?? "");
             _command.Text = DefaultAgent(s)?.Command ?? "";
@@ -445,6 +447,15 @@ internal sealed class SettingsWindow : Window
         }));
         _cardFullScreen.Margin = new Thickness(0, 12, 0, 0);
         _cardMute.Margin = new Thickness(0, 10, 0, 0);
+        _cardShortcut = new ShortcutBox(_look, SaveCardShortcut, _host.PauseShortcuts, "Settings.ActiveAgents.Card.Hotkey.Example.Mac");
+        page.Children.Add(Card(new StackPanel
+        {
+            Children =
+            {
+                Row(Loc.Get("Settings.ActiveAgents.Card.Hotkey"), Loc.Get("Settings.ActiveAgents.Card.Hotkey.Desc"), _cardShortcut),
+                _cardShortcut.StatusLine,
+            },
+        }));
 
         page.Children.Add(Section("Settings.NewProject"));
         page.Children.Add(Card(new StackPanel
@@ -1109,6 +1120,12 @@ internal sealed class SettingsWindow : Window
         ShowShortcutsLater();
     }
 
+    void SaveCardShortcut(string shortcut)
+    {
+        Store.Update(s => s.ActiveAgents.Card.Hotkey = shortcut);
+        ShowShortcutsLater();
+    }
+
     /// <summary>
     /// Every box, not only the one that changed: a combination one shortcut gave up may have let another register.
     /// </summary>
@@ -1118,6 +1135,7 @@ internal sealed class SettingsWindow : Window
         _shortcut.Show(s.Hotkey, _host.HotkeyError);
         _screenshotShortcut.Show(s.Quick.ScreenshotHotkey, _host.ScreenshotHotkeyError);
         _agentsShortcut.Show(s.ActiveAgents.Hotkey, _host.AgentsHotkeyError);
+        _cardShortcut.Show(s.ActiveAgents.Card.Hotkey, _host.CardHotkeyError);
     }, DispatcherPriority.Background);
 
     void OnActiveAgentsClicked()
@@ -1148,6 +1166,7 @@ internal sealed class SettingsWindow : Window
         });
         _cardOptions.IsEnabled = show;
         _cardOptions.Opacity = show ? 1 : 0.5;
+        ShowShortcutsLater(); // the card's shortcut is active only while the card is turned on
     }
 
     void OnQuickCardClicked()
