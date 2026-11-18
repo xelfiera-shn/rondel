@@ -56,7 +56,7 @@ internal sealed class SettingsWindow : Window
     CheckBox _promptsUse = null!;
     StackPanel _promptsPanel = null!, _promptRows = null!;
     TextBlock _pinnedCount = null!, _noPrompts = null!;
-    CheckBox _followAgents = null!, _notifyAsks = null!, _notifyFinished = null!, _cardShow = null!, _cardFullScreen = null!, _cardMute = null!;
+    CheckBox _followAgents = null!, _notifyAsks = null!, _notifyFinished = null!, _cardShow = null!, _cardFullScreen = null!, _cardMute = null!, _cardUsage = null!;
     ComboBox _cardPlacement = null!;
     StackPanel _cardOptions = null!;
     WrapPanel _themeCards = null!;
@@ -172,6 +172,7 @@ internal sealed class SettingsWindow : Window
             Select(_cardPlacement, card.Placement.ToString());
             _cardFullScreen.IsChecked = card.OverFullScreen;
             _cardMute.IsChecked = card.MuteNotifications;
+            _cardUsage.IsChecked = card.ShowUsage;
             _cardOptions.IsEnabled = card.Show;
             _cardOptions.Opacity = card.Show ? 1 : 0.5;
             _cardGit.IsChecked = s.NewProjectCard.Git;
@@ -441,12 +442,15 @@ internal sealed class SettingsWindow : Window
                         Description(Loc.Get("Settings.ActiveAgents.Card.OverFullScreen.Desc.Mac"), new Thickness(28, 2, 0, 0)),
                         (_cardMute = Check(Loc.Get("Card.Mute"), OnAgentsCardClicked)),
                         Description(Loc.Get("Settings.ActiveAgents.Card.Mute.Desc"), new Thickness(28, 2, 0, 0)),
+                        (_cardUsage = Check(Loc.Get("Card.Usage.Show"), OnAgentsCardClicked)),
+                        Description(Loc.Get("Settings.ActiveAgents.Card.Usage.Desc"), new Thickness(28, 2, 0, 0)),
                     },
                 }),
             },
         }));
         _cardFullScreen.Margin = new Thickness(0, 12, 0, 0);
         _cardMute.Margin = new Thickness(0, 10, 0, 0);
+        _cardUsage.Margin = new Thickness(0, 10, 0, 0);
         _cardShortcut = new ShortcutBox(_look, SaveCardShortcut, _host.PauseShortcuts, "Settings.ActiveAgents.Card.Hotkey.Example.Mac");
         page.Children.Add(Card(new StackPanel
         {
@@ -1155,7 +1159,8 @@ internal sealed class SettingsWindow : Window
     {
         if (_loading)
             return;
-        bool show = _cardShow.IsChecked == true, fullScreen = _cardFullScreen.IsChecked == true, mute = _cardMute.IsChecked == true;
+        bool show = _cardShow.IsChecked == true, fullScreen = _cardFullScreen.IsChecked == true, mute = _cardMute.IsChecked == true,
+            usage = _cardUsage.IsChecked == true;
         var placement = SelectedTag(_cardPlacement) == "OnDesktop" ? CardPlacement.OnDesktop : CardPlacement.OnTop;
         Store.Update(s =>
         {
@@ -1163,6 +1168,7 @@ internal sealed class SettingsWindow : Window
             s.ActiveAgents.Card.Placement = placement;
             s.ActiveAgents.Card.OverFullScreen = fullScreen;
             s.ActiveAgents.Card.MuteNotifications = mute;
+            s.ActiveAgents.Card.ShowUsage = usage;
         });
         _cardOptions.IsEnabled = show;
         _cardOptions.Opacity = show ? 1 : 0.5;

@@ -21,7 +21,8 @@ namespace Rondel.MacOS.UI;
 /// <summary>
 /// Shows the agents card (<see cref="AgentsCardWindow"/>) and keeps it where the user wants it, as on Windows.
 /// <list type="bullet">
-/// <item>It appears when the first agent starts and hides when none is left.</item>
+/// <item>It appears when the first agent starts and hides when none is left. With the usage limits on, it stays,
+/// collapsed to a pill that shows them.</item>
 /// <item>Collapsed to its badge, it opens while the mouse is over it, toward the free side of the screen; pinned, it
 /// stays open. It is dragged by its header or its badge, and its place is kept per screen.</item>
 /// <item>Above other windows, or on the desktop: right above its icons, behind every window. On every Space, and over
@@ -38,9 +39,6 @@ internal sealed class AgentsCard : IDisposable
     static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(30);
     static readonly TimeSpan SaveDelay = TimeSpan.FromMilliseconds(400);
 
-    /// <summary>The collapsed window, with the margin for the shadow (points).</summary>
-    const double BadgeSize = AgentsCardWindow.BadgeDiameter + 2 * AgentsCardWindow.ShadowMargin;
-
     /// <summary>Room left to the screen's edges when the card is placed the first time.</summary>
     const double EdgeGap = 24;
 
@@ -51,6 +49,7 @@ internal sealed class AgentsCard : IDisposable
     readonly DispatcherTimer _collapse, _closeOptions, _refresh, _save;
     readonly Dictionary<string, PixelPoint> _positions = [];
     IReadOnlyList<ActiveAgent> _agents = [];
+    UsageLimits? _usage;
     string? _lastScreen;
     PixelPoint? _anchor;
     bool _enabled, _manualShown, _manualHidden, _hovering, _placing, _capturing, _flipX, _flipY;
@@ -69,7 +68,7 @@ internal sealed class AgentsCard : IDisposable
         _collapse.Stop();
         _closeOptions = new DispatcherTimer(OptionsCloseDelay, DispatcherPriority.Normal, (_, _) => CloseOptionsAfterLeaving());
         _closeOptions.Stop();
-        _refresh = new DispatcherTimer(RefreshInterval, DispatcherPriority.Background, (_, _) => _window.ShowAgents(_agents));
+        _refresh = new DispatcherTimer(RefreshInterval, DispatcherPriority.Background, (_, _) => Render());
         _refresh.Stop();
         _save = new DispatcherTimer(SaveDelay, DispatcherPriority.Background, (_, _) => KeepPlace());
         _save.Stop();
@@ -143,22 +142,37 @@ internal sealed class AgentsCard : IDisposable
     public void ApplyLook(MenuPalette palette)
     {
         _window.ApplyLook(palette);
-        _window.ShowAgents(_agents);
+        Render();
     }
 
     /// <summary>The agents, or the options, changed.</summary>
     /// <param name="enabled">Whether Rondel follows agents at all.</param>
     public void Update(IReadOnlyList<ActiveAgent> agents, bool enabled)
     {
-        // When the last agent is gone, a card the user hid comes back with the next one.
-        if (_agents.Count > 0 && agents.Count == 0)
+        // A card the user hid comes back with the next agent that starts when none ran.
+        if (_agents.Count == 0 && agents.Count > 0)
             _manualHidden = false;
         if (!_options().Show)
             _manualShown = _manualHidden = false;
         _agents = agents;
         _enabled = enabled;
-        _window.ShowAgents(agents);
+        Render();
         Layout();
+    }
+
+    /// <summary>The usage limits a session reported last (usage.json changed).</summary>
+    public void ShowUsage(UsageLimits? usage)
+    {
+        _usage = usage;
+        Render();
+        Layout();
+    }
+
+    /// <summary>Draws the agents and, while they are on, the usage limits, as of now.</summary>
+    void Render()
+    {
+        _window.ShowAgents(_agents);
+        _window.ShowUsage(_options().ShowUsage, _usage, DateTimeOffset.Now);
     }
 
     /// <summary>The menu bar's "Show the agents card": brings back a card the user hid, or shows it with no agent.</summary>
@@ -210,7 +224,7 @@ internal sealed class AgentsCard : IDisposable
     void Layout()
     {
         var options = _options();
-        bool visible = !_capturing && _enabled && options.Show && !_manualHidden && (_agents.Count > 0 || _manualShown);
+        bool visible = !_capturing && _enabled && options.Show && !_manualHidden && (_agents.Count > 0 || _manualShown || options.ShowUsage);
         if (!visible)
         {
             Hide();
@@ -246,7 +260,10 @@ internal sealed class AgentsCard : IDisposable
 
     // ---- place ----
 
-    /// <summary>The badge at its anchor; the open card from there toward the free side of the screen, kept on the screen.</summary>
+    /// <summary>
+    /// The badge (or the pill) at its anchor; the open card from there toward the free side of the screen, kept on the
+    /// screen.
+    /// </summary>
     void Place(bool open)
     {
         // Dragged a moment ago and not kept yet: keep that place first, or the card would jump back to the old one.
@@ -255,18 +272,18 @@ internal sealed class AgentsCard : IDisposable
         var anchor = _anchor ??= StartingPlace();
         double scale = _window.DesktopScaling;
         var size = PixelSize.FromSize(_window.ClientSize, scale);
-        int badge = (int)Math.Round(BadgeSize * scale);
-        var work = WorkArea(new PixelPoint(anchor.X + badge / 2, anchor.Y + badge / 2));
+        var badge = PixelSize.FromSize(_window.CollapsedSize, scale);
+        var work = WorkArea(new PixelPoint(anchor.X + badge.Width / 2, anchor.Y + badge.Height / 2));
         int x = anchor.X, y = anchor.Y;
         _flipX = _flipY = false;
         if (open)
         {
-            _flipX = anchor.X + size.Width > work.Right && anchor.X + badge - size.Width >= work.X;
-            _flipY = anchor.Y + size.Height > work.Bottom && anchor.Y + badge - size.Height >= work.Y;
+            _flipX = anchor.X + size.Width > work.Right && anchor.X + badge.Width - size.Width >= work.X;
+            _flipY = anchor.Y + size.Height > work.Bottom && anchor.Y + badge.Height - size.Height >= work.Y;
             if (_flipX)
-                x = anchor.X + badge - size.Width;
+                x = anchor.X + badge.Width - size.Width;
             if (_flipY)
-                y = anchor.Y + badge - size.Height;
+                y = anchor.Y + badge.Height - size.Height;
         }
         x = Math.Clamp(x, work.X, Math.Max(work.X, work.Right - size.Width));
         y = Math.Clamp(y, work.Y, Math.Max(work.Y, work.Bottom - size.Height));
@@ -284,8 +301,9 @@ internal sealed class AgentsCard : IDisposable
         if (_lastScreen is { } key && _positions.TryGetValue(key, out var saved) && ScreenKey(saved) == key)
             return saved;
         var work = _window.Screens.Primary?.WorkingArea ?? new PixelRect(0, 0, 1440, 900);
-        int offset = (int)Math.Round((BadgeSize + EdgeGap) * _window.DesktopScaling);
-        return new PixelPoint(work.Right - offset, work.Bottom - offset);
+        var size = _window.CollapsedSize;
+        double scale = _window.DesktopScaling;
+        return new PixelPoint(work.Right - (int)Math.Round((size.Width + EdgeGap) * scale), work.Bottom - (int)Math.Round((size.Height + EdgeGap) * scale));
     }
 
     /// <summary>After a drag: the badge's corner the card opened from is where it goes back to.</summary>
@@ -294,10 +312,10 @@ internal sealed class AgentsCard : IDisposable
         _save.Stop();
         var position = _window.Position;
         var size = PixelSize.FromSize(_window.ClientSize, _window.DesktopScaling);
-        int badge = (int)Math.Round(BadgeSize * _window.DesktopScaling);
+        var badge = PixelSize.FromSize(_window.CollapsedSize, _window.DesktopScaling);
         bool open = !_window.IsCollapsed;
-        var anchor = new PixelPoint(open && _flipX ? position.X + size.Width - badge : position.X,
-            open && _flipY ? position.Y + size.Height - badge : position.Y);
+        var anchor = new PixelPoint(open && _flipX ? position.X + size.Width - badge.Width : position.X,
+            open && _flipY ? position.Y + size.Height - badge.Height : position.Y);
         if (_anchor == anchor)
             return;
         _anchor = anchor;
@@ -405,10 +423,15 @@ internal sealed class AgentsCard : IDisposable
 /// The agents card's window, as on Windows: the agents Rondel follows, waiting ones first, each with a dot in its
 /// state's color and what it is doing; a click on one brings its terminal to the front. Collapsed, it is Rondel's mark
 /// with the number of agents that need the user. The header holds the card's options and the pin that keeps it open.
+/// With the usage limits on, the open card lists them under the agents, and collapsed it is a pill with a short bar for
+/// each.
 /// </summary>
 internal sealed class AgentsCardWindow : Window
 {
     public const double ShadowMargin = 14, BadgeDiameter = 50;
+
+    /// <summary>The system font's semibold "%" reaches past its advance, and was cut off at the right.</summary>
+    static readonly Thickness ShareRoom = new(0, 0, 3, 0);
 
     readonly Border _card = new() { Width = 300, CornerRadius = new CornerRadius(14), BorderThickness = new Thickness(1.2), Padding = new Thickness(0, 0, 0, 6) };
     readonly Grid _header = new() { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"), Margin = new Thickness(12, 9, 7, 6), Background = Brushes.Transparent, Cursor = new Cursor(StandardCursorType.SizeAll) };
@@ -424,9 +447,28 @@ internal sealed class AgentsCardWindow : Window
     readonly Ellipse _badgeBack = new() { StrokeThickness = 1.2 };
     readonly Border _countBack = new() { MinWidth = 20, Height = 20, CornerRadius = new CornerRadius(10), Padding = new Thickness(5, 0), Margin = new Thickness(0, -5, -5, 0), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top };
     readonly TextBlock _count = new() { FontSize = 11.5, FontWeight = FontWeight.SemiBold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+
+    // The plan's usage limits, when the card shows them.
+    readonly StackPanel _usagePanel = new() { IsVisible = false };
+    readonly Border _usageDivider = new() { Height = 1, Margin = new Thickness(12, 6, 12, 6) };
+    readonly TextBlock _usageTitle = new() { FontSize = 11.5, FontWeight = FontWeight.SemiBold };
+    readonly TextBlock _usageAsOf = new() { FontSize = 11, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+    readonly StackPanel _usageRows = new();
+    readonly TextBlock _usageEmpty = new() { Margin = new Thickness(14, 4, 14, 4), FontSize = 11.5, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+
+    // Collapsed with the usage limits: the mark, its count, and a short bar for each limit.
+    readonly Panel _pill = new() { HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, IsVisible = false, Background = Brushes.Transparent, Cursor = new Cursor(StandardCursorType.SizeAll) };
+    readonly Border _pillBack = new() { CornerRadius = new CornerRadius(BadgeDiameter / 2), BorderThickness = new Thickness(1.2) };
+    readonly StackPanel _pillContent = new() { Orientation = Orientation.Horizontal, Height = BadgeDiameter, Margin = new Thickness(10, 0, 14, 0) };
+    readonly Border _pillCountBack = new() { MinWidth = 18, Height = 18, CornerRadius = new CornerRadius(9), Padding = new Thickness(4, 0), Margin = new Thickness(0, -8, -8, 0), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top };
+    readonly TextBlock _pillCount = new() { FontSize = 11, FontWeight = FontWeight.SemiBold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+    readonly Grid _pillRows = new() { Margin = new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+
     MenuPalette _palette;
     AgentsCardOptions _options = new();
-    bool _pinned;
+    bool _pinned, _collapsed, _usageOn;
+    UsageLimits? _usage;
+    DateTimeOffset _usageNow;
 
     public AgentsCardWindow(MenuPalette palette)
     {
@@ -446,6 +488,7 @@ internal sealed class AgentsCardWindow : Window
             _optionsPanel.IsVisible = !_optionsPanel.IsVisible;
             _rows.IsVisible = !_optionsPanel.IsVisible;
             _empty.IsVisible = !_optionsPanel.IsVisible && _rows.Children.Count == 0;
+            _usagePanel.IsVisible = _usageOn && !_optionsPanel.IsVisible;
             if (_optionsPanel.IsVisible)
                 BuildOptions();
         });
@@ -460,7 +503,12 @@ internal sealed class AgentsCardWindow : Window
         Grid.SetColumn(_menuButton, 2);
         Grid.SetColumn(_pinButton, 3);
         _header.PointerPressed += (_, e) => StartDrag(e);
-        _card.Child = new StackPanel { Children = { _header, _divider, _rows, _empty, _optionsPanel } };
+        var usageHeading = new Grid { Margin = new Thickness(14, 0, 14, 2), Children = { _usageTitle, _usageAsOf } };
+        _usagePanel.Children.Add(_usageDivider);
+        _usagePanel.Children.Add(usageHeading);
+        _usagePanel.Children.Add(_usageRows);
+        _usagePanel.Children.Add(_usageEmpty);
+        _card.Child = new StackPanel { Children = { _header, _divider, _rows, _empty, _usagePanel, _optionsPanel } };
         _card.Effect = new DropShadowEffect { BlurRadius = 22, OffsetY = 4, Color = Colors.Black, Opacity = 0.35 };
 
         _badgeBack.Effect = new DropShadowEffect { BlurRadius = 16, OffsetY = 3, Color = Colors.Black, Opacity = 0.35 };
@@ -470,7 +518,20 @@ internal sealed class AgentsCardWindow : Window
         _badge.Children.Add(_countBack);
         _badge.PointerPressed += (_, e) => StartDrag(e);
 
-        Content = new Panel { Margin = new Thickness(ShadowMargin), Children = { _card, _badge } };
+        _pillBack.Effect = new DropShadowEffect { BlurRadius = 16, OffsetY = 3, Color = Colors.Black, Opacity = 0.35 };
+        _pillCountBack.Child = _pillCount;
+        var pillMark = new Panel
+        {
+            Width = 30, Height = 30, VerticalAlignment = VerticalAlignment.Center,
+            Children = { new AppIcon.Mark { Width = 30, Height = 30 }, _pillCountBack },
+        };
+        _pillContent.Children.Add(pillMark);
+        _pillContent.Children.Add(_pillRows);
+        _pill.Children.Add(_pillBack);
+        _pill.Children.Add(_pillContent);
+        _pill.PointerPressed += (_, e) => StartDrag(e);
+
+        Content = new Panel { Margin = new Thickness(ShadowMargin), Children = { _card, _badge, _pill } };
         SetPinned(false);
         ApplyLook(palette);
     }
@@ -494,7 +555,23 @@ internal sealed class AgentsCardWindow : Window
 
     public event Action? SettingsRequested;
 
-    public bool IsCollapsed => _badge.IsVisible;
+    public bool IsCollapsed => _collapsed;
+
+    /// <summary>
+    /// The collapsed card's size with the margin for its shadow: the round badge, or the pill while the usage limits are
+    /// on (points).
+    /// </summary>
+    public Size CollapsedSize
+    {
+        get
+        {
+            if (!_usageOn)
+                return new Size(BadgeDiameter + 2 * ShadowMargin, BadgeDiameter + 2 * ShadowMargin);
+            _pillContent.Measure(Size.Infinity);
+            var size = _pillContent.DesiredSize;
+            return new Size(size.Width + 2 * ShadowMargin, size.Height + 2 * ShadowMargin);
+        }
+    }
 
     public bool OptionsOpen => _optionsPanel.IsVisible;
 
@@ -505,6 +582,14 @@ internal sealed class AgentsCardWindow : Window
         _card.BorderBrush = palette.Brand;
         _badgeBack.Fill = palette.Card;
         _badgeBack.Stroke = palette.Brand;
+        _pillBack.Background = palette.Card;
+        _pillBack.BorderBrush = palette.Brand;
+        _usageDivider.Background = palette.TileStroke;
+        _usageTitle.Foreground = palette.SubText;
+        _usageAsOf.Foreground = palette.SubText;
+        _usageEmpty.Foreground = palette.SubText;
+        if (_usageOn)
+            ShowUsage(true, _usage, _usageNow);
         _divider.Background = palette.TileStroke;
         _title.Foreground = palette.Text;
         _empty.Foreground = palette.SubText;
@@ -533,16 +618,142 @@ internal sealed class AgentsCardWindow : Window
         _count.Text = (waiting + failed).ToString(Loc.Culture);
         _countBack.Background = StateBrush(failed > 0 ? AgentState.Failed : AgentState.Waiting);
         _countBack.IsVisible = waiting + failed > 0;
-        ToolTip.SetTip(_badge, agents.Count == 0 ? Loc.Get("Card.Empty") : summary);
+        _pillCount.Text = _count.Text;
+        _pillCountBack.Background = _countBack.Background;
+        _pillCountBack.IsVisible = _countBack.IsVisible;
+        string tip = agents.Count == 0 ? Loc.Get("Card.Empty") : summary;
+        ToolTip.SetTip(_badge, tip);
+        ToolTip.SetTip(_pill, tip);
     }
 
-    /// <summary>The card open, or collapsed to its badge.</summary>
+    /// <summary>The card open, or collapsed to its badge (the pill while the usage limits are on).</summary>
     public void SetCollapsed(bool collapsed)
     {
+        _collapsed = collapsed;
         _card.IsVisible = !collapsed;
-        _badge.IsVisible = collapsed;
+        _badge.IsVisible = collapsed && !_usageOn;
+        _pill.IsVisible = collapsed && _usageOn;
         if (collapsed)
             CloseOptions();
+    }
+
+    /// <summary>
+    /// Shows the plan's usage limits (<paramref name="on"/>) or takes them away: in the open card under the agents, and
+    /// collapsed as the pill. <paramref name="now"/> decides what has reset and what is old.
+    /// </summary>
+    public void ShowUsage(bool on, UsageLimits? limits, DateTimeOffset now)
+    {
+        _usageOn = on;
+        _usage = limits;
+        _usageNow = now;
+        _usagePanel.IsVisible = on && !OptionsOpen;
+        SetCollapsed(_collapsed);
+        _usageRows.Children.Clear();
+        _pillRows.Children.Clear();
+        _pillRows.RowDefinitions.Clear();
+        _pillRows.ColumnDefinitions.Clear();
+        if (!on)
+            return;
+
+        _usageTitle.Text = Loc.Get("Card.Usage");
+        bool none = limits?.FiveHour is null && limits?.Weekly is null;
+        _usageAsOf.Text = limits is null || none ? "" : UsageText.AsOf(limits, now) ?? "";
+        _usageEmpty.Text = Loc.Get("Card.Usage.None");
+        _usageEmpty.IsVisible = none;
+        if (!none)
+        {
+            _usageRows.Children.Add(UsageRow(Loc.Get("Card.Usage.FiveHour"), limits!.FiveHour, now, countdown: true));
+            _usageRows.Children.Add(UsageRow(Loc.Get("Card.Usage.Weekly"), limits.Weekly, now, countdown: false));
+        }
+
+        _pillRows.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto, MinWidth = 38 });
+        _pillRows.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(62) });
+        _pillRows.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto, MinWidth = 36 });
+        PillRow(0, Loc.Get("Card.Usage.FiveHour.Short"), limits?.FiveHour, now);
+        PillRow(1, Loc.Get("Card.Usage.Weekly.Short"), limits?.Weekly, now);
+    }
+
+    /// <summary>One limit in the open card: its name and share, a bar, and when it starts over.</summary>
+    StackPanel UsageRow(string label, UsageWindow? window, DateTimeOffset now, bool countdown)
+    {
+        double? share = UsageText.Share(window, now);
+        var line = new Grid();
+        line.Children.Add(new TextBlock { Text = label, FontSize = 12.5, Foreground = _palette.Text });
+        line.Children.Add(new TextBlock
+        {
+            Text = UsageText.Percent(window, now), FontSize = 12.5, FontWeight = FontWeight.SemiBold, Padding = ShareRoom,
+            Foreground = ShareBrush(share) ?? _palette.Text, HorizontalAlignment = HorizontalAlignment.Right,
+        });
+        var row = new StackPanel { Margin = new Thickness(14, 5, 14, 3) };
+        row.Children.Add(line);
+        var bar = Bar(share, 6);
+        bar.Margin = new Thickness(0, 5, 0, 4);
+        row.Children.Add(bar);
+        if (window is not null)
+            row.Children.Add(new TextBlock { Text = UsageText.Resets(window, now, countdown), FontSize = 11, Foreground = _palette.SubText, TextWrapping = TextWrapping.Wrap });
+        return row;
+    }
+
+    /// <summary>One limit in the pill: a short name, a short bar, the share.</summary>
+    void PillRow(int index, string label, UsageWindow? window, DateTimeOffset now)
+    {
+        _pillRows.RowDefinitions.Add(new RowDefinition { Height = new GridLength(17) });
+        var name = new TextBlock { Text = label, FontSize = 10.5, Foreground = _palette.SubText, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+        var bar = Bar(UsageText.Share(window, now), 5);
+        bar.VerticalAlignment = VerticalAlignment.Center;
+        var share = new TextBlock
+        {
+            Text = UsageText.Percent(window, now), FontSize = 11, FontWeight = FontWeight.SemiBold, Foreground = _palette.Text, Padding = ShareRoom,
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0),
+        };
+        Grid.SetRow(name, index);
+        Grid.SetRow(bar, index);
+        Grid.SetRow(share, index);
+        Grid.SetColumn(bar, 1);
+        Grid.SetColumn(share, 2);
+        _pillRows.Children.Add(name);
+        _pillRows.Children.Add(bar);
+        _pillRows.Children.Add(share);
+    }
+
+    /// <summary>A bar filled to <paramref name="share"/> percent (empty without one), as wide as its place.</summary>
+    Grid Bar(double? share, double height)
+    {
+        double filled = Math.Clamp(share ?? 0, 0, 100);
+        var bar = new Grid { Height = height };
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(filled, GridUnitType.Star) });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100 - filled, GridUnitType.Star) });
+        var track = new Border { CornerRadius = new CornerRadius(height / 2), Background = Track() };
+        Grid.SetColumnSpan(track, 2);
+        bar.Children.Add(track);
+        if (filled > 0)
+        {
+            bar.Children.Add(new Border
+            {
+                CornerRadius = new CornerRadius(height / 2), MinWidth = height,
+                Background = ShareBrush(filled) ?? new LinearGradientBrush
+                {
+                    StartPoint = new RelativePoint(0, 0.5, RelativeUnit.Relative),
+                    EndPoint = new RelativePoint(1, 0.5, RelativeUnit.Relative),
+                    GradientStops = { new GradientStop(_palette.BrandFrom, 0), new GradientStop(_palette.BrandTo, 1) },
+                },
+            });
+        }
+        return bar;
+    }
+
+    /// <summary>Amber from <see cref="UsageText.High"/>, red from <see cref="UsageText.Critical"/>; null below.</summary>
+    IBrush? ShareBrush(double? share) => share switch
+    {
+        >= UsageText.Critical => StateBrush(AgentState.Failed),
+        >= UsageText.High => StateBrush(AgentState.Waiting),
+        _ => null,
+    };
+
+    IBrush Track()
+    {
+        var sub = _palette.SubText is ISolidColorBrush solid ? solid.Color : Colors.Gray;
+        return new SolidColorBrush(Color.FromArgb(0x40, sub.R, sub.G, sub.B));
     }
 
     public void SetPinned(bool pinned)
@@ -568,6 +779,7 @@ internal sealed class AgentsCardWindow : Window
         _optionsPanel.IsVisible = false;
         _rows.IsVisible = true;
         _empty.IsVisible = _rows.Children.Count == 0;
+        _usagePanel.IsVisible = _usageOn;
     }
 
     void StartDrag(PointerPressedEventArgs e)
@@ -621,7 +833,8 @@ internal sealed class AgentsCardWindow : Window
 
     /// <summary>
     /// The card's options, inside the card where its agents were (a menu of its own would need the focus the card never
-    /// takes): where it stays, over full-screen apps, notifications while it is shown, hiding it, and Settings.
+    /// takes): where it stays, over full-screen apps, notifications while it is shown, the usage limits, hiding it, and
+    /// Settings.
     /// </summary>
     void BuildOptions()
     {
@@ -633,6 +846,7 @@ internal sealed class AgentsCardWindow : Window
         _optionsPanel.Children.Add(Separator());
         _optionsPanel.Children.Add(MenuRow(Loc.Get("Card.OverFullScreen"), options.OverFullScreen, () => OptionChanged?.Invoke(o => o.OverFullScreen = !o.OverFullScreen)));
         _optionsPanel.Children.Add(MenuRow(Loc.Get("Card.Mute"), options.MuteNotifications, () => OptionChanged?.Invoke(o => o.MuteNotifications = !o.MuteNotifications)));
+        _optionsPanel.Children.Add(MenuRow(Loc.Get("Card.Usage.Show"), options.ShowUsage, () => OptionChanged?.Invoke(o => o.ShowUsage = !o.ShowUsage)));
         _optionsPanel.Children.Add(Separator());
         _optionsPanel.Children.Add(MenuRow(Loc.Get("Card.Hide"), null, () => HideRequested?.Invoke(), HideShortcut?.Invoke()));
         _optionsPanel.Children.Add(MenuRow(Loc.Get("Tray.Settings"), null, () => SettingsRequested?.Invoke()));
@@ -700,14 +914,17 @@ internal sealed class AgentsCardWindow : Window
         _ => new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44)),
     };
 
-    /// <summary>Developer aid (--render-card): the open card, or the badge, drawn into a bitmap at 2x without showing it.</summary>
+    /// <summary>
+    /// Developer aid (--render-card): the open card, or the badge (the pill with the usage limits), drawn into a bitmap at
+    /// 2x without showing it.
+    /// </summary>
     public RenderTargetBitmap RenderPreview(Color background, bool collapsed, bool options)
     {
         SetCollapsed(collapsed);
         if (options && !collapsed)
         {
             _optionsPanel.IsVisible = true;
-            _rows.IsVisible = _empty.IsVisible = false;
+            _rows.IsVisible = _empty.IsVisible = _usagePanel.IsVisible = false;
             BuildOptions();
         }
         // Drawn from a panel inside the window, at a fixed size, then cut to what it holds; the shadows are left out, as
@@ -715,7 +932,7 @@ internal sealed class AgentsCardWindow : Window
         const double Width = 340, Height = 700;
         var content = (Panel)Content!;
         Content = null;
-        _card.Effect = _badgeBack.Effect = null;
+        _card.Effect = _badgeBack.Effect = _pillBack.Effect = null;
         content.VerticalAlignment = VerticalAlignment.Top;
         content.HorizontalAlignment = HorizontalAlignment.Left;
         var root = new Panel { Width = Width, Height = Height, Background = new SolidColorBrush(background), Children = { content } };
