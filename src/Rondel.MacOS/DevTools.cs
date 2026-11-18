@@ -21,6 +21,7 @@ using Rondel.Core.Updates;
 using Rondel.MacOS.Detection;
 using Rondel.MacOS.Interop;
 using Rondel.MacOS.Launch;
+using Rondel.MacOS.Trigger;
 using Rondel.MacOS.UI;
 using Rondel.MacOS.Updates;
 
@@ -289,6 +290,7 @@ internal static class DevTools
         window.ShowAgents(options.Contains("empty") ? [] : MadeUpAgents());
         settings.ActiveAgents.Card.ShowUsage = options.Contains("usage") || options.Contains("old");
         window.SetOptions(settings.ActiveAgents.Card);
+        window.HideShortcut = () => Hotkey.Display("Control+Option+K");
         if (settings.ActiveAgents.Card.ShowUsage)
         {
             var now = DateTimeOffset.Now;

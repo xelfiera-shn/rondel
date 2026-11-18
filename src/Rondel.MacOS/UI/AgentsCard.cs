@@ -123,6 +123,13 @@ internal sealed class AgentsCard : IDisposable
     /// <summary>The card is on screen (open or collapsed): its badge tells what needs the user.</summary>
     public bool IsShown { get; private set; }
 
+    /// <summary>The card's shortcut, shown next to "Hide the card" in its options; null while it has none.</summary>
+    public Func<string?>? HideShortcut
+    {
+        get => _window.HideShortcut;
+        set => _window.HideShortcut = value;
+    }
+
     /// <summary>
     /// The card is shown and macOS draws some of it: not on a full-screen app's Space it does not join, not behind a
     /// window (on the desktop). Notifications are kept quiet only then.
@@ -543,6 +550,9 @@ internal sealed class AgentsCardWindow : Window
 
     public event Action? HideRequested;
 
+    /// <summary>The card's shortcut, shown next to "Hide the card"; null while it has none.</summary>
+    public Func<string?>? HideShortcut { get; set; }
+
     public event Action? SettingsRequested;
 
     public bool IsCollapsed => _collapsed;
@@ -838,19 +848,26 @@ internal sealed class AgentsCardWindow : Window
         _optionsPanel.Children.Add(MenuRow(Loc.Get("Card.Mute"), options.MuteNotifications, () => OptionChanged?.Invoke(o => o.MuteNotifications = !o.MuteNotifications)));
         _optionsPanel.Children.Add(MenuRow(Loc.Get("Card.Usage.Show"), options.ShowUsage, () => OptionChanged?.Invoke(o => o.ShowUsage = !o.ShowUsage)));
         _optionsPanel.Children.Add(Separator());
-        _optionsPanel.Children.Add(MenuRow(Loc.Get("Card.Hide"), null, () => HideRequested?.Invoke()));
+        _optionsPanel.Children.Add(MenuRow(Loc.Get("Card.Hide"), null, () => HideRequested?.Invoke(), HideShortcut?.Invoke()));
         _optionsPanel.Children.Add(MenuRow(Loc.Get("Tray.Settings"), null, () => SettingsRequested?.Invoke()));
     }
 
     /// <param name="check">Null for a command; otherwise whether the option is on (a check mark).</param>
-    Border MenuRow(string text, bool? check, Action click)
+    /// <param name="shortcut">The command's shortcut, at the right; null for none.</param>
+    Border MenuRow(string text, bool? check, Action click, string? shortcut = null)
     {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("22,*") };
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("22,*,Auto") };
         if (check == true)
             grid.Children.Add(new TextBlock { Text = "✓", FontSize = 12, Foreground = _palette.Accent, VerticalAlignment = VerticalAlignment.Center });
         var label = new TextBlock { Text = text, FontSize = 12.5, Foreground = _palette.Text, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
         Grid.SetColumn(label, 1);
         grid.Children.Add(label);
+        if (shortcut is not null)
+        {
+            var keys = new TextBlock { Text = shortcut, FontSize = 12, Foreground = _palette.SubText, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            Grid.SetColumn(keys, 2);
+            grid.Children.Add(keys);
+        }
         var row = new Border { Child = grid, Padding = new Thickness(8, 6, 10, 6), CornerRadius = new CornerRadius(6), Background = Brushes.Transparent, Cursor = new Cursor(StandardCursorType.Hand) };
         row.PointerEntered += (_, _) => row.Background = Hover();
         row.PointerExited += (_, _) => row.Background = Brushes.Transparent;

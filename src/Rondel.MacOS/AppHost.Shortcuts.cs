@@ -10,12 +10,12 @@ using static Rondel.MacOS.Interop.Native;
 namespace Rondel.MacOS;
 
 /// <summary>
-/// The keyboard shortcuts, as on Windows: the menu at the mouse cursor, Ask About a Screenshot, and the menu with its
-/// Active Agents arc open.
+/// The keyboard shortcuts, as on Windows: the menu at the mouse cursor, Ask About a Screenshot, the menu with its
+/// Active Agents arc open, and the agents card.
 /// </summary>
 internal sealed partial class AppHost
 {
-    const int MenuShortcut = 1, ScreenshotShortcut = 2, AgentsShortcut = 3;
+    const int MenuShortcut = 1, ScreenshotShortcut = 2, AgentsShortcut = 3, CardShortcut = 4;
 
     /// <summary>The shortcuts as the settings have them, by id.</summary>
     readonly Dictionary<int, string> _shortcuts = [];
@@ -31,6 +31,9 @@ internal sealed partial class AppHost
     /// <summary>Why the Active Agents shortcut is not active, or null.</summary>
     public string? AgentsHotkeyError => _shortcutErrors.GetValueOrDefault(AgentsShortcut);
 
+    /// <summary>Why the agents card's shortcut is not active, or null.</summary>
+    public string? CardHotkeyError => _shortcutErrors.GetValueOrDefault(CardShortcut);
+
     /// <summary>
     /// Registers the shortcuts once Rondel runs, not when the host is built: the developer renders build a host from
     /// the user's settings and must not take the running Rondel's shortcuts.
@@ -45,6 +48,8 @@ internal sealed partial class AppHost
                 AskAboutScreenshot();
             else if (id == AgentsShortcut)
                 OnAgentsShortcut();
+            else if (id == CardShortcut)
+                OnCardShortcut();
         };
         _shortcutsStarted = true;
         foreach (int id in _shortcuts.Keys)
@@ -58,6 +63,9 @@ internal sealed partial class AppHost
         Apply(MenuShortcut, settings.Hotkey);
         Apply(ScreenshotShortcut, settings.Quick.ScreenshotHotkey);
         Apply(AgentsShortcut, settings.ActiveAgents.Hotkey);
+        // The card's, as on Windows, only while the card is turned on.
+        var card = settings.ActiveAgents.Card;
+        Apply(CardShortcut, card.Show ? card.Hotkey : "");
         if (changed.Count == 0 || !_shortcutsStarted || _shortcutsPaused)
             return;
         // All the changed ones let go first, so a combination moving from one shortcut to another is free for it; one that
@@ -106,6 +114,7 @@ internal sealed partial class AppHost
         MenuShortcut => "menu",
         ScreenshotShortcut => "screenshot",
         AgentsShortcut => "Active Agents",
+        CardShortcut => "agents card",
         _ => id.ToString(System.Globalization.CultureInfo.InvariantCulture),
     };
 
@@ -168,4 +177,15 @@ internal sealed partial class AppHost
         var (model, slice) = _flow.AgentsMenu();
         ShowModel(model, CursorLocation(), hover: slice);
     }
+
+    /// <summary>Hides the agents card, or shows it, also with no agent: "Hide the card" on the card does the same.</summary>
+    void OnCardShortcut()
+    {
+        _card?.Toggle();
+        UpdateCardMenu();
+    }
+
+    /// <summary>The card's shortcut as its options show it next to "Hide the card", while it is active.</summary>
+    string? CardShortcutText() =>
+        HotKeys.IsRegistered(CardShortcut) && _shortcuts.TryGetValue(CardShortcut, out string? text) ? Hotkey.Display(text) : null;
 }
