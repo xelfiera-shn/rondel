@@ -272,7 +272,9 @@ internal static class DevTools
 
     /// <summary>
     /// Draws the agents card with made-up agents into a PNG at 2x:
-    /// <c>--render-card out.png [dark|light] [en|tr] [collapsed] [options] [empty]</c> (<c>options</c>: its own options open).
+    /// <c>--render-card out.png [dark|light] [en|tr] [collapsed] [options] [empty] [usage] [old]</c> (<c>options</c>: its own
+    /// options open; <c>usage</c>: with made-up usage limits, collapsed to the pill; <c>old</c>: the limits old, one window
+    /// reset since).
     /// </summary>
     static void RenderCard(string output, string[] options)
     {
@@ -285,12 +287,23 @@ internal static class DevTools
         settings.Normalize();
         var window = new AgentsCardWindow(MenuPalette.For(settings.Appearance, dark));
         window.ShowAgents(options.Contains("empty") ? [] : MadeUpAgents());
+        settings.ActiveAgents.Card.ShowUsage = options.Contains("usage") || options.Contains("old");
         window.SetOptions(settings.ActiveAgents.Card);
+        if (settings.ActiveAgents.Card.ShowUsage)
+        {
+            var now = DateTimeOffset.Now;
+            window.ShowUsage(true, MadeUpUsage(now, old: options.Contains("old")), now);
+        }
         var background = dark ? Color.FromRgb(0x20, 0x24, 0x2C) : Color.FromRgb(0xD9, 0xDE, 0xE6);
         using var bitmap = window.RenderPreview(background, collapsed: options.Contains("collapsed"), options: options.Contains("options"));
         bitmap.Save(output, new PngBitmapEncoderOptions());
         window.Close();
     }
+
+    /// <summary>Made-up usage limits, as on Windows; <paramref name="old"/>: two hours old, the five-hour window reset since.</summary>
+    static UsageLimits MadeUpUsage(DateTimeOffset now, bool old) => old
+        ? new UsageLimits(new UsageWindow(64, now.AddMinutes(-40)), new UsageWindow(37, now.AddDays(4).AddHours(3)), now.AddHours(-2))
+        : new UsageLimits(new UsageWindow(81, now.AddMinutes(85)), new UsageWindow(34, now.AddDays(4).AddHours(3)), now.AddMinutes(-1));
 
     /// <summary>Made-up agents in every state, for the pictures.</summary>
     static List<ActiveAgent> MadeUpAgents()
